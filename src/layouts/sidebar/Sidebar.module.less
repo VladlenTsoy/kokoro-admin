@@ -1,0 +1,131 @@
+.logoMenuSticky {
+    position: sticky;
+    top: 0;
+
+    .logo {
+        height: 80px;
+        padding: .5rem 1rem;
+        display: grid;
+        grid-template-columns: 45px 1fr;
+        gap: 1rem;
+        align-items: center;
+
+        .logoImage {
+            height: 45px;
+            width: 45px;
+            border-radius: 50%;
+            overflow: hidden;
+            background: @primary-color;
+
+            img {
+                height: 100%;
+                object-fit: contain;
+                transform: scale(.8);
+            }
+        }
+
+        .title {
+            position: relative;
+            display: flex;
+            align-items: center;
+            font-size: 20px;
+            color: white;
+            width: 100%;
+            height: 100%;
+
+            .text {
+                font-weight: bolder;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                padding: .5rem 0;
+
+                .tag {
+                    position: absolute;
+                    font-size: @font-size-sm - 5;
+                    background: @primary-color;
+                    border-radius: @border-radius-base;
+                    padding: 0 .5rem;
+                    right: .5rem - .25rem;
+                    bottom: 18px;
+                }
+            }
+        }
+    }
+
+    .siteLayoutMenu {
+        :global {
+            .ant-menu-item:first-child {
+                margin-top: 0;
+            }
+
+            a,
+            .ant-menu-title-content {
+                color: @white;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }
+
+            .ant-menu-item .ant-menu-item-icon,
+            .ant-menu-submenu-title .ant-menu-item-icon,
+            .ant-menu-item .anticon,
+            .ant-menu-submenu-title .anticon {
+                line-height: 25px;
+                min-width: 25px;
+                font-size: 25px;
+                vertical-align: middle;
+            }
+
+            .ant-menu-item .ant-menu-item-icon+span,
+            .ant-menu-submenu-title .ant-menu-item-icon+span,
+            .ant-menu-item .anticon+span,
+            .ant-menu-submenu-title .anticon+span {
+                margin-left: 1.1rem;
+            }
+
+        }
+    }
+}
+
+:global {
+
+    .ant-menu.ant-menu-inline-collapsed>.ant-menu-item,
+    .ant-menu.ant-menu-inline-collapsed>.ant-menu-item-group>.ant-menu-item-group-list>.ant-menu-item,
+    .ant-menu.ant-menu-inline-collapsed>.ant-menu-item-group>.ant-menu-item-group-list>.ant-menu-submenu>.ant-menu-submenu-title,
+    .ant-menu.ant-menu-inline-collapsed>.ant-menu-submenu>.ant-menu-submenu-title,
+    .ant-menu-dark.ant-menu-inline .ant-menu-item,
+    .ant-menu-dark.ant-menu-vertical .ant-menu-item,
+    .ant-menu-dark.ant-menu-vertical-left .ant-menu-item,
+    .ant-menu-dark.ant-menu-vertical-right .ant-menu-item {
+        padding: 0 28px !important;
+    }
+
+    .ant-menu.ant-menu-inline-collapsed>.ant-menu-item .ant-menu-item-icon,
+    .ant-menu.ant-menu-inline-collapsed>.ant-menu-item-group>.ant-menu-item-group-list>.ant-menu-item .ant-menu-item-icon,
+    .ant-menu.ant-menu-inline-collapsed>.ant-menu-item-group>.ant-menu-item-group-list>.ant-menu-submenu>.ant-menu-submenu-title .ant-menu-item-icon,
+    .ant-menu.ant-menu-inline-collapsed>.ant-menu-submenu>.ant-menu-submenu-title .ant-menu-item-icon,
+    .ant-menu.ant-menu-inline-collapsed>.ant-menu-item .anticon,
+    .ant-menu.ant-menu-inline-collapsed>.ant-menu-item-group>.ant-menu-item-group-list>.ant-menu-item .anticon,
+    .ant-menu.ant-menu-inline-collapsed>.ant-menu-item-group>.ant-menu-item-group-list>.ant-menu-submenu>.ant-menu-submenu-title .anticon,
+    .ant-menu.ant-menu-inline-collapsed>.ant-menu-submenu>.ant-menu-submenu-title .anticon {
+        line-height: 25px;
+        min-width: 25px;
+        font-size: 25px;
+        margin-right: 1.1rem;
+        vertical-align: middle;
+    }
+
+    .ant-menu-vertical>.ant-menu-item,
+    .ant-menu-vertical-left>.ant-menu-item,
+    .ant-menu-vertical-right>.ant-menu-item,
+    .ant-menu-inline>.ant-menu-item,
+    .ant-menu-vertical>.ant-menu-submenu>.ant-menu-submenu-title,
+    .ant-menu-vertical-left>.ant-menu-submenu>.ant-menu-submenu-title,
+    .ant-menu-vertical-right>.ant-menu-submenu>.ant-menu-submenu-title,
+    .ant-menu-inline>.ant-menu-submenu>.ant-menu-submenu-title {
+        height: 50px;
+        line-height: 50px;
+    }
+}
