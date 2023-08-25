@@ -1,5 +1,5 @@
 import React from "react"
-import Details from "./details"
+import Details from "./Details"
 import PreviewImage from "./PreviewImage"
 import Sizes from "./Sizes"
 import Price from "./Price"

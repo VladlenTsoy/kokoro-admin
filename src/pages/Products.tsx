@@ -3,7 +3,7 @@ import HeaderPage from "../layouts/header-page/HeaderPage"
 import {useNavigate, useParams} from "react-router-dom"
 import {PlusOutlined, SkinOutlined} from "@ant-design/icons"
 import Container from "../layouts/container/Container"
-import ProductList from "./products/productsList"
+import ProductList from "../features/products/ProductsList"
 import {Tabs} from "antd"
 
 type StatusType = "all" | "draft" | "published" | "ending" | "archive"
