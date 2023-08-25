@@ -5,15 +5,17 @@ import baseQuery from '../apiConfig'
 export const productsApi = createApi({
     reducerPath: 'productsApi',
     baseQuery,
+    tagTypes: ["product"],
     endpoints: build => ({
-         getAllProducts: build.query<any, SelectProductsFilterParams>({
+         getAllProducts: build.mutation<any, SelectProductsFilterParams>({
             query: (body: any) => ({
                 url: `user/admin/product-colors/table`,
                 method: "POST",
                 body
             }),
+            invalidatesTags: ["product"]
         }),
     })
 })
 
-export const {useGetAllProductsQuery} = productsApi
+export const {useGetAllProductsMutation} = productsApi

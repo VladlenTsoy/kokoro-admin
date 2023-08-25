@@ -1,79 +1,63 @@
-import React, {useState} from "react"
-import {useGetAllProductsQuery} from "../store/productsApi/productsApi"
-import {Table} from "antd"
+import React from "react"
+import HeaderPage from "../layouts/header-page/HeaderPage"
+import {useNavigate, useParams} from "react-router-dom"
+import {PlusOutlined, SkinOutlined} from "@ant-design/icons"
+import Container from "../layouts/container/Container"
+import ProductList from "./products/productsList"
+import {Tabs} from "antd"
 
-const columns = [
+type StatusType = "all" | "draft" | "published" | "ending" | "archive"
+
+const items = [
     {
-        width: "60px",
-        dataIndex: "id"
+        key: "all",
+        label: "Все продукты"
     },
     {
-        width: "61px",
-        dataIndex: ["url_thumbnail"]
+        key: "draft",
+        label: "В проекте"
     },
     {
-        dataIndex: ["title"]
+        key: "published",
+        label: "Опубликованные"
     },
     {
-        dataIndex: ["details", "price"],
-        render: (price: number, record: any) => (
-            <div className="price-block">
-                {record.discount ? (
-                    <>
-                        <div className="discount">
-                            <div>{record.discount.discount}%</div>
-                        </div>
-                        <span className="price">{price}</span>
-                        <span className="extra"> сум</span>
-                    </>
-                ) : (
-                    <>
-                        <span className="price">{price}</span>
-                        <span className="extra"> сум</span>
-                    </>
-                )}
-            </div>
-        )
+        key: "ending",
+        label: "Закончились"
     },
     {
-        dataIndex: "status",
-        width: "130px"
+        key: "archive",
+        label: "Архив"
     }
 ]
 
-const Products: React.FC = () => {
-    const [state, setState] = useState({current: 1, pageSize: 50})
+const Products = () => {
+    const params = useParams<{status: StatusType}>()
+    const navigate = useNavigate()
 
-    const params = {
-        categoryIds: [],
-        pagination: state,
-        search: "",
-        sizeIds: [],
-        sorter: {field: "created_at", order: "descend"},
-        type: "all"
-    }
-
-    const {isLoading, data} = useGetAllProductsQuery(params)
-    const onChange = (pagination: any) => {
-        setState(pagination)
-    }
+    // Смена статусов
+    const onChangeHandler = (status: string) => navigate({pathname: `/products/${status}`})
 
     return (
-        <Table
-            size="small"
-            loading={isLoading}
-            showHeader={true}
-            rowKey="id"
-            scroll={{x: true}}
-            dataSource={data ? data.results : []}
-            columns={columns}
-            pagination={{
-                ...params.pagination,
-                total: data?.total || 0,
-                size: "default"
-            }}
-            onChange={onChange}
-        />
+        <>
+            <HeaderPage
+                title="Товары"
+                action={[
+                    {
+                        type: "primary",
+                        link: "/products/product/create",
+                        icon: <PlusOutlined />,
+                        text: "Добавить"
+                    }
+                ]}
+                icon={<SkinOutlined />}
+                tabs
+            />
+            <Tabs activeKey={params.status} items={items} onChange={onChangeHandler} />
+            <Container>
+                <ProductList />
+            </Container>
+        </>
     )
 }
 
