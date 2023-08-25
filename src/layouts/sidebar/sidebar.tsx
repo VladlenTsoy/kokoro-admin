@@ -7,7 +7,7 @@ const menuItems = [
     {icon: <HomeOutlined />, label: <Link to="/">Главная</Link>, key: ""},
     {
         icon: <SkinOutlined />,
-        label: <Link to="/products">Продукты</Link>,
+        label: <Link to="/products/all">Продукты</Link>,
         key: "products"
     }
 ]
