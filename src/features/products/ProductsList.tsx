@@ -16,26 +16,23 @@ const ProductList: React.FC = () => {
             promise.abort()
         }
     }, [fetchProductColors, params])
-
     return (
-        <>
-            <Table
-                size="small"
-                loading={isLoading}
-                showHeader={true}
-                rowKey="id"
-                scroll={{x: true}}
-                dataSource={data ? data.results : []}
-                columns={Columns}
-                pagination={{
-                    ...params.pagination,
-                    total: data?.total || 0,
-                    size: "default"
-                }}
-                onChange={onChangeHandler}
-                rowClassName="rowProduct"
-            />
-        </>
+        <Table
+            size="small"
+            loading={isLoading}
+            showHeader={true}
+            rowKey="id"
+            scroll={{x: true}}
+            dataSource={data ? data.results : []}
+            columns={Columns}
+            pagination={{
+                ...params.pagination,
+                total: data?.total || 0,
+                size: "default"
+            }}
+            onChange={onChangeHandler}
+            rowClassName="rowProduct"
+        />
     )
 }
 

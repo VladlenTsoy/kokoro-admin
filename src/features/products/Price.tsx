@@ -30,23 +30,23 @@ const useStyles = createUseStyles({
 })
 
 interface PriceProps {
-    product: any;
-    price: any;
+    discount?: {discount: number, end_at: string};
+    price: number;
 }
 
-const Price: React.FC<PriceProps> = ({product, price}) => {
+const Price: React.FC<PriceProps> = ({discount, price}) => {
     const styles = useStyles()
     return (
         <div className={styles.priceBlock}>
-            {product.discount ? (
+            {discount ? (
                 <>
-                    <Tooltip title={product.discount.end_at ? `До ${formatDate(product.discount.end_at)}` : null}>
+                    <Tooltip title={discount.end_at ? `До ${formatDate(discount.end_at)}` : null}>
                         <div className={styles.discount}>
-                            {product.discount.end_at && <ClockCircleOutlined />}
-                            <div>{product.discount.discount}%</div>
+                            {discount.end_at && <ClockCircleOutlined />}
+                            <div>{discount.discount}%</div>
                         </div>
                     </Tooltip>
-                    <span className={styles.price}>{formatPrice(price, product.discount)}</span>
+                    <span className={styles.price}>{formatPrice(price, discount)}</span>
                     <span className={styles.extra}>сум</span>
                 </>
             ) : (

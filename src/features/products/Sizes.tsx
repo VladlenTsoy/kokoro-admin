@@ -25,14 +25,23 @@ const useStyles = createUseStyles({
 })
 
 interface SizesProps {
-    product: any;
+    sizes: any;
 }
 
-const Sizes: React.FC<SizesProps> = ({product}) => {
+interface Size {
+    id: number
+    size_id: number
+    title: string
+    qty: number
+    min_qty: number
+    cost_price: number
+}
+
+const Sizes: React.FC<SizesProps> = ({sizes}) => {
     const styles = useStyles()
     return (
         <div className={styles.sizes}>
-            {product.sizes.map((size: any) => {
+            {sizes.map((size: Size) => {
                 return (
                     <div key={size.id} className={styles.size}>
                         <b>{size.title}</b>

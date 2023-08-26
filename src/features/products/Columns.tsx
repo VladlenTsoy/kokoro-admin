@@ -4,6 +4,7 @@ import PreviewImage from "./PreviewImage"
 import Sizes from "./Sizes"
 import Price from "./Price"
 import Status from "./Status"
+import {ProductColor} from "../../types/product/ProductColor"
 
 export const Columns = [
     {
@@ -14,18 +15,19 @@ export const Columns = [
     {
         width: "61px",
         dataIndex: ["url_thumbnail"],
-        render: (image: string, record: any) => <PreviewImage image={image} product={record} />
+        render: (image: string, record: ProductColor) => <PreviewImage image={image} product={record} />
     },
     {
         dataIndex: ["title"],
-        render: (title: any, record: any) => <Details title={title} product={record} />
+        render: (title: string, record: ProductColor) => <Details title={title} product={record} />
     },
     {
-        render: (_: any, record: any) => <Sizes product={record} />
+        dataIndex: ["sizes"],
+        render: (sizes: any) => <Sizes sizes={sizes} />
     },
     {
         dataIndex: ["details", "price"],
-        render: (price: any, record: any) => <Price product={record} price={price} />
+        render: (price: number, record: any) => <Price discount={record.discount} price={price} />
     },
     {
         dataIndex: "status",

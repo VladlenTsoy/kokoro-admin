@@ -1,4 +1,4 @@
-import React, {useState} from "react"
+import React from "react"
 import ImageBlock from "../../components/image-block/ImageBlock"
 import { createUseStyles } from "react-jss"
 
@@ -29,13 +29,11 @@ const PreviewImage: React.FC<PreviewImageProps> = ({image, product}) => {
     const styles = useStyles()
 
     return (
-        <>
-            <div style={{width: "45px"}}>
-                <div className={styles.previewImage}>
-                    <ImageBlock image={image} title={product.title} />
-                </div>
+        <div style={{width: "45px"}}>
+            <div className={styles.previewImage}>
+                <ImageBlock image={image} title={product.title} />
             </div>
-        </>
+        </div>
     )
 }
 export default PreviewImage
