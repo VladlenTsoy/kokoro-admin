@@ -2,7 +2,7 @@ import {Moment} from "moment"
 
 export type StatusTypes = "draft" | "published" | "archive" | "ending"
 
-export interface ProductFormData {
+interface ProductFormData {
     category_id: number
     color_id: number
     title: string
@@ -24,7 +24,7 @@ export interface ProductFormData {
     tags_id?: string[]
 }
 
-export interface CreateDataParams {
+interface CreateDataParams {
     title: string
     category_id: number
     color_id: number
@@ -41,12 +41,12 @@ export interface CreateDataParams {
     tags_id: number[]
 }
 
-export  interface EditDataParams extends CreateDataParams {
+interface EditDataParams extends CreateDataParams {
     id: number
     product_id: number
 }
 
-export interface TemporaryImageType {
+interface TemporaryImageType {
     id: number
     imageUrl: string
     loading: boolean

@@ -5,8 +5,7 @@ import {PlusOutlined, SkinOutlined} from "@ant-design/icons"
 import Container from "../layouts/container/Container"
 import ProductList from "../features/products/ProductsList"
 import {Tabs} from "antd"
-
-type StatusType = "all" | "draft" | "published" | "ending" | "archive"
+import {StatusTypes} from "../types/Product"
 
 const items = [
     {
@@ -32,7 +31,7 @@ const items = [
 ]
 
 const Products = () => {
-    const params = useParams<{status: StatusType}>()
+    const params = useParams<{status: StatusTypes}>()
     const navigate = useNavigate()
 
     // Смена статусов

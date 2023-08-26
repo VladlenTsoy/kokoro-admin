@@ -6,7 +6,7 @@ export interface Category {
     sub_categories?: SubCategory[]
 }
 
-export interface SubCategory {
+interface SubCategory {
     id: number
     title: string
     url: string
@@ -14,12 +14,12 @@ export interface SubCategory {
     hide_id?: number
 }
 
-export interface CreateCategoryType {
+interface CreateCategoryType {
     title: Category["title"]
     category_id?: Category["id"]
 }
 
-export interface EditCategoryType {
+interface EditCategoryType {
     id: Category["id"]
     data: {
         title: Category["title"]
