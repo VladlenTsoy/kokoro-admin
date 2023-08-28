@@ -1,6 +1,6 @@
 import {createApi} from '@reduxjs/toolkit/query/react'
 import { SelectProductsFilterParams } from '../../types/Product'
-import baseQuery from '../apiConfig'
+import baseQuery from '../../utils/apiConfig'
 
 export const productsApi = createApi({
     reducerPath: 'productsApi',

@@ -1,6 +1,6 @@
 import {useNavigate, useLocation} from "react-router-dom"
 import {useCallback, useEffect, useState} from "react"
-import { SelectProductsFilterParams } from "../../types/Product"
+import { SelectProductsFilterParams } from "../types/Product"
 
 const PAGE_CURRENT = 1
 const PAGE_SIZE = 50

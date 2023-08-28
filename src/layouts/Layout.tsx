@@ -1,6 +1,6 @@
 import {Button, Layout as AntdLayout} from "antd"
 import React, {useState} from "react"
-import Sidebar from "./sidebar/sidebar"
+import Sidebar from "./sidebar/Sidebar"
 import {createUseStyles} from "react-jss"
 import {MenuFoldOutlined, MenuUnfoldOutlined} from "@ant-design/icons"
 
