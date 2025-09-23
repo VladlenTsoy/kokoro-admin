@@ -4,8 +4,8 @@
   "semi": false,
   "bracketSpacing": false,
   "trailingComma": "none",
-  "arrowParens": "avoid",
-  "jsxBracketSameLine": false,
+  "arrowParens": "always",
   "useTabs": false,
-  "parser": "flow"
+  "parser": "typescript",
+  "endOfLine": "auto"
 }
