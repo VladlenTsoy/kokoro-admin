@@ -1,6 +1,7 @@
 import {Segmented} from "antd"
 import {HomeOutlined, ShoppingOutlined, SkinOutlined, TeamOutlined} from "@ant-design/icons"
 import {createStyles} from "antd-style"
+import {useLocation, useNavigate} from "react-router-dom"
 import LogoImage from "../../assets/images/logo_black.svg"
 
 const useStyles = createStyles(() => ({
@@ -32,6 +33,8 @@ const useStyles = createStyles(() => ({
 
 const HeaderMenu = () => {
     const {styles} = useStyles()
+    const navigate = useNavigate()
+    const {pathname} = useLocation()
 
     return (
         <>
@@ -46,9 +49,8 @@ const HeaderMenu = () => {
                     {label: "Одежда", value: "/products", icon: <SkinOutlined />},
                     {label: "Клиенты", value: "/clients", icon: <TeamOutlined />}
                 ]}
-                onChange={(value) => {
-                    console.log(value)
-                }}
+                value={pathname}
+                onChange={(value) => navigate(value)}
             />
         </>
     )

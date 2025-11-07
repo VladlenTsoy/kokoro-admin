@@ -5,6 +5,7 @@ import App from "./App.tsx"
 import "antd/dist/reset.css"
 import "@ant-design/v5-patch-for-react-19"
 import {ConfigProvider, theme} from "antd"
+import StoreProvider from "./features/StoreProvider.tsx"
 
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
@@ -29,7 +30,9 @@ createRoot(document.getElementById("root")!).render(
                 }
             }}
         >
-            <App />
+            <StoreProvider>
+                <App />
+            </StoreProvider>
         </ConfigProvider>
     </StrictMode>
 )

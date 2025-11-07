@@ -1,10 +1,10 @@
 import "./App.css"
-import Layout from "./layouts/Layout.tsx"
+import {AppRouter} from "./routes/AppRouter.tsx"
 
 function App() {
 
     return (
-        <Layout></Layout>
+        <AppRouter />
     )
 }
 
