@@ -1,4 +1,3 @@
-// ImagesSection.tsx
 import React, {type Dispatch, type SetStateAction, useCallback} from "react"
 import {Card, Divider, Typography} from "antd"
 import {Element} from "react-scroll"
