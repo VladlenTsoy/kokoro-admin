@@ -1,13 +1,14 @@
+// ImagesSection.tsx
 import React, {type Dispatch, type SetStateAction, useCallback} from "react"
 import {Card, Divider, Typography} from "antd"
 import {Element} from "react-scroll"
 import {closestCenter, DndContext, PointerSensor, useSensor, useSensors} from "@dnd-kit/core"
 import {arrayMove, horizontalListSortingStrategy, SortableContext} from "@dnd-kit/sortable"
-import AddPhotoBlock from "./AddImageBlock.tsx"
+import AddPhotoBlock from "./AddImageBlock"
 import {getBase64} from "../../../../../utils/getBase64"
-import {useDeletePhotoMutation, useUploadPhotoMutation} from "../../../../file-uploader/fileUploaderApi.ts"
+import {useDeletePhotoMutation, useUploadPhotoMutation} from "../../../../file-uploader/fileUploaderApi"
 import type {DragEndEvent} from "@dnd-kit/core/dist/types"
-import SortableImageBlock from "./SortableImageBlock.tsx"
+import SortableImageBlock from "./SortableImageBlock"
 import {createStyles} from "antd-style"
 
 const useStyles = createStyles(({token}) => ({
@@ -19,7 +20,6 @@ const useStyles = createStyles(({token}) => ({
         overflowX: "auto",
         paddingBottom: token.paddingXL
     },
-
     droppablePhotos: {
         display: "flex",
         gap: "1rem",
@@ -28,94 +28,108 @@ const useStyles = createStyles(({token}) => ({
 }))
 
 export interface TemporaryImageType {
-    id?: number
-    path: string,
-    size?: number
-    loading?: boolean
-
-    name?: string
-    position?: number
+    id: number;
+    path: string;
+    size?: number;
+    loading?: boolean;
+    key: string; // уникальный строковый ключ — будем его использовать для dnd
+    name?: string;
+    position?: number;
 }
 
 const {Title} = Typography
 
 interface ImagesSectionProps {
-    imageUrls: TemporaryImageType[]
-    setImageUrl: Dispatch<SetStateAction<TemporaryImageType[]>>
+    imageUrls: TemporaryImageType[];
+    setImageUrl: Dispatch<SetStateAction<TemporaryImageType[]>>;
 }
 
 const ImagesSection: React.FC<ImagesSectionProps> = ({imageUrls, setImageUrl}) => {
     const {styles} = useStyles()
 
-    // DnD kit sensors
-    const sensors = useSensors(
-        useSensor(PointerSensor, {activationConstraint: {distance: 5}})
-    )
+    const sensors = useSensors(useSensor(PointerSensor, {activationConstraint: {distance: 5}}))
 
-    // Мутации
     const [uploadPhoto] = useUploadPhotoMutation()
     const [deletePhoto] = useDeletePhotoMutation()
 
-    // Перемещение фото
+    // Единый id для сортировки — используем строковый key
+    const getItemKey = (img: TemporaryImageType) => String(img.id)
+
     const onDragEnd = (event: DragEndEvent) => {
         const {active, over} = event
-        if (active.id !== over?.id) {
-            setImageUrl((items) => {
-                const oldIndex = items.findIndex((img) => img.name === active.id)
-                const newIndex = items.findIndex((img) => img.name === over?.id)
-                return arrayMove(items, oldIndex, newIndex)
-            })
-        }
+        if (!over) return
+        if (active.id === over.id) return
+
+        setImageUrl((items) => {
+            const oldIndex = items.findIndex((img) => getItemKey(img) === String(active.id))
+            const newIndex = items.findIndex((img) => getItemKey(img) === String(over.id))
+
+            if (oldIndex === -1 || newIndex === -1) return items
+            return arrayMove(items, oldIndex, newIndex)
+        })
     }
 
-    // Добавление фото
     const addPhotoHandler = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
             if (e?.target?.files?.length) {
-                const file = e.target.files[0]
+                Array.from(e.target.files).forEach(file => {
+                    getBase64(file, async (imageUrl) => {
+                        const timeKey = Date.now() + Math.random() // уникальный id
 
-                return getBase64(file, async (imageUrl) => {
-                    if (imageUrl)
-                        setImageUrl((prev) => [...prev, {id: e.timeStamp, path: imageUrl, loading: true}])
+                        if (imageUrl)
+                            setImageUrl(prev => [
+                                ...prev,
+                                {
+                                    id: timeKey,
+                                    key: String(timeKey),
+                                    path: imageUrl,
+                                    loading: true
+                                }
+                            ])
 
-                    const formData = new FormData()
-                    formData.append("file", file)
-                    const res = await uploadPhoto(formData)
-                    if (res?.data) {
-                        const data = res?.data
-                        setImageUrl((prev) =>
-                            prev.map((img) => {
-                                return img.id === e.timeStamp ? {
-                                    id: e.timeStamp,
-                                    loading: false,
-                                    name: data.name,
-                                    path: data.location,
-                                    size: data.size,
-                                    position: img.position
-                                } : img
-                            })
-                        )
-                    }
+                        const formData = new FormData()
+                        formData.append("file", file)
+                        const res = await uploadPhoto(formData)
+
+                        if (res?.data) {
+                            const data = res.data
+                            setImageUrl(prev =>
+                                prev.map(img =>
+                                    img.key === String(timeKey)
+                                        ? {
+                                            ...img,
+                                            loading: false,
+                                            name: data.name,
+                                            path: data.location,
+                                            size: data.size,
+                                            position: img.position,
+                                            key: data.key
+                                        }
+                                        : img
+                                )
+                            )
+                        }
+                    })
                 })
             }
         },
         [uploadPhoto, setImageUrl]
     )
 
-    // Удаление фото
     const removeTemporaryPhotoHandler = useCallback(
-        async (path: string) => {
-            // Активировать загрузку
+        async (keyOrPath: string) => {
+            // mark loading
             setImageUrl((prev) =>
-                prev.map((img) => (img.path === path ? {...img, loading: true} : img))
+                prev.map((img) =>
+                    (img.key === keyOrPath || img.path === keyOrPath ? {...img, loading: true} : img)
+                )
             )
-            // Найти картинку
-            const findImage = imageUrls.find((img) => img.path === path)
-            // Если картинка найдена, то удаляем ее
-            if (findImage?.path) {
-                await deletePhoto({path: findImage.path})
-                // Удалить картинку из общего массива
-                setImageUrl((prev) => prev.filter((img) => img.path !== path))
+            // find image by key or path
+            const findImage = imageUrls.find((img) => img.key === keyOrPath || img.path === keyOrPath)
+
+            if (findImage) {
+                await deletePhoto({path: findImage.key}) // backend expects key
+                setImageUrl((prev) => prev.filter((img) => img.key !== findImage.key))
             }
         },
         [deletePhoto, setImageUrl, imageUrls]
@@ -127,24 +141,21 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({imageUrls, setImageUrl}) =
                 <Title level={2}>Фото товара</Title>
                 <Divider />
                 <div className={styles.dragDropPhotos}>
-                    <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={onDragEnd}
-                    >
-                        <SortableContext
-                            items={imageUrls.map((img) => img.path)}
-                            strategy={horizontalListSortingStrategy}
-                        >
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+                        <SortableContext items={imageUrls.map(getItemKey)} strategy={horizontalListSortingStrategy}>
                             <div className={styles.droppablePhotos}>
-                                {imageUrls.map((image, key) => (
-                                    <SortableImageBlock
-                                        key={image.path}
-                                        image={image}
-                                        index={key}
-                                        deletePhoto={removeTemporaryPhotoHandler}
-                                    />
-                                ))}
+                                {imageUrls.map((image, key) => {
+                                    const id = getItemKey(image)
+                                    return (
+                                        <SortableImageBlock
+                                            id={id}
+                                            key={id}
+                                            image={image}
+                                            index={key}
+                                            deletePhoto={removeTemporaryPhotoHandler}
+                                        />
+                                    )
+                                })}
                                 <AddPhotoBlock addPhoto={addPhotoHandler} />
                             </div>
                         </SortableContext>

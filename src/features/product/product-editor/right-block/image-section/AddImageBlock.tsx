@@ -81,6 +81,7 @@ const AddImageBlock: React.FC<AddImageBlockProps> = ({addPhoto}) => {
                     onChange={addPhoto}
                     id="add-photo"
                     hidden
+                    multiple
                     className={styles.addPhotoInput}
                     accept="image/x-png,image/gif,image/jpeg"
                 />

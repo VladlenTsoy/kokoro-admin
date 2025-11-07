@@ -249,7 +249,7 @@ const ImageBlock: React.FC<PhotoBlockProps> = (
                     <DeleteOutlined />
                 </div>
 
-                <img src={image.path} alt={image.name} className={styles.photoImg} />
+                <img src={image.path} alt={image.name} className={styles.photoImg} draggable={false} />
 
                 {/* actions */}
                 <div className={styles.actions}>
