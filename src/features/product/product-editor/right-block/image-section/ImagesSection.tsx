@@ -73,7 +73,7 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({imageUrls, setImageUrl}) =
             if (e?.target?.files?.length) {
                 Array.from(e.target.files).forEach(file => {
                     getBase64(file, async (imageUrl) => {
-                        const timeKey = Date.now() + Math.random() // уникальный id
+                        const timeKey = Math.round(Date.now() + Math.random()) // уникальный id
 
                         if (imageUrl)
                             setImageUrl(prev => [
@@ -134,10 +134,26 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({imageUrls, setImageUrl}) =
         [deletePhoto, setImageUrl, imageUrls]
     )
 
+    const moveNext = useCallback((id: number) => {
+        setImageUrl(prev => {
+            const idx = prev.findIndex(i => i.id === id)
+            if (idx === -1 || idx === prev.length - 1) return prev
+            return arrayMove(prev, idx, idx + 1)
+        })
+    }, [setImageUrl])
+
+    const movePrev = useCallback((id: number) => {
+        setImageUrl(prev => {
+            const idx = prev.findIndex(i => i.id === id)
+            if (idx <= 0) return prev
+            return arrayMove(prev, idx, idx - 1)
+        })
+    }, [setImageUrl])
+
     return (
         <Card>
             <Element name="photos" className="photos">
-                <Title level={2}>Фото товара</Title>
+                <Title level={3}>Фото товара</Title>
                 <Divider />
                 <div className={styles.dragDropPhotos}>
                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
@@ -147,11 +163,12 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({imageUrls, setImageUrl}) =
                                     const id = getItemKey(image)
                                     return (
                                         <SortableImageBlock
-                                            id={id}
                                             key={id}
                                             image={image}
                                             index={key}
                                             deletePhoto={removeTemporaryPhotoHandler}
+                                            nextHandler={moveNext}
+                                            prevHandler={movePrev}
                                         />
                                     )
                                 })}

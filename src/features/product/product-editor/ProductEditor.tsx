@@ -4,6 +4,7 @@ import PriceSection from "./content/PriceSection.tsx"
 import {useCallback, useState} from "react"
 import QtySection from "./content/QtySection.tsx"
 import ImageSection, {type TemporaryImageType} from "./right-block/image-section/ImagesSection.tsx"
+import PublicationSection from "./content/PublicationSection.tsx"
 
 type SizePropsMap = Record<
     string,
@@ -77,6 +78,7 @@ const ProductEditor = () => {
                     <PriceSection />
                     <QtySection selectSizes={selectedSizes} />
                     <ImageSection imageUrls={images} setImageUrl={setImages} />
+                    <PublicationSection />
                     <Button type="primary" htmlType="submit">Сохранить</Button>
                 </Form>
             </Col>

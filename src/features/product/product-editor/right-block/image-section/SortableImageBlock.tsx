@@ -5,14 +5,15 @@ import PhotoBlock from "./ImageBlock"
 import type {TemporaryImageType} from "./ImagesSection"
 
 interface Props {
-    id: string; // <- строковый id
     image: TemporaryImageType;
     index: number;
-    deletePhoto: (keyOrPath: string) => void;
+    deletePhoto: (id: string) => void;
+    nextHandler?: (id: number) => void
+    prevHandler?: (id: number) => void
 }
 
-const SortableImageBlock: React.FC<Props> = ({id, image, index, deletePhoto}) => {
-    const {attributes, listeners, setNodeRef, transform, transition, isDragging} = useSortable({id})
+const SortableImageBlock: React.FC<Props> = ({image, index, deletePhoto, nextHandler, prevHandler}) => {
+    const {attributes, listeners, setNodeRef, transform, transition, isDragging} = useSortable({id: String(image.id)})
 
     const style: React.CSSProperties = {
         transform: CSS.Transform.toString(transform) || undefined,
@@ -21,15 +22,19 @@ const SortableImageBlock: React.FC<Props> = ({id, image, index, deletePhoto}) =>
         userSelect: "none",
         willChange: "transform",
         cursor: isDragging ? "grabbing" : "grab",
-        // чтобы DragOverlay не перекрывал взаимодействие, можно добавить zIndex при isDragging
         zIndex: isDragging ? 9999 : undefined
     }
 
     return (
         <div ref={setNodeRef} style={style} {...attributes}>
-            {/* listeners можно вешать на весь блок, либо внутри PhotoBlock на конкретную ручку */}
             <div {...listeners}>
-                <PhotoBlock image={image} index={index} deletePhoto={deletePhoto} />
+                <PhotoBlock
+                    image={image}
+                    index={index}
+                    deletePhoto={deletePhoto}
+                    nextHandler={nextHandler}
+                    prevHandler={prevHandler}
+                />
             </div>
         </div>
     )
