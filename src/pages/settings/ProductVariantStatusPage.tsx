@@ -1,60 +1,54 @@
 import React, {useState} from "react"
 import {Table, Button, Popconfirm, Modal, Form, Input, Switch} from "antd"
 import {
-    useGetSourcesQuery,
-    useCreateSourceMutation,
-    useUpdateSourceMutation,
-    useDeleteSourceMutation
-} from "../../features/source/sourceApi.ts"
-import type {SourceType} from "../../features/source/SourceType.ts"
+    useCreateProductVariantStatusMutation,
+    useGetProductVariantStatusesQuery,
+    useUpdateProductVariantStatusMutation,
+    useDeleteProductVariantStatusMutation
+} from "../../features/product-variant-status/productVariantStatusApi.ts"
+import type {ProductVariantStatusType} from "../../features/product-variant-status/ProductVariantStatusType.ts"
 
-const SourcePage: React.FC = () => {
-    const {data, isLoading} = useGetSourcesQuery()
-    const [createSource] = useCreateSourceMutation()
-    const [updateSource] = useUpdateSourceMutation()
-    const [deleteSource] = useDeleteSourceMutation()
+const ProductVariantStatusPage: React.FC = () => {
+    const {data, isLoading} = useGetProductVariantStatusesQuery()
+    const [createProductVariantStatus] = useCreateProductVariantStatusMutation()
+    const [updateProductVariantStatus] = useUpdateProductVariantStatusMutation()
+    const [deleteProductVariantStatus] = useDeleteProductVariantStatusMutation()
 
     const [isModalOpen, setIsModalOpen] = useState(false)
-    const [editingSource, setEditingSource] = useState<SourceType | null>(null)
+    const [editingProductVariantStatus, setEditingProductVariantStatus] = useState<ProductVariantStatusType | null>(null)
 
     const [form] = Form.useForm()
 
     const handleSubmit = async () => {
         const values = await form.validateFields()
-        if (editingSource) {
-            await updateSource({id: editingSource.id, body: values})
+        if (editingProductVariantStatus) {
+            await updateProductVariantStatus({id: editingProductVariantStatus.id, body: values})
         } else {
-            await createSource(values)
+            await createProductVariantStatus(values)
         }
         setIsModalOpen(false)
-        setEditingSource(null)
+        setEditingProductVariantStatus(null)
         form.resetFields()
     }
 
     const columns = [
         {title: "ID", dataIndex: "id"},
         {title: "Title", dataIndex: "title"},
-        {title: "Code", dataIndex: "code"},
-        {
-            title: "Active",
-            dataIndex: "isActive",
-            render: (val: boolean) => (val ? "Yes" : "No")
-        },
         {
             title: "Actions",
-            render: (_: any, record: SourceType) => (
+            render: (_: any, record: ProductVariantStatusType) => (
                 <>
                     <Button
                         type="link"
                         onClick={() => {
-                            setEditingSource(record)
+                            setEditingProductVariantStatus(record)
                             form.setFieldsValue(record)
                             setIsModalOpen(true)
                         }}
                     >
                         Edit
                     </Button>
-                    <Popconfirm title="Delete source?" onConfirm={() => deleteSource(record.id)}>
+                    <Popconfirm title="Delete source?" onConfirm={() => deleteProductVariantStatus(record.id)}>
                         <Button type="link" danger>
                             Delete
                         </Button>
@@ -70,12 +64,12 @@ const SourcePage: React.FC = () => {
                 type="primary"
                 style={{marginBottom: 16}}
                 onClick={() => {
-                    setEditingSource(null)
+                    setEditingProductVariantStatus(null)
                     form.resetFields()
                     setIsModalOpen(true)
                 }}
             >
-                Add Source
+                Добавить статус продукта
             </Button>
 
             <Table
@@ -86,7 +80,7 @@ const SourcePage: React.FC = () => {
             />
 
             <Modal
-                title={editingSource ? "Edit Source" : "Add Source"}
+                title={editingProductVariantStatus ? "Изменить статус продукта" : "Создать статус продукта"}
                 open={isModalOpen}
                 onCancel={() => setIsModalOpen(false)}
                 onOk={handleSubmit}
@@ -95,10 +89,10 @@ const SourcePage: React.FC = () => {
                     <Form.Item name="title" label="Title" rules={[{required: true}]}>
                         <Input />
                     </Form.Item>
-                    <Form.Item name="code" label="Code" rules={[{required: true}]}>
+                    <Form.Item name="position" label="Позиция" rules={[{required: false}]}>
                         <Input />
                     </Form.Item>
-                    <Form.Item name="isActive" label="Active" valuePropName="checked">
+                    <Form.Item name="is_default" label="Active" valuePropName="checked">
                         <Switch />
                     </Form.Item>
                 </Form>
@@ -107,4 +101,4 @@ const SourcePage: React.FC = () => {
     )
 }
 
-export default SourcePage
+export default ProductVariantStatusPage

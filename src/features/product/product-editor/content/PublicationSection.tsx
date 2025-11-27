@@ -1,20 +1,22 @@
-import {Card, Col, Row, Typography} from "antd"
-import {Element} from "react-scroll"
-import ProductStatusFromSelect from "../../../product-status/ProductStatusFromSelect.tsx"
+import {Card, Col, Divider, Row, Typography} from "antd"
+import ProductVariantStatusFromSelect from "../../../product-variant-status/ProductVariantStatusFromSelect.tsx"
 
 const {Title} = Typography
 
 const PublicationSection = () => {
     return (
         <Card>
-            <Element name="publication">
-                <Title level={3}>Основная информация</Title>
-                <Row gutter={28}>
-                    <Col xl={12} md={12} xs={24}>
-                        <ProductStatusFromSelect />
-                    </Col>
-                </Row>
-            </Element>
+            <Title level={3}>Статус & Публикация</Title>
+            <Divider size="small" />
+            <Row gutter={28}>
+                <Col xl={12} md={12} xs={24}>
+                    <ProductVariantStatusFromSelect />
+                </Col>
+                <Col xl={12} md={12} xs={24}>
+                </Col>
+                <Col xl={12} md={12} xs={24}>
+                </Col>
+            </Row>
         </Card>
     )
 }

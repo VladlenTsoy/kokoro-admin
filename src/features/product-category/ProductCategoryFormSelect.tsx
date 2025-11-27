@@ -8,19 +8,18 @@ const CategoryFormSelect: React.FC = () => {
         {refetchOnMountOrArgChange: true}
     )
 
-    // Преобразуем данные под TreeSelect
     const treeData = categories?.map(cat => ({
         title: cat.title,
         value: cat.id,
-        selectable: false, // категория не выбирается
+        selectable: false,
         children: cat.sub_categories?.map(sub => ({
             title: sub.title,
             value: sub.id,
-            selectable: false, // подкатегория не выбирается
+            selectable: false,
             children: sub.sub_categories?.map(third => ({
                 title: third.title,
                 value: third.id,
-                selectable: true // можно выбрать только последний уровень
+                selectable: true
             }))
         }))
     }))
@@ -38,6 +37,11 @@ const CategoryFormSelect: React.FC = () => {
                 placeholder="Выберите категорию"
                 treeDefaultExpandAll
                 style={{width: "100%"}}
+                treeNodeLabelProp="title"
+                filterTreeNode={(input, treeNode) => {
+                    const title = (treeNode.title ?? "").toString()
+                    return title.toLowerCase().includes(input.toLowerCase())
+                }}
             />
         </Form.Item>
     )

@@ -15,7 +15,11 @@ createRoot(document.getElementById("root")!).render(
                 token: {
                     fontFamily: "Averta CY, sans-serif",
                     colorPrimary: "#B1E81C",
-                    borderRadius: 12
+                    borderRadius: 12,
+                    colorText: "#363A42",
+                    colorTextSecondary: "#B0B3B9",
+                    borderRadiusLG: 12,
+                    colorBorder: "#F1F2F4",
                 },
                 components: {
                     Layout: {
@@ -26,6 +30,12 @@ createRoot(document.getElementById("root")!).render(
                         // itemSelectedColor: "#fff",
                         // itemColor: "#fff",
                         trackBg: "#FAFAFB"
+                    },
+                    Button: {
+                        primaryColor: "#363A42",
+                    },
+                    Form: {
+                        verticalLabelPadding: "0"
                     }
                 }
             }}

@@ -19,6 +19,10 @@ const items: MenuProps["items"] = [
             {
                 key: "colors",
                 label: "Цвета"
+            },
+            {
+                key: "product-variant-statuses",
+                label: "Статусы"
             }
         ]
     },

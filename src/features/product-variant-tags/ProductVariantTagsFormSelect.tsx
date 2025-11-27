@@ -4,7 +4,7 @@ import {useGetAllTagsQuery} from "./productVariantTagApi.ts"
 
 const {Option} = Select
 
-const TagsFormSelect: React.FC = () => {
+const ProductVariantTagsFormSelect: React.FC = () => {
     const {data, isLoading} = useGetAllTagsQuery()
 
     return (
@@ -21,4 +21,4 @@ const TagsFormSelect: React.FC = () => {
     )
 }
 
-export default TagsFormSelect
+export default ProductVariantTagsFormSelect

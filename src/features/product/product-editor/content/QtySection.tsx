@@ -1,5 +1,5 @@
-import {Row, Col, Divider, Form, InputNumber, Typography, Card} from "antd"
-import {Element} from "react-scroll"
+import {Card, Col, Divider, Form, InputNumber, Row, Typography} from "antd"
+import React from "react"
 
 const {Title, Text} = Typography
 
@@ -10,11 +10,11 @@ interface SelectedSizeProps {
 const SelectedSize: React.FC<SelectedSizeProps> = ({selectSizes}) => {
     return (
         <Card>
-            <Element name="qty">
-                <Title level={3}>Количество</Title>
-                <Text type="secondary">Чтобы активировать поля для ввода информации, необходимо сначала выбрать
-                    размеры.</Text>
-            </Element>
+            <Title level={3}>Количество</Title>
+            <Divider size="small" />
+            <Text type="secondary">
+                Чтобы активировать поля для ввода информации, необходимо сначала выбрать размеры.
+            </Text>
             {
                 selectSizes.map((size) =>
                     <Row gutter={28} key={size.id}>

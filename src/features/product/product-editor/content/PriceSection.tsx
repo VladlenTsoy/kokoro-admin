@@ -1,14 +1,12 @@
-import {Element} from "react-scroll"
-import {Form, InputNumber, Typography, Row, Col, DatePicker, Card} from "antd"
+import {Card, Col, DatePicker, Divider, Form, InputNumber, Row, Typography} from "antd"
 
 const {Title} = Typography
 
 const PriceSection = () => {
     return (
         <Card>
-            <Element name="price">
-                <Title level={3}>Стоимость</Title>
-            </Element>
+            <Title level={3}>Стоимость</Title>
+            <Divider size="small" />
             <Row gutter={28}>
                 <Col xl={12} md={12} xs={24}>
                     <Form.Item
@@ -45,6 +43,7 @@ const PriceSection = () => {
                             format="DD-MM-YYYY"
                             style={{width: "100%"}}
                             showToday={false}
+                            placeholder="Выберите дату"
                         />
                     </Form.Item>
                 </Col>

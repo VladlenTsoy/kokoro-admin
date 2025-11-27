@@ -1,10 +1,22 @@
-import {Row, Col, Form, type SelectProps, type FormProps, Button} from "antd"
+import {Col, Form, type FormProps, Row, type SelectProps} from "antd"
 import BaseSection from "./content/BaseSection.tsx"
 import PriceSection from "./content/PriceSection.tsx"
 import {useCallback, useState} from "react"
 import QtySection from "./content/QtySection.tsx"
-import ImageSection, {type TemporaryImageType} from "./right-block/image-section/ImagesSection.tsx"
+import {type TemporaryImageType} from "./right-block/image-section/ImagesSection.tsx"
 import PublicationSection from "./content/PublicationSection.tsx"
+import MeasurementsSection from "./content/MeasurementsSection.tsx"
+import LeftBlock from "./left-block/LeftBlock.tsx"
+import {Element} from "react-scroll"
+import RightBlock from "./right-block/RightBlock.tsx"
+import {createStyles} from "antd-style"
+
+const useStyles = createStyles(() => ({
+    content: {
+        display: "grid",
+        gap: 8
+    }
+}))
 
 type SizePropsMap = Record<
     string,
@@ -37,6 +49,7 @@ const ProductEditor = () => {
     const [form] = Form.useForm()
     const [selectedSizes, setSelectedSizes] = useState<{id: number, title: string}[]>([])
     const [images, setImages] = useState<TemporaryImageType[]>([])
+    const {styles} = useStyles()
 
     // Выбрать размер
     const onSelectSizesHandler = useCallback<NonNullable<SelectProps<number[]>["onChange"]>>((value, option) => {
@@ -63,27 +76,39 @@ const ProductEditor = () => {
     }
 
     return (
-        <Row gutter={28}>
-            <Col span={5}></Col>
-            <Col span={14}>
+        <Row gutter={18}>
+            <Col span={6}>
+                <LeftBlock />
+            </Col>
+            <Col span={12}>
                 <Form
                     layout="vertical"
                     size="large"
                     form={form}
                     onFinish={onFinishHandler}
-                    initialValues={{status: "draft"}}
+                    initialValues={{}}
                     id="editor-product"
+                    className={styles.content}
                 >
-                    <BaseSection onSelectSizesChange={onSelectSizesHandler} />
-                    <PriceSection />
-                    <QtySection selectSizes={selectedSizes} />
-                    <ImageSection imageUrls={images} setImageUrl={setImages} />
-                    <PublicationSection />
-                    <Button type="primary" htmlType="submit">Сохранить</Button>
+                    <Element name="basic">
+                        <BaseSection onSelectSizesChange={onSelectSizesHandler} />
+                    </Element>
+                    <Element name="price">
+                        <PriceSection />
+                    </Element>
+                    <Element name="qty">
+                        <QtySection selectSizes={selectedSizes} />
+                    </Element>
+                    <Element name="measurements">
+                        <MeasurementsSection selectedSizes={selectedSizes} />
+                    </Element>
+                    <Element name="status-publishing">
+                        <PublicationSection />
+                    </Element>
                 </Form>
             </Col>
-            <Col span={5}>
-
+            <Col span={6}>
+                <RightBlock imageUrls={images} setImageUrl={setImages} />
             </Col>
         </Row>
     )

@@ -12,6 +12,7 @@ import {sourceApi} from "./source/sourceApi.ts"
 import {productStorageApi} from "./settings/product-storage/productStorageApi.ts"
 import {productVariantTagApi} from "./product-variant-tags/productVariantTagApi.ts"
 import {fileUploaderApi} from "./file-uploader/fileUploaderApi.ts"
+import {productVariantStatusApi} from "./product-variant-status/productVariantStatusApi.ts"
 
 const persistConfig = {
     key: "root",
@@ -29,6 +30,7 @@ const persistedCombineReducers = persistCombineReducers(persistConfig, {
     [productStorageApi.reducerPath]: productStorageApi.reducer,
     [productVariantTagApi.reducerPath]: productVariantTagApi.reducer,
     [fileUploaderApi.reducerPath]: fileUploaderApi.reducer,
+    [productVariantStatusApi.reducerPath]: productVariantStatusApi.reducer,
 })
 
 export const store = configureStore({
@@ -45,6 +47,7 @@ export const store = configureStore({
             .concat(productStorageApi.middleware)
             .concat(productVariantTagApi.middleware)
             .concat(fileUploaderApi.middleware)
+            .concat(productVariantStatusApi.middleware)
 })
 
 export const persistor = persistStore(store)

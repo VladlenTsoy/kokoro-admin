@@ -18,6 +18,7 @@ export const ProductsPage = lazy(() => import("../pages/ProductsPage.tsx"))
 export const ClientsPage = lazy(() => import("../pages/ClientsPage.tsx"))
 export const NotFound = lazy(() => import("../pages/NotFoundPage.tsx"))
 export const ColorPage = lazy(() => import("../pages/settings/ColorPage.tsx"))
+export const ProductVariantStatusPage = lazy(() => import("../pages/settings/ProductVariantStatusPage.tsx"))
 
 export const AppRouter = () => {
     return (
@@ -42,6 +43,7 @@ export const AppRouter = () => {
                                 <Route path="sales-points" element={<SalesPointPage />} />
                                 <Route path="product-storages" element={<ProductStoragePage />} />
                                 <Route path="sources" element={<SourcePage />} />
+                                <Route path="product-variant-statuses" element={<ProductVariantStatusPage />} />
                             </Route>
                         </Route>
 
