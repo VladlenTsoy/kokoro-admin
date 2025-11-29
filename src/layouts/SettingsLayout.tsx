@@ -1,6 +1,6 @@
-import {Menu} from "antd"
-import {Outlet, useLocation, useNavigate} from "react-router-dom"
 import type {MenuProps} from "antd"
+import {Card, Menu} from "antd"
+import {Outlet, useLocation, useNavigate} from "react-router-dom"
 
 const items: MenuProps["items"] = [
     {
@@ -23,6 +23,10 @@ const items: MenuProps["items"] = [
             {
                 key: "product-variant-statuses",
                 label: "Статусы"
+            },
+            {
+                key: "product-properties",
+                label: "Свойства"
             }
         ]
     },
@@ -70,7 +74,6 @@ const SettingsLayout = () => {
     const location = useLocation()
 
     // Определяем текущий активный ключ из pathname
-    // /settings/sizes → sizes
     const selectedKey = location.pathname.split("/")[2]
 
     const onClickHandler: MenuProps["onClick"] = (e) => {
@@ -78,18 +81,22 @@ const SettingsLayout = () => {
     }
 
     return (
-        <div style={{display: "flex"}}>
-            <Menu
-                onClick={onClickHandler}
-                style={{width: 256}}
-                mode="inline"
-                items={items}
-                selectedKeys={[selectedKey]}
-            />
-            <div style={{flex: 1, padding: "16px"}}>
-                <Outlet />
+        <Card>
+            <div style={{display: "flex"}}>
+                <div>
+                    <Menu
+                        onClick={onClickHandler}
+                        style={{width: 256}}
+                        mode="inline"
+                        items={items}
+                        selectedKeys={[selectedKey]}
+                    />
+                </div>
+                <div style={{flex: 1, paddingLeft: "16px"}}>
+                    <Outlet />
+                </div>
             </div>
-        </div>
+        </Card>
     )
 }
 
