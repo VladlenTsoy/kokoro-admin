@@ -1,7 +1,7 @@
 import {Col, Form, type FormProps, Row, type SelectProps} from "antd"
 import BaseSection from "./content/BaseSection.tsx"
 import PriceSection from "./content/PriceSection.tsx"
-import {useCallback, useState} from "react"
+import {useCallback, useEffect, useState} from "react"
 import QtySection from "./content/QtySection.tsx"
 import {type TemporaryImageType} from "./right-block/image-section/ImagesSection.tsx"
 import PublicationSection from "./content/PublicationSection.tsx"
@@ -10,6 +10,7 @@ import LeftBlock from "./left-block/LeftBlock.tsx"
 import {Element} from "react-scroll"
 import RightBlock from "./right-block/RightBlock.tsx"
 import {createStyles} from "antd-style"
+import {useCreateProductMutation} from "../productApi.ts"
 
 const useStyles = createStyles(() => ({
     content: {
@@ -21,7 +22,7 @@ const useStyles = createStyles(() => ({
 type SizePropsMap = Record<
     string,
     {
-        id: number;
+        size_id: number;
         qty: number;
         cost_price: number;
         min_qty: number;
@@ -35,6 +36,7 @@ interface FormValues {
     storage_id: number
     size_ids: number[]
     tags_id: string[]
+    productProperties: number[]
     //
     price: number
     discount: {
@@ -43,13 +45,20 @@ interface FormValues {
     }
     //
     size_props: SizePropsMap
+    //
+    status_id: number
+    is_new: "on" | "off"
 }
 
 const ProductEditor = () => {
     const [form] = Form.useForm()
     const [selectedSizes, setSelectedSizes] = useState<{id: number, title: string}[]>([])
     const [images, setImages] = useState<TemporaryImageType[]>([])
+    const [discountMode, setDiscountMode] = useState<boolean>(true)
     const {styles} = useStyles()
+    const [create] = useCreateProductMutation()
+
+    const discountValue = Form.useWatch(["discount", "discount"], form) as number | undefined
 
     // Выбрать размер
     const onSelectSizesHandler = useCallback<NonNullable<SelectProps<number[]>["onChange"]>>((value, option) => {
@@ -71,16 +80,43 @@ const ProductEditor = () => {
         }
     }, [setSelectedSizes])
 
+    const onChangeDiscountModeHandler = useCallback((mode: boolean) => {
+        setDiscountMode(!mode)
+    }, [])
+
+    useEffect(() => {
+        if (discountMode) {
+            form.resetFields([["discount", "discount"], ["discount", "end_at"]])
+        }
+    }, [discountMode, form])
+
     const onFinishHandler: FormProps<FormValues>["onFinish"] = (values) => {
-        console.log(values)
+
+        const arr = Object.entries(values.size_props).map(([key, value]) => ({
+            key,
+            ...value
+        }))
+
+        create({
+            title: values.title,
+            category_id: values.category_id,
+            color_id: values.color_id,
+            storage_id: values.storage_id,
+            productProperties: values.productProperties,
+            price: values.price,
+            product_sizes: arr,
+            is_new: values.is_new === "on",
+            product_images: images,
+            status_id: values.status_id
+        })
     }
 
     return (
         <Row gutter={18}>
-            <Col span={6}>
+            <Col xl={6} md={6} xs={24}>
                 <LeftBlock />
             </Col>
-            <Col span={12}>
+            <Col xl={12} md={12} xs={24}>
                 <Form
                     layout="vertical"
                     size="large"
@@ -94,7 +130,8 @@ const ProductEditor = () => {
                         <BaseSection onSelectSizesChange={onSelectSizesHandler} />
                     </Element>
                     <Element name="price">
-                        <PriceSection />
+                        <PriceSection discountValue={discountValue} discountMode={discountMode}
+                                      onChangeDiscountMode={onChangeDiscountModeHandler} />
                     </Element>
                     <Element name="qty">
                         <QtySection selectSizes={selectedSizes} />
@@ -107,7 +144,7 @@ const ProductEditor = () => {
                     </Element>
                 </Form>
             </Col>
-            <Col span={6}>
+            <Col xl={6} md={6} xs={24}>
                 <RightBlock imageUrls={images} setImageUrl={setImages} />
             </Col>
         </Row>

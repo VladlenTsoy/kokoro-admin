@@ -1,4 +1,4 @@
-import {Breadcrumb, Layout as AntdLayout} from "antd"
+import {Layout as AntdLayout} from "antd"
 import HeaderMenu from "./header/HeaderMenu.tsx"
 import {createStyles} from "antd-style"
 import HeaderSearch from "./header/HeaderSearch.tsx"
@@ -46,11 +46,11 @@ const Layout = () => {
                     <HeaderProfile />
                 </div>
             </Header>
-            <Content style={{padding: "0 48px"}}>
-                <Breadcrumb
-                    style={{margin: "16px 0"}}
-                    items={[{title: "Home"}, {title: "List"}, {title: "App"}]}
-                />
+            <Content style={{padding: "48px"}}>
+                {/*<Breadcrumb*/}
+                {/*    style={{margin: "16px 0"}}*/}
+                {/*    items={[{title: "Home"}, {title: "List"}, {title: "App"}]}*/}
+                {/*/>*/}
                 {/*<div*/}
                 {/*    style={{*/}
                 {/*        background: colorBgContainer,*/}

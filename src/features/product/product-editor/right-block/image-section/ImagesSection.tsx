@@ -1,5 +1,4 @@
 import React, {type Dispatch, type SetStateAction, useCallback} from "react"
-import {Card, Divider, Typography} from "antd"
 import {closestCenter, DndContext, PointerSensor, useSensor, useSensors} from "@dnd-kit/core"
 import {arrayMove, horizontalListSortingStrategy, SortableContext} from "@dnd-kit/sortable"
 import AddPhotoBlock from "./AddImageBlock"
@@ -34,8 +33,6 @@ export interface TemporaryImageType {
     name?: string;
     position?: number;
 }
-
-const {Title} = Typography
 
 interface ImagesSectionProps {
     imageUrls: TemporaryImageType[];
@@ -150,32 +147,28 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({imageUrls, setImageUrl}) =
     }, [setImageUrl])
 
     return (
-        <Card>
-            <Title level={3}>Фотографии</Title>
-            <Divider size="small" />
-            <div className={styles.dragDropPhotos}>
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-                    <SortableContext items={imageUrls.map(getItemKey)} strategy={horizontalListSortingStrategy}>
-                        <div className={styles.droppablePhotos}>
-                            {imageUrls.map((image, key) => {
-                                const id = getItemKey(image)
-                                return (
-                                    <SortableImageBlock
-                                        key={id}
-                                        image={image}
-                                        index={key}
-                                        deletePhoto={removeTemporaryPhotoHandler}
-                                        nextHandler={moveNext}
-                                        prevHandler={movePrev}
-                                    />
-                                )
-                            })}
-                            <AddPhotoBlock addPhoto={addPhotoHandler} />
-                        </div>
-                    </SortableContext>
-                </DndContext>
-            </div>
-        </Card>
+        <div className={styles.dragDropPhotos}>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+                <SortableContext items={imageUrls.map(getItemKey)} strategy={horizontalListSortingStrategy}>
+                    <div className={styles.droppablePhotos}>
+                        {imageUrls.map((image, key) => {
+                            const id = getItemKey(image)
+                            return (
+                                <SortableImageBlock
+                                    key={id}
+                                    image={image}
+                                    index={key}
+                                    deletePhoto={removeTemporaryPhotoHandler}
+                                    nextHandler={moveNext}
+                                    prevHandler={movePrev}
+                                />
+                            )
+                        })}
+                        <AddPhotoBlock addPhoto={addPhotoHandler} />
+                    </div>
+                </SortableContext>
+            </DndContext>
+        </div>
     )
 }
 

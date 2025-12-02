@@ -1,7 +1,7 @@
 import React from "react"
 import {Button, Card, Divider, Space, Typography} from "antd"
-import {DropboxOutlined, PlusOutlined} from "@ant-design/icons"
-import {Link as RouteLink, useParams} from "react-router-dom"
+import {LeftOutlined, PlusOutlined} from "@ant-design/icons"
+import {Link as RouteLink, useNavigate, useParams} from "react-router-dom"
 import {createStyles} from "antd-style"
 import NavigationSection from "./navigation-section/NavigationSection.tsx"
 
@@ -43,11 +43,19 @@ interface LeftSidebarProps {
 const LeftSidebar: React.FC<LeftSidebarProps> = ({colors}) => {
     const params = useParams<{id: string; color: string}>()
     const {styles} = useStyles()
+    const navigate = useNavigate()
+
+    const onClickToBack = () => {
+        navigate(-1)
+    }
 
     return (
         <div className={styles.content}>
             <Card>
-                <Title level={3}>Добавить товар</Title>
+                <Space size="middle" style={{marginBottom: 2}}>
+                    <Button onClick={onClickToBack} shape="circle" icon={<LeftOutlined />} />
+                    <Title level={3} style={{marginBottom: 2}}>Добавить товар</Title>
+                </Space>
                 <Divider size="small" />
                 <NavigationSection />
 
@@ -77,10 +85,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({colors}) => {
                     </div>
                 )}
 
-                <Space direction="vertical">
-                    <Button type="primary" size="large" block form="editor-product">Сохранить</Button>
-                    <Button icon={<DropboxOutlined />} size="large" block>Добавить в архив</Button>
-                </Space>
             </Card>
         </div>
     )

@@ -37,7 +37,7 @@ const Items = [
     {id: "basic", name: "Основная информация", icon: <ProductInfoIcon />},
     {id: "price", name: "Стоимость", icon: <ProductPriceIcon />},
     {id: "qty", name: "Количество", icon: <ProductQtyIcon />},
-    {id: "photos", name: "Фотографии", icon: <ProductInfoIcon />},
+    // {id: "photos", name: "Фотографии", icon: <ProductInfoIcon />},
     {id: "measurements", name: "Свойства & Обмеры", icon: <ProductMeasurementsIcon />},
     {id: "status-publishing", name: "Статус & Публикация", icon: <ProductStatusIcon />}
 ]

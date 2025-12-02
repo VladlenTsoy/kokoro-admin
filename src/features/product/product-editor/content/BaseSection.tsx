@@ -16,7 +16,7 @@ const BaseSection: React.FC<Props> = ({onSelectSizesChange}) => {
     return (
         <Card>
             <Title level={3}>Основная информация</Title>
-            <Divider size="small" />
+            <Divider size="middle" />
             <Row gutter={28}>
                 <Col xl={12} md={12} xs={24}>
                     <Form.Item

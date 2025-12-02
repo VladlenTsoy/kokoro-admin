@@ -3,6 +3,7 @@ import {HomeOutlined, ShoppingOutlined, SkinOutlined, TeamOutlined} from "@ant-d
 import {createStyles} from "antd-style"
 import {useLocation, useNavigate} from "react-router-dom"
 import LogoImage from "../../assets/images/logo_black.svg"
+import {useMemo} from "react"
 
 const useStyles = createStyles(() => ({
     headerLogo: {
@@ -35,6 +36,14 @@ const HeaderMenu = () => {
     const {styles} = useStyles()
     const navigate = useNavigate()
     const {pathname} = useLocation()
+    const pathValue = useMemo(() => {
+        try {
+            const arr = pathname.split("/").filter((val) => val !== "")
+            return arr[0]
+        } catch {
+            return ""
+        }
+    }, [pathname])
 
     return (
         <>
@@ -49,7 +58,7 @@ const HeaderMenu = () => {
                     {label: "Одежда", value: "/products", icon: <SkinOutlined />},
                     {label: "Клиенты", value: "/clients", icon: <TeamOutlined />}
                 ]}
-                value={pathname}
+                value={`/${pathValue || ""}`}
                 onChange={(value) => navigate(value)}
             />
         </>

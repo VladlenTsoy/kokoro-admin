@@ -17,3 +17,7 @@ a {
     font-style: normal;
     font-display: swap;
 }
+
+.ant-btn-color-primary {
+    color: #363A42;
+}

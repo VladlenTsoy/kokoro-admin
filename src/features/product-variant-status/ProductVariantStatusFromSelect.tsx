@@ -7,7 +7,7 @@ const ProductVariantStatusFromSelect = () => {
     return (
         <Form.Item
             label="Статус"
-            name="status"
+            name="status_id"
             rules={[{required: true, message: "Выберите статус!"}]}
         >
             <Select

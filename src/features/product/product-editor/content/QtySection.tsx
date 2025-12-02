@@ -1,4 +1,4 @@
-import {Card, Col, Divider, Form, InputNumber, Row, Typography} from "antd"
+import {Card, Col, Divider, Form, InputNumber, Row, Typography, Empty} from "antd"
 import React from "react"
 
 const {Title, Text} = Typography
@@ -10,24 +10,25 @@ interface SelectedSizeProps {
 const SelectedSize: React.FC<SelectedSizeProps> = ({selectSizes}) => {
     return (
         <Card>
-            <Title level={3}>Количество</Title>
-            <Divider size="small" />
+            <Title level={3} style={{marginBottom: ".5rem"}}>Количество</Title>
             <Text type="secondary">
-                Чтобы активировать поля для ввода информации, необходимо сначала выбрать размеры.
             </Text>
+            <Divider size="middle" />
+            {
+                selectSizes.length <= 0 &&
+                <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description="Чтобы активировать поля для ввода информации, необходимо сначала выбрать размеры."
+                />
+            }
             {
                 selectSizes.map((size) =>
                     <Row gutter={28} key={size.id}>
                         <Col span={24}>
-                            <Divider
-                                style={{margin: 0, marginBottom: "0.5rem"}}
-                                orientation="left"
-                            >
-                                {size.title}
-                            </Divider>
+                            <Title level={5} style={{marginBottom: 0}}>{size.title}</Title>
                         </Col>
                         <Col xl={8}>
-                            <Form.Item name={["size_props", String(size.id), "id"]} hidden initialValue={size.id}>
+                            <Form.Item name={["size_props", String(size.id), "size_id"]} hidden initialValue={size.id}>
                                 <InputNumber />
                             </Form.Item>
                             <Form.Item
@@ -52,12 +53,6 @@ const SelectedSize: React.FC<SelectedSizeProps> = ({selectSizes}) => {
                             <Form.Item
                                 label="Себестоимость"
                                 name={["size_props", String(size.id), "cost_price"]}
-                                rules={[
-                                    {
-                                        required: true,
-                                        message: "Введите себестоимость!"
-                                    }
-                                ]}
                             >
                                 <InputNumber
                                     min={0}
