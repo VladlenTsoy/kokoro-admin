@@ -1,3 +1,6 @@
+/** ------------ ПРОДУКТ --------------- **/
+
+// Данные о размере продукта
 export interface ProductSizeType {
     id: number
     qty: number
@@ -8,6 +11,7 @@ export interface ProductSizeType {
     }
 }
 
+// Данные об изображение
 export interface ProductImageType {
     name: string
     path: string
@@ -15,6 +19,20 @@ export interface ProductImageType {
     position: number
 }
 
+// Данные о цвете продукта
+export interface ProductColorType {
+    id: number
+    title: string
+    hex: string
+}
+
+// Данные о статусе
+export interface ProductStatusType {
+    id: number
+    title: string
+}
+
+// Основные данные о продукте
 export interface ProductType {
     title: string
     price: number
@@ -23,22 +41,15 @@ export interface ProductType {
     productProperties: number[]
     category_id: number
     color_id: number
-    // product_sizes: ProductSizeType[],
     product_images: ProductImageType[],
     tags: []
-    //
     sizes: ProductSizeType[]
     is_new: boolean
-    color: {
-        id: number
-        title: string
-        hex: string
-    }
-    status: {
-        id: number
-        title: string
-    }
+    color: ProductColorType
+    status: ProductStatusType
 }
+
+/** ------------ ФИЛЬТР --------------- **/
 
 export interface SelectProductsFilterParams {
     categoryIds: number[]
@@ -47,4 +58,37 @@ export interface SelectProductsFilterParams {
     sizeIds: number[]
     sorter: {field: string, order: "ascend" | "descend"}
     type: string
+}
+
+/** ------------ ФОРМА --------------- **/
+
+export type ProductSizeMapType = Record<
+    string,
+    {
+        size_id: number;
+        qty: number;
+        cost_price: number;
+        min_qty: number;
+    }
+>
+
+export interface ProductFormValuesType {
+    title: string
+    category_id: number
+    color_id: number
+    storage_id: number
+    size_ids: number[]
+    tags_id: string[]
+    productProperties: number[]
+    //
+    price: number
+    discount: {
+        discount?: number
+        end_at?: string
+    }
+    //
+    size_props: ProductSizeMapType
+    //
+    status_id: number
+    is_new: "on" | "off"
 }

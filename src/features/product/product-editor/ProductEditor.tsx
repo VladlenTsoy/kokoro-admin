@@ -3,7 +3,6 @@ import BaseSection from "./content/BaseSection.tsx"
 import PriceSection from "./content/PriceSection.tsx"
 import {useCallback, useEffect, useState} from "react"
 import QtySection from "./content/QtySection.tsx"
-import {type TemporaryImageType} from "./right-block/image-section/ImagesSection.tsx"
 import PublicationSection from "./content/PublicationSection.tsx"
 import MeasurementsSection from "./content/MeasurementsSection.tsx"
 import LeftBlock from "./left-block/LeftBlock.tsx"
@@ -11,6 +10,8 @@ import {Element} from "react-scroll"
 import RightBlock from "./right-block/RightBlock.tsx"
 import {createStyles} from "antd-style"
 import {useCreateProductMutation} from "../productApi.ts"
+import type {ProductFormValuesType} from "../ProductType.ts"
+import type {ProductTemporaryImageType} from "../../file-uploader/product-image-uploader/ProductImageUploaderType.ts"
 
 const useStyles = createStyles(() => ({
     content: {
@@ -19,41 +20,10 @@ const useStyles = createStyles(() => ({
     }
 }))
 
-type SizePropsMap = Record<
-    string,
-    {
-        size_id: number;
-        qty: number;
-        cost_price: number;
-        min_qty: number;
-    }
->
-
-interface FormValues {
-    title: string
-    category_id: number
-    color_id: number
-    storage_id: number
-    size_ids: number[]
-    tags_id: string[]
-    productProperties: number[]
-    //
-    price: number
-    discount: {
-        discount?: number
-        end_at?: string
-    }
-    //
-    size_props: SizePropsMap
-    //
-    status_id: number
-    is_new: "on" | "off"
-}
-
 const ProductEditor = () => {
     const [form] = Form.useForm()
     const [selectedSizes, setSelectedSizes] = useState<{id: number, title: string}[]>([])
-    const [images, setImages] = useState<TemporaryImageType[]>([])
+    const [images, setImages] = useState<ProductTemporaryImageType[]>([])
     const [discountMode, setDiscountMode] = useState<boolean>(true)
     const {styles} = useStyles()
     const [create] = useCreateProductMutation()
@@ -90,7 +60,7 @@ const ProductEditor = () => {
         }
     }, [discountMode, form])
 
-    const onFinishHandler: FormProps<FormValues>["onFinish"] = (values) => {
+    const onFinishHandler: FormProps<ProductFormValuesType>["onFinish"] = (values) => {
 
         const arr = Object.entries(values.size_props).map(([key, value]) => ({
             key,

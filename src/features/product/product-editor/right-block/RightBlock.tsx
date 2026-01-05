@@ -1,8 +1,9 @@
 import {createStyles} from "antd-style"
-import ImagesSection, {type TemporaryImageType} from "./image-section/ImagesSection.tsx"
+import ImagesSection from "../../../file-uploader/product-image-uploader/ProductImageUploader.tsx"
 import React, {type Dispatch, type SetStateAction} from "react"
 import {Button, Card, Divider, Space, Typography} from "antd"
 import {SaveFilled} from "@ant-design/icons"
+import type {ProductTemporaryImageType} from "../../../file-uploader/product-image-uploader/ProductImageUploaderType.ts"
 
 const {Title} = Typography
 
@@ -14,8 +15,8 @@ const useStyles = createStyles(() => ({
 }))
 
 interface Props {
-    imageUrls: TemporaryImageType[];
-    setImageUrl: Dispatch<SetStateAction<TemporaryImageType[]>>;
+    imageUrls: ProductTemporaryImageType[];
+    setImageUrl: Dispatch<SetStateAction<ProductTemporaryImageType[]>>;
 }
 
 const RightBlock: React.FC<Props> = ({imageUrls, setImageUrl}) => {
@@ -28,7 +29,7 @@ const RightBlock: React.FC<Props> = ({imageUrls, setImageUrl}) => {
                 <Divider size="small" />
                 <ImagesSection imageUrls={imageUrls} setImageUrl={setImageUrl} />
                 <Divider size="middle" />
-                <Space direction="vertical" style={{width: "100%"}}>
+                <Space orientation="vertical" style={{width: "100%"}}>
                     <Button
                         htmlType="submit"
                         type="primary"

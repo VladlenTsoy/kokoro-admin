@@ -10,11 +10,12 @@ const useStyles = createStyles(({css, cx, token}) => {
         padding: 0 0.25rem;
         position: absolute;
         z-index: 4;
-        top: 0.5rem;
-        right: 0.5rem;
+        top: 15px;
+        left: 10px;
         font-size: ${token.fontSizeSM}px;
         background: ${token.colorBgContainer};
         border-radius: ${token.borderRadius}px;
+        box-shadow: ${token.boxShadowTertiary};
 
         &.warning {
             background: ${token.colorWarning};
