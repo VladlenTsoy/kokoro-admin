@@ -144,6 +144,7 @@ const ProductMeasurementsFormList: React.FC<Props> = ({selectedSizes}) => {
                                                     name={[field.name, "descriptions", String(sizes.id)]}
                                                     fieldKey={[field.key, "descriptions", String(sizes.id)]}
                                                     rules={[{required: true, message: "Введите описание!"}]}
+                                                    key={`descriptions-${field.key}`}
                                                 >
                                                     <Input.TextArea
                                                         placeholder="Описание" rows={1}

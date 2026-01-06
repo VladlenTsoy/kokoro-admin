@@ -5,6 +5,7 @@ import {Button, Space} from "antd"
 import ProductTableSizesColumn from "./ProductTableSizesColumn.tsx"
 import ProductTableStatusColumn from "./ProductTableStatusColumn.tsx"
 import {EditOutlined} from "@ant-design/icons"
+import {Link} from "react-router-dom"
 
 export const columns: ColumnsType<ProductType> = [
     {
@@ -66,8 +67,10 @@ export const columns: ColumnsType<ProductType> = [
     },
     {
         key: "actions",
-        render: () => (
-            <Button icon={<EditOutlined />} />
+        render: (_, record) => (
+            <Link to={`/products/product/${record.id}`}>
+                <Button icon={<EditOutlined />} />
+            </Link>
         )
     }
 ]

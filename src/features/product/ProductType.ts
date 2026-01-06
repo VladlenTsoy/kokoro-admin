@@ -4,6 +4,7 @@
 export interface ProductSizeType {
     id: number
     qty: number
+    cost_price: number
     min_qty: number
     size: {
         id: number
@@ -13,6 +14,7 @@ export interface ProductSizeType {
 
 // Данные об изображение
 export interface ProductImageType {
+    id: number
     name: string
     path: string
     size: number
@@ -34,14 +36,20 @@ export interface ProductStatusType {
 
 // Основные данные о продукте
 export interface ProductType {
+    id: number
     title: string
     price: number
     product_id: number
+    product: {
+        category_id: number
+    }
     storage_id: number
     productProperties: number[]
     category_id: number
+    status_id: number
     color_id: number
     product_images: ProductImageType[],
+    images: ProductImageType[],
     tags: []
     sizes: ProductSizeType[]
     is_new: boolean
@@ -65,10 +73,10 @@ export interface SelectProductsFilterParams {
 export type ProductSizeMapType = Record<
     string,
     {
-        size_id: number;
-        qty: number;
-        cost_price: number;
-        min_qty: number;
+        size_id: number
+        qty: number
+        cost_price: number
+        min_qty: number
     }
 >
 

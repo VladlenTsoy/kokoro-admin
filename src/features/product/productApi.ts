@@ -31,9 +31,9 @@ export const productApi = createApi({
             }),
             invalidatesTags: ["Product"]
         }),
-        getProductById: builder.query({
-            query: () => ({
-                url: "/product-variant/:id"
+        getProductById: builder.query<ProductType, string | undefined>({
+            query: (id) => ({
+                url: `/product-variant/${id}`
             })
         })
     })
@@ -41,5 +41,6 @@ export const productApi = createApi({
 
 export const {
     useCreateProductMutation,
-    useGetProductsQuery
+    useGetProductsQuery,
+    useGetProductByIdQuery
 } = productApi
