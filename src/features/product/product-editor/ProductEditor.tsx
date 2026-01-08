@@ -198,7 +198,7 @@ const ProductEditor: React.FC<Props> = ({productId}) => {
                 })
             }
         },
-        [create, images]
+        [create, images, productId, update]
     )
 
     // ---------- Memoized Left/Right blocks ----------
