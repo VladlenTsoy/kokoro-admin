@@ -71,34 +71,34 @@ const LeftSidebar: React.FC = () => {
                 <Divider size="small" />
                 <NavigationSection />
 
-                <div className={styles.menuOtherVariants}>
-                    {
-                        isLoading ?
-                            <Skeleton title={false} paragraph={{rows: 3, width: "100%"}} /> : !params?.color &&
-                            data &&
-                            <>
-                                <Title level={4}>Цвета продукта</Title>
-                                {
-                                    data.map(
-                                        (variant) =>
-                                            variant.id !== Number(params.id) && (
-                                                <RouteLink
-                                                    replace
-                                                    key={variant.id}
-                                                    to={`/products/product/${variant.id}`}
-                                                    className={styles.menuItem}
-                                                >
-                                                    <div className={styles.colorId}>#{variant.id}</div>
-                                                    <div className={styles.colorCircle}
-                                                         style={{backgroundColor: variant.color.hex}} />
-                                                    <div>{variant.title} ({variant.color.title})</div>
-                                                </RouteLink>
-                                            )
-                                    )
-                                }
-                            </>
-                    }
-                </div>
+                {
+                    isLoading ?
+                        <div className={styles.menuOtherVariants}>
+                            <Skeleton title={false} paragraph={{rows: 3, width: "100%"}} />
+                        </div> : !params?.color &&
+                        data &&
+                        <div className={styles.menuOtherVariants}>
+                            <Title level={4}>Цвета продукта</Title>
+                            {
+                                data.map(
+                                    (variant) =>
+                                        variant.id !== Number(params.id) && (
+                                            <RouteLink
+                                                replace
+                                                key={variant.id}
+                                                to={`/products/product/${variant.id}`}
+                                                className={styles.menuItem}
+                                            >
+                                                <div className={styles.colorId}>#{variant.id}</div>
+                                                <div className={styles.colorCircle}
+                                                     style={{backgroundColor: variant.color.hex}} />
+                                                <div>{variant.title} ({variant.color.title})</div>
+                                            </RouteLink>
+                                        )
+                                )
+                            }
+                        </div>
+                }
 
                 {params.id && !params.color && (
                     <RouteLink to={`/products/product/${params.id}/color`}>
