@@ -28,6 +28,9 @@ const SelectedSize: React.FC<SelectedSizeProps> = ({selectSizes}) => {
                             <Title level={5} style={{marginBottom: 0}}>{size.title}</Title>
                         </Col>
                         <Col xl={8}>
+                            <Form.Item name={["size_props", String(size.id), "id"]} hidden>
+                                <InputNumber />
+                            </Form.Item>
                             <Form.Item name={["size_props", String(size.id), "size_id"]} hidden initialValue={size.id}>
                                 <InputNumber />
                             </Form.Item>

@@ -22,7 +22,8 @@ createRoot(document.getElementById("root")!).render(
                 },
                 components: {
                     Layout: {
-                        headerBg: "#fff"
+                        headerBg: "#fff",
+                        bodyBg: "linear-gradient(to top, #e6e9f0 0%, #eef1f5 100%);"
                     },
                     Segmented: {
                         itemSelectedBg: "#B1E81C",

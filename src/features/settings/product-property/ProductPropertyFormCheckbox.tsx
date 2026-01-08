@@ -1,7 +1,7 @@
 import {useGetProductPropertiesQuery} from "./productPropertyApi.ts"
-import {Button, Checkbox, Col, Form, Popover, Row, Skeleton} from "antd"
+import {Checkbox, Col, Form, Popover, Row, Skeleton} from "antd"
 import {createStyles} from "antd-style"
-import {PlusOutlined, QuestionCircleFilled} from "@ant-design/icons"
+import {QuestionCircleFilled} from "@ant-design/icons"
 import DOMPurify from "dompurify"
 
 const useStyles = createStyles(({token}) => ({
@@ -33,32 +33,34 @@ const ProductPropertyFormCheckbox = () => {
         </Row>
 
     return (
-        <Form.Item name="productProperties">
-            <Checkbox.Group className={styles.groupCheckbox}>
-                <Row gutter={[12, 12]}>
-                    {data?.map((item) =>
-                        <Col span={12} key={item.id}>
-                            <label className={styles.labelCheckbox}>
-                                <Checkbox value={item.id}>
-                                    {item.title}
-                                    <Popover
-                                        content={
-                                            <div
-                                                style={{maxWidth: 200}}
-                                                dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(item.description)}}
-                                            />
-                                        }
-                                    >
-                                        <QuestionCircleFilled style={{marginLeft: 6}} />
-                                    </Popover>
-                                </Checkbox>
-                            </label>
-                        </Col>
-                    )}
-                </Row>
-            </Checkbox.Group>
-            <Button type="primary" icon={<PlusOutlined />}>Добавить свойства</Button>
-        </Form.Item>
+        <>
+            <Form.Item name="product_properties" style={{marginBottom: 0}}>
+                <Checkbox.Group className={styles.groupCheckbox}>
+                    <Row gutter={[12, 12]}>
+                        {data?.map((item) =>
+                            <Col span={12} key={item.id}>
+                                <label className={styles.labelCheckbox}>
+                                    <Checkbox value={item.id}>
+                                        {item.title}
+                                        <Popover
+                                            content={
+                                                <div
+                                                    style={{maxWidth: 200}}
+                                                    dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(item.description)}}
+                                                />
+                                            }
+                                        >
+                                            <QuestionCircleFilled style={{marginLeft: 6}} />
+                                        </Popover>
+                                    </Checkbox>
+                                </label>
+                            </Col>
+                        )}
+                    </Row>
+                </Checkbox.Group>
+            </Form.Item>
+            {/*<Button type="primary" icon={<PlusOutlined />}>Добавить свойства</Button>*/}
+        </>
     )
 }
 

@@ -8,10 +8,12 @@ import LeftBlock from "./left-block/LeftBlock.tsx"
 import RightBlock from "./right-block/RightBlock.tsx"
 import {Element} from "react-scroll"
 import {createStyles} from "antd-style"
-import {useCreateProductMutation, useGetProductByIdQuery} from "../productApi.ts"
+import {useCreateProductMutation, useGetProductByIdQuery, useUpdateProductMutation} from "../productApi.ts"
 import type {ProductFormValuesType, ProductSizeMapType} from "../ProductType.ts"
 import type {ProductTemporaryImageType} from "../../file-uploader/product-image-uploader/ProductImageUploaderType.ts"
 import {useCallback, useEffect, useMemo, useState} from "react"
+import dayjs from "dayjs"
+import type {CreateProductType} from "../CreateProductType.ts"
 import {domainUrlForImage} from "../../../utils/appApiConfig.ts"
 
 const useStyles = createStyles(() => ({
@@ -29,15 +31,18 @@ const ProductEditor: React.FC<Props> = ({productId}) => {
     const [form] = Form.useForm<ProductFormValuesType>()
     const {data, isLoading} = useGetProductByIdQuery(productId, {
         refetchOnMountOrArgChange: true,
+        refetchOnReconnect: true,
+        refetchOnFocus: true,
         skip: !productId
     })
     const [create] = useCreateProductMutation()
+    const [update] = useUpdateProductMutation()
     const {styles} = useStyles()
 
     // ---------- Состояния ----------
     const [selectedSizes, setSelectedSizes] = useState<{id: number; title: string}[]>([])
     const [images, setImages] = useState<ProductTemporaryImageType[]>([])
-    const [discountMode, setDiscountMode] = useState(true)
+    const [discountMode, setDiscountMode] = useState(false)
 
     const sizePropsToInitialValues: ProductSizeMapType = useMemo(() => {
         if (!data) return {}
@@ -46,6 +51,7 @@ const ProductEditor: React.FC<Props> = ({productId}) => {
             const sizeId = item.size?.id ?? 0
 
             acc[String(sizeId)] = {
+                id: item.id,
                 size_id: sizeId,
                 qty: item.qty ?? 0,
                 cost_price: item.cost_price ?? 0,
@@ -61,35 +67,49 @@ const ProductEditor: React.FC<Props> = ({productId}) => {
     useEffect(() => {
         if (data) {
 
-            const images: ProductTemporaryImageType[] = data.images.map((img) => ({
+            const images: ProductTemporaryImageType[] = data.images.map((img, index) => ({
                 id: img.id,
+                tmp_id: img.id,
                 name: img.name,
                 size: img.size,
-                position: img.position,
+                position: index + 1,
                 loading: false,
-                key: img.name,
-                path: `${domainUrlForImage}${img.path}`
+                path: img.path,
+                url: `${domainUrlForImage}${img.path}`
             }))
+
+            const productProperties = data.product?.properties?.map(property => property.id) || []
 
             setImages(data.images ? images : [])
             setSelectedSizes(data.sizes.map((s) => s.size))
+            setDiscountMode(!data?.discount?.discountPercent)
 
             form.setFieldsValue({
                 title: data.title,
                 category_id: data.product.category_id,
                 color_id: data.color_id,
                 price: data.price,
+                discount: {
+                    percent: data?.discount?.discountPercent,
+                    end_at: data?.discount?.endDate
+                        ? dayjs(data?.discount?.endDate)
+                        : undefined
+                },
+                product_properties: productProperties,
                 status_id: data.status_id,
                 storage_id: data.storage_id,
-                is_new: data.is_new ? "on" : "off",
+                is_new: data.is_new,
                 size_ids: data.sizes.map((s) => s.size.id),
-                size_props: sizePropsToInitialValues
+                size_props: sizePropsToInitialValues,
+                measurements: data.measurements
             })
+        } else {
+            setDiscountMode(true)
         }
     }, [data, form, sizePropsToInitialValues])
 
     // ---------- Watchers ----------
-    const discountValue = Form.useWatch(["discount", "discount"], form) as number | undefined
+    const discountValue = Form.useWatch(["discount", "percent"], form) as number | undefined
 
     // ---------- Handlers ----------
     const onSelectSizesHandler = useCallback<NonNullable<SelectProps<number[]>["onChange"]>>(
@@ -116,27 +136,67 @@ const ProductEditor: React.FC<Props> = ({productId}) => {
     // Сброс полей скидки при выключении
     useEffect(() => {
         if (discountMode) {
-            form.resetFields([["discount", "discount"], ["discount", "end_at"]])
+            form.resetFields([["discount", "percent"], ["discount", "end_at"]])
         }
     }, [discountMode, form])
 
     // ---------- Submit ----------
     const onFinishHandler: FormProps<ProductFormValuesType>["onFinish"] = useCallback((values: ProductFormValuesType) => {
-            const product_sizes = Object.entries(values.size_props ?? {})
-                .map(([key, value]) => ({key, ...value}))
+            const productSizes: CreateProductType["product_sizes"] = Object.values(values.size_props)
+            const productImages: CreateProductType["product_images"] = images.reduce<CreateProductType["product_images"]>((arr, image, index) => {
+                if (image.name && image.path && image.size) {
+                    return [...arr, {
+                        id: image.id,
+                        name: image.name,
+                        path: image.path,
+                        size: image.size,
+                        to_delete: image.to_delete,
+                        position: index + 1
+                    }]
+                }
+                return arr
+            }, [])
 
-            create({
-                title: values.title,
-                category_id: values.category_id,
-                color_id: values.color_id,
-                storage_id: values.storage_id,
-                productProperties: values.productProperties,
-                price: values.price,
-                product_sizes,
-                is_new: values.is_new === "on",
-                product_images: images,
-                status_id: values.status_id
-            })
+            if (productId) {
+                update({
+                    id: +productId,
+                    data: {
+                        title: values.title,
+                        category_id: values.category_id,
+                        color_id: values.color_id,
+                        storage_id: values.storage_id,
+                        product_properties: values.product_properties,
+                        price: values.price,
+                        discount: {
+                            discount_percent: values?.discount?.percent,
+                            end_date: values?.discount?.end_at?.toISOString()
+                        },
+                        product_sizes: productSizes,
+                        is_new: values.is_new,
+                        product_images: productImages,
+                        status_id: values.status_id,
+                        measurements: values.measurements
+                    }
+                })
+            } else {
+                create({
+                    title: values.title,
+                    category_id: values.category_id,
+                    color_id: values.color_id,
+                    storage_id: values.storage_id,
+                    product_properties: values.product_properties,
+                    price: values.price,
+                    discount: {
+                        discount_percent: values?.discount?.percent,
+                        end_date: values?.discount?.end_at?.toISOString()
+                    },
+                    product_sizes: productSizes,
+                    is_new: values.is_new,
+                    product_images: productImages,
+                    status_id: values.status_id,
+                    measurements: values.measurements
+                })
+            }
         },
         [create, images]
     )

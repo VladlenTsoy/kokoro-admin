@@ -10,9 +10,9 @@ const useStyles = createStyles(({token}) => ({
         backgroundColor: "#F8F9F9",
         borderRadius: token.borderRadius,
         display: "grid",
-        gap: 8,
+        gap: 16,
         gridTemplateColumns: "1fr 1fr",
-        alignItems: "flex-start"
+        alignItems: "center"
     },
     text: {
         lineHeight: 1.25,
@@ -20,13 +20,15 @@ const useStyles = createStyles(({token}) => ({
     },
     wrapDiscount: {
         display: "flex",
+        width: "100%",
         position: "relative",
         alignItems: "center",
-        gap: "1rem",
+        gap: "1rem"
     },
     wrapSwitch: {
         position: "absolute",
-        right: "1rem"
+        right: "1rem",
+        top: 48
     }
 }))
 
@@ -63,8 +65,8 @@ const PriceSection: React.FC<Props> = ({discountValue, discountMode, onChangeDis
                     </Form.Item>
                 </Col>
                 <Col xl={12} md={12} xs={24}>
-                    <Form.Item name={["discount", "discount"]} label="Скидка (%)">
-                        <div className={styles.wrapDiscount}>
+                    <div className={styles.wrapDiscount}>
+                        <Form.Item name={["discount", "percent"]} label="Скидка (%)" style={{width: "100%"}}>
                             <InputNumber
                                 min={1}
                                 max={100}
@@ -72,26 +74,26 @@ const PriceSection: React.FC<Props> = ({discountValue, discountMode, onChangeDis
                                 placeholder="Введите скидку"
                                 disabled={discountMode}
                             />
-                            <Switch className={styles.wrapSwitch} onChange={onChangeDiscountMode} value={!discountMode} />
-                        </div>
-                    </Form.Item>
+                        </Form.Item>
+                        <Switch className={styles.wrapSwitch} onChange={onChangeDiscountMode} value={!discountMode} />
+                    </div>
                 </Col>
                 {discountValue &&
                     <Col xl={24} md={24} xs={24}>
-                        <Form.Item name={["discount", "end_at"]} label="До какого">
-                            <div className={styles.entAtBlock}>
-                                <div className={styles.text}>
-                                    Вы можете указать дату, до которой будет действовать скидка. После сохранения она
-                                    активируется автоматически.
-                                </div>
+                        <div className={styles.entAtBlock}>
+                            <div className={styles.text}>
+                                Вы можете указать дату, до которой будет действовать скидка. После сохранения она
+                                активируется автоматически.
+                            </div>
+                            <Form.Item name={["discount", "end_at"]} label="До какого">
                                 <DatePicker
                                     format="DD-MM-YYYY"
                                     style={{width: "100%"}}
                                     showToday={false}
                                     placeholder="Выберите дату"
                                 />
-                            </div>
-                        </Form.Item>
+                            </Form.Item>
+                        </div>
                     </Col>
                 }
             </Row>

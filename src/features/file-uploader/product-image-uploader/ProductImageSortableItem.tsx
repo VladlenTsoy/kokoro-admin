@@ -36,7 +36,8 @@ const ProductImageSortableItem: React.FC<Props> = ({id, image, index, removePhot
             {...listeners}
         >
             <ProductImageItem
-                url={image.path}
+                url={image.url}
+                path={image.path}
                 loading={image.loading}
                 size={image.size}
                 isFirst={index === 0}

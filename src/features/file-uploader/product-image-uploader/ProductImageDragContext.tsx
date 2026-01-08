@@ -23,7 +23,7 @@ interface Props {
 
 const ProductImageDragContext: React.FC<Props> = ({children, setActiveId, activeId, imageUrls, setImageUrl}) => {
     const sensors = useSensors(useSensor(PointerSensor))
-    const selectedIndexImage = useMemo(() => imageUrls.findIndex(val => val.id === activeId), [imageUrls, activeId])
+    const selectedIndexImage = useMemo(() => imageUrls.findIndex(val => val.tmp_id === activeId), [imageUrls, activeId])
     const selectedImage = useMemo(() => imageUrls[selectedIndexImage], [imageUrls, selectedIndexImage])
 
     const onDragEnd = (event: DragEndEvent) => {
@@ -56,13 +56,14 @@ const ProductImageDragContext: React.FC<Props> = ({children, setActiveId, active
                 }
             }}
         >
-            <SortableContext items={imageUrls} strategy={rectSortingStrategy}>
+            <SortableContext items={imageUrls.map(img => ({id: img.tmp_id}))} strategy={rectSortingStrategy}>
                 {children}
             </SortableContext>
             <DragOverlay adjustScale={true}>
                 {activeId && (
                     <ProductImageItem
-                        url={selectedImage?.path}
+                        url={selectedImage.url}
+                        path={selectedImage?.path}
                         isFirst={selectedIndexImage === 0}
                         isDragging
                     />

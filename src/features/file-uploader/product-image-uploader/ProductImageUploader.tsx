@@ -5,7 +5,7 @@ import ProductImageSortableItem from "./ProductImageSortableItem.tsx"
 import ProductImageUploaderButton from "./ProductImageUploaderButton.tsx"
 import ProductImageDragContext from "./ProductImageDragContext.tsx"
 import {getBase64} from "../../../utils/getBase64.ts"
-import {useDeletePhotoMutation, useUploadPhotoMutation} from "../fileUploaderApi.ts"
+import {useUploadPhotoMutation} from "../fileUploaderApi.ts"
 
 const useStyles = createStyles(() => ({
     grid: {
@@ -27,7 +27,6 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({imageUrls, s
     const [activeId, setActiveId] = useState<number | null>(null)
 
     const [uploadPhoto] = useUploadPhotoMutation()
-    const [deletePhoto] = useDeletePhotoMutation()
 
     const addPhotoHandler = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,32 +39,44 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({imageUrls, s
                             setImageUrl(prev => [
                                 ...prev,
                                 {
-                                    id: timeKey,
-                                    key: String(timeKey),
-                                    path: imageUrl,
+                                    tmp_id: timeKey,
+                                    url: imageUrl,
                                     loading: true
                                 }
                             ])
 
                         const formData = new FormData()
                         formData.append("file", file)
-                        const res = await uploadPhoto(formData)
+                        try {
+                            const res = await uploadPhoto(formData)
 
-                        if (res?.data) {
-                            const data = res.data
+                            if (res?.data) {
+                                const data = res.data
+                                setImageUrl(prev =>
+                                    prev.map(img =>
+                                        img.tmp_id === timeKey
+                                            ? {
+                                                ...img,
+                                                loading: false,
+                                                name: data.name,
+                                                path: data.key,
+                                                url: data.location,
+                                                size: data.size,
+                                                position: img.position
+                                            }
+                                            : img
+                                    )
+                                )
+                            }
+                        } catch (error) {
+                            console.error(error)
                             setImageUrl(prev =>
                                 prev.map(img =>
-                                    img.key === String(timeKey)
-                                        ? {
-                                            ...img,
-                                            loading: false,
-                                            name: data.name,
-                                            path: data.location,
-                                            size: data.size,
-                                            position: img.position,
-                                            key: data.key
-                                        }
-                                        : img
+                                    img.tmp_id === timeKey ? {
+                                        ...img,
+                                        loading: false,
+                                        error: true
+                                    } : img
                                 )
                             )
                         }
@@ -77,22 +88,22 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({imageUrls, s
     )
 
     const removeTemporaryPhotoHandler = useCallback(
-        async (keyOrPath: string) => {
+        async (imagePath: string) => {
             // mark loading
             setImageUrl((prev) =>
                 prev.map((img) =>
-                    (img.key === keyOrPath || img.path === keyOrPath ? {...img, loading: true} : img)
+                    (img.path === imagePath ? {...img, to_delete: true} : img)
                 )
             )
             // find image by key or path
-            const findImage = imageUrls.find((img) => img.key === keyOrPath || img.path === keyOrPath)
-
-            if (findImage) {
-                await deletePhoto({path: findImage.key}) // backend expects key
-                setImageUrl((prev) => prev.filter((img) => img.key !== findImage.key))
-            }
+            // const findImage = imageUrls.find((img) => img.path === imagePath)
+            //
+            // if (findImage && findImage.path) {
+            //     await deletePhoto({path: findImage.path}) // backend expects key
+            //     setImageUrl((prev) => prev.filter((img) => img.path !== findImage.path))
+            // }
         },
-        [deletePhoto, setImageUrl, imageUrls]
+        [setImageUrl]
     )
 
     return <ProductImageDragContext
@@ -102,15 +113,17 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({imageUrls, s
         activeId={activeId}
     >
         <div className={styles.grid}>
-            {imageUrls.map((item, index) => (
-                <ProductImageSortableItem
-                    key={item.id}
-                    id={item.id}
-                    image={item}
-                    index={index}
-                    removePhoto={removeTemporaryPhotoHandler}
-                />
-            ))}
+            {imageUrls
+                .filter(item => !item.to_delete)
+                .map((item, index) => (
+                    <ProductImageSortableItem
+                        key={item.tmp_id}
+                        id={item.tmp_id}
+                        image={item}
+                        index={index}
+                        removePhoto={removeTemporaryPhotoHandler}
+                    />
+                ))}
             <ProductImageUploaderButton addPhoto={addPhotoHandler} isFirst={imageUrls.length <= 0} />
         </div>
     </ProductImageDragContext>

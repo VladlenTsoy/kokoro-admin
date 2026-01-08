@@ -1,14 +1,21 @@
 import {createApi} from "@reduxjs/toolkit/query/react"
-import type {ProductType} from "./ProductType.ts"
+import type {ProductOtherVariantType, ProductType} from "./ProductType.ts"
 import type {CreateProductType} from "./CreateProductType.ts"
 import {addFileUploaderApi} from "../../utils/appApiConfig.ts"
 
 export const productApi = createApi({
     reducerPath: "productApi",
     baseQuery: addFileUploaderApi,
-    tagTypes: ["Product"],
+    tagTypes: ["Product", "ProductOne"],
     endpoints: (builder) => ({
-        getProducts: builder.query<{items: ProductType[], total: number}, {page: number, pageSize: number, categoryIds?: number[], sizeIds?: number[], search?: string, statusId?: string}>({
+        getProducts: builder.query<{items: ProductType[], total: number}, {
+            page: number,
+            pageSize: number,
+            categoryIds?: number[],
+            sizeIds?: number[],
+            search?: string,
+            statusId?: string
+        }>({
             query: ({page, pageSize, categoryIds, sizeIds, search, statusId}) => ({
                 url: `/product-variant/all`,
                 method: "POST",
@@ -31,9 +38,23 @@ export const productApi = createApi({
             }),
             invalidatesTags: ["Product"]
         }),
+        updateProduct: builder.mutation<ProductType, {id: number, data: Partial<CreateProductType>}>({
+            query: ({id, data}) => ({
+                url: `/product-variant/${id}`,
+                method: "POST",
+                body: data
+            }),
+            invalidatesTags: ["Product", "ProductOne"]
+        }),
         getProductById: builder.query<ProductType, string | undefined>({
             query: (id) => ({
                 url: `/product-variant/${id}`
+            }),
+            providesTags: ["ProductOne"]
+        }),
+        getOthersVariantsByProductById: builder.query<ProductOtherVariantType[], string | undefined>({
+            query: (id) => ({
+                url: `/product-variant/${id}/variants`
             })
         })
     })
@@ -42,5 +63,7 @@ export const productApi = createApi({
 export const {
     useCreateProductMutation,
     useGetProductsQuery,
-    useGetProductByIdQuery
+    useGetProductByIdQuery,
+    useGetOthersVariantsByProductByIdQuery,
+    useUpdateProductMutation,
 } = productApi

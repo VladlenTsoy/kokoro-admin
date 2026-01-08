@@ -1,3 +1,5 @@
+import type {Dayjs} from "dayjs"
+
 /** ------------ ПРОДУКТ --------------- **/
 
 // Данные о размере продукта
@@ -18,7 +20,7 @@ export interface ProductImageType {
     name: string
     path: string
     size: number
-    position: number
+    position?: number
 }
 
 // Данные о цвете продукта
@@ -41,20 +43,29 @@ export interface ProductType {
     price: number
     product_id: number
     product: {
+        id: number
         category_id: number
+        properties?: {id: number}[]
+    }
+    discount: {
+        discountPercent?: number
+        endDate?: string
     }
     storage_id: number
     productProperties: number[]
     category_id: number
     status_id: number
     color_id: number
-    product_images: ProductImageType[],
     images: ProductImageType[],
     tags: []
     sizes: ProductSizeType[]
     is_new: boolean
     color: ProductColorType
     status: ProductStatusType
+    measurements: {
+        title: string
+        description: Record<number, string>
+    }
 }
 
 /** ------------ ФИЛЬТР --------------- **/
@@ -73,6 +84,7 @@ export interface SelectProductsFilterParams {
 export type ProductSizeMapType = Record<
     string,
     {
+        id?: number
         size_id: number
         qty: number
         cost_price: number
@@ -87,16 +99,30 @@ export interface ProductFormValuesType {
     storage_id: number
     size_ids: number[]
     tags_id: string[]
-    productProperties: number[]
+    product_properties: number[]
     //
     price: number
     discount: {
-        discount?: number
-        end_at?: string
+        percent?: number
+        end_at?: Dayjs
     }
     //
     size_props: ProductSizeMapType
     //
     status_id: number
-    is_new: "on" | "off"
+    is_new: boolean
+    measurements: {
+        title: string
+        description: Record<number, string>
+    }
+}
+
+export interface ProductOtherVariantType {
+    id: number
+    title: string
+    color: {
+        id: number
+        title: string
+        hex: string
+    }
 }

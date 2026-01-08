@@ -120,7 +120,6 @@ const ProductMeasurementsFormList: React.FC<Props> = ({selectedSizes}) => {
                                                     hidden
                                                     {...field}
                                                     name={[field.name, "id"]}
-                                                    fieldKey={[field.key, "id"]}
                                                     key={`id-${field.key}`}
                                                 >
                                                     <Input />
@@ -128,7 +127,6 @@ const ProductMeasurementsFormList: React.FC<Props> = ({selectedSizes}) => {
                                                 <Form.Item
                                                     {...field}
                                                     name={[field.name, "title"]}
-                                                    fieldKey={[field.key, "title"]}
                                                     key={`id-title-${field.key}`}
                                                     rules={[{required: true, message: "Введите название!"}]}
                                                 >
@@ -142,7 +140,6 @@ const ProductMeasurementsFormList: React.FC<Props> = ({selectedSizes}) => {
                                                 <Form.Item
                                                     {...field}
                                                     name={[field.name, "descriptions", String(sizes.id)]}
-                                                    fieldKey={[field.key, "descriptions", String(sizes.id)]}
                                                     rules={[{required: true, message: "Введите описание!"}]}
                                                     key={`descriptions-${field.key}`}
                                                 >

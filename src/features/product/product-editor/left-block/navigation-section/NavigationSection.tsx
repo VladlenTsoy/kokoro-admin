@@ -28,7 +28,7 @@ const useStyles = createStyles(({token}) => ({
         }
     },
     active: {
-        color: token.colorText,
+        color: `${token.colorText}!important`,
         backgroundColor: "#F8F9F9"
     }
 }))
@@ -56,7 +56,7 @@ const NavigationSection = () => {
                     spy
                     hashSpy
                     smooth
-                    offset={-5}
+                    offset={-30}
                     duration={300}
                     htmlFor={item.id}
                 >

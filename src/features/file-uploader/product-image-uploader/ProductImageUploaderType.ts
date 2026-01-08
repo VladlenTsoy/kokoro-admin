@@ -1,9 +1,12 @@
 export interface ProductTemporaryImageType {
-    id: number;
+    tmp_id: number;
+    id?: number;
     name?: string;
-    path: string;
+    path?: string;
+    url: string;
     size?: number;
     position?: number;
     loading?: boolean;
-    key: string;
+    error?: boolean;
+    to_delete?: boolean;
 }

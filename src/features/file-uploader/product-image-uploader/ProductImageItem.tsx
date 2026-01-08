@@ -27,7 +27,7 @@ const useStyles = createStyles(({token}) => ({
         fontWeight: 500,
         cursor: "grab",
         userSelect: "none",
-        transition: "all .2s ease-in-out",
+        transition: "all .2s ease-in-out"
     },
     dragging: {
         opacity: 0.5
@@ -82,6 +82,7 @@ const useStyles = createStyles(({token}) => ({
 
 interface Props {
     url: string
+    path?: string
     loading?: boolean
     size?: number
     isFirst: boolean
@@ -89,7 +90,7 @@ interface Props {
     removePhoto?: (path: string) => void
 }
 
-const ProductImageItem: React.FC<Props> = ({isDragging, loading, size, url, isFirst, removePhoto}) => {
+const ProductImageItem: React.FC<Props> = ({isDragging, loading, size, url, isFirst, removePhoto, path}) => {
     const {styles} = useStyles()
 
     return (
@@ -139,7 +140,7 @@ const ProductImageItem: React.FC<Props> = ({isDragging, loading, size, url, isFi
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                         e.stopPropagation()
-                        removePhoto(url)
+                        if (path) removePhoto(path)
                     }}
                 >
                     <DeleteOutlined />

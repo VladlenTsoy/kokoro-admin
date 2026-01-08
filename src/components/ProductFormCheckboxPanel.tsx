@@ -12,15 +12,16 @@ const useStyles = createStyles(({token}) => ({
         gap: "2rem",
         borderRadius: token.borderRadius,
         cursor: "pointer",
+        marginBottom: "24px"
     },
     title: {},
     desc: {
         fontSize: token.fontSizeSM,
         color: token.colorTextSecondary,
-        lineHeight: 1.5,
+        lineHeight: 1.5
     },
     checkbox: {
-        transform: "scale(1.5)",
+        transform: "scale(1.5)"
     }
 }))
 
@@ -34,15 +35,18 @@ const ProductFormCheckboxPanel: React.FC<Props> = ({name, title, description}) =
     const {styles} = useStyles()
 
     return (
-        <Form.Item name={name}>
+        <div>
             <label className={styles.container}>
                 <div>
                     <div className={styles.title}>{title}</div>
                     <div className={styles.desc}>{description}</div>
                 </div>
-                <Checkbox className={styles.checkbox} />
+                <Form.Item name={name} valuePropName="checked" style={{marginBottom: 0}}>
+                    <Checkbox className={styles.checkbox} />
+                </Form.Item>
             </label>
-        </Form.Item>
+        </div>
+
     )
 }
 
