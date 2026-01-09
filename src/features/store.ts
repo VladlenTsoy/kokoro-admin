@@ -3,6 +3,7 @@ import {persistCombineReducers, persistStore} from "redux-persist"
 import {useDispatch as useDefaultDispatch} from "react-redux"
 import storage from "redux-persist/lib/storage"
 import auth from "./auth/authSlice.ts"
+import theme from "./theme/themeSlice.ts"
 import {countriesApi} from "./settings/country/countryApi.ts"
 import {colorApi} from "./settings/color/colorApi.ts"
 import {sizeApi} from "./settings/size/sizeApi.ts"
@@ -23,6 +24,7 @@ const persistConfig = {
 
 const persistedCombineReducers = persistCombineReducers(persistConfig, {
     auth,
+    theme,
     [countriesApi.reducerPath]: countriesApi.reducer,
     [colorApi.reducerPath]: colorApi.reducer,
     [sizeApi.reducerPath]: sizeApi.reducer,
