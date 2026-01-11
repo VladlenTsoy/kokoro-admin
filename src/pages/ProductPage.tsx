@@ -2,11 +2,11 @@ import ProductEditor from "../features/product/product-editor/ProductEditor.tsx"
 import {useParams} from "react-router-dom"
 
 const ProductPage = () => {
-    const {id} = useParams<{id: string}>()
+    const {id, variantId} = useParams<{id: string, variantId: string}>()
 
     return (
         <>
-            <ProductEditor productId={id} />
+            <ProductEditor productId={id || variantId} isColor={!!variantId} key={id || "create"} />
         </>
     )
 }

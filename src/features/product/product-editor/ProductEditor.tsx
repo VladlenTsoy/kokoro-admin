@@ -25,9 +25,10 @@ const useStyles = createStyles(() => ({
 
 interface Props {
     productId?: string
+    isColor?: boolean
 }
 
-const ProductEditor: React.FC<Props> = ({productId}) => {
+const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
     const [form] = Form.useForm<ProductFormValuesType>()
     const {data, isLoading} = useGetProductByIdQuery(productId, {
         refetchOnMountOrArgChange: true,
@@ -44,6 +45,8 @@ const ProductEditor: React.FC<Props> = ({productId}) => {
     const [images, setImages] = useState<ProductTemporaryImageType[]>([])
     const [discountMode, setDiscountMode] = useState(false)
 
+    const parentProductId = useMemo(() => data?.product?.id, [data])
+
     const sizePropsToInitialValues: ProductSizeMapType = useMemo(() => {
         if (!data) return {}
 
@@ -51,7 +54,7 @@ const ProductEditor: React.FC<Props> = ({productId}) => {
             const sizeId = item.size?.id ?? 0
 
             acc[String(sizeId)] = {
-                id: item.id,
+                ...(isColor ? {} : {id: item.id}),
                 size_id: sizeId,
                 qty: item.qty ?? 0,
                 cost_price: item.cost_price ?? 0,
@@ -60,53 +63,71 @@ const ProductEditor: React.FC<Props> = ({productId}) => {
 
             return acc
         }, {})
-    }, [data])
+    }, [data, isColor])
 
 
     // Инициализация состояния после загрузки данных
     useEffect(() => {
         if (data) {
+            if (isColor) {
+                const productProperties = data.product?.properties?.map(property => property.id) || []
+                setSelectedSizes(data.sizes.map((s) => s.size))
+                setDiscountMode(true)
 
-            const images: ProductTemporaryImageType[] = data.images.map((img, index) => ({
-                id: img.id,
-                tmp_id: img.id,
-                name: img.name,
-                size: img.size,
-                position: index + 1,
-                loading: false,
-                path: img.path,
-                url: `${domainUrlForImage}${img.path}`
-            }))
+                form.setFieldsValue({
+                    product_id: data.product_id,
+                    category_id: data.product.category_id,
+                    price: data.price,
+                    product_properties: productProperties,
+                    size_ids: data.sizes.map((s) => s.size.id),
+                    size_props: sizePropsToInitialValues,
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    measurements: data.measurements.map(({id, ...rest}) => rest)
+                })
 
-            const productProperties = data.product?.properties?.map(property => property.id) || []
+            } else {
+                const images: ProductTemporaryImageType[] = data.images.map((img, index) => ({
+                    id: img.id,
+                    tmp_id: img.id,
+                    name: img.name,
+                    size: img.size,
+                    position: index + 1,
+                    loading: false,
+                    path: img.path,
+                    url: `${domainUrlForImage}${img.path}`
+                }))
 
-            setImages(data.images ? images : [])
-            setSelectedSizes(data.sizes.map((s) => s.size))
-            setDiscountMode(!data?.discount?.discountPercent)
+                const productProperties = data.product?.properties?.map(property => property.id) || []
 
-            form.setFieldsValue({
-                title: data.title,
-                category_id: data.product.category_id,
-                color_id: data.color_id,
-                price: data.price,
-                discount: {
-                    percent: data?.discount?.discountPercent,
-                    end_at: data?.discount?.endDate
-                        ? dayjs(data?.discount?.endDate)
-                        : undefined
-                },
-                product_properties: productProperties,
-                status_id: data.status_id,
-                storage_id: data.storage_id,
-                is_new: data.is_new,
-                size_ids: data.sizes.map((s) => s.size.id),
-                size_props: sizePropsToInitialValues,
-                measurements: data.measurements
-            })
+                setImages(data.images ? images : [])
+                setSelectedSizes(data.sizes.map((s) => s.size))
+                setDiscountMode(!data?.discount?.discountPercent)
+
+                form.setFieldsValue({
+                    title: data.title,
+                    category_id: data.product.category_id,
+                    color_id: data.color_id,
+                    price: data.price,
+                    discount: {
+                        percent: data?.discount?.discountPercent,
+                        end_at: data?.discount?.endDate
+                            ? dayjs(data?.discount?.endDate)
+                            : undefined
+                    },
+                    product_properties: productProperties,
+                    status_id: data.status_id,
+                    storage_id: data.storage_id,
+                    is_new: data.is_new,
+                    size_ids: data.sizes.map((s) => s.size.id),
+                    size_props: sizePropsToInitialValues,
+                    measurements: data.measurements
+                })
+            }
+
         } else {
             setDiscountMode(true)
         }
-    }, [data, form, sizePropsToInitialValues])
+    }, [data, form, isColor, sizePropsToInitialValues])
 
     // ---------- Watchers ----------
     const discountValue = Form.useWatch(["discount", "percent"], form) as number | undefined
@@ -157,7 +178,7 @@ const ProductEditor: React.FC<Props> = ({productId}) => {
                 return arr
             }, [])
 
-            if (productId) {
+            if (productId && !isColor) {
                 update({
                     id: +productId,
                     data: {
@@ -182,6 +203,7 @@ const ProductEditor: React.FC<Props> = ({productId}) => {
                 create({
                     title: values.title,
                     category_id: values.category_id,
+                    product_id: isColor ? parentProductId : undefined,
                     color_id: values.color_id,
                     storage_id: values.storage_id,
                     product_properties: values.product_properties,
@@ -198,7 +220,7 @@ const ProductEditor: React.FC<Props> = ({productId}) => {
                 })
             }
         },
-        [create, images, productId, update]
+        [create, images, productId, update, isColor]
     )
 
     // ---------- Memoized Left/Right blocks ----------

@@ -1,4 +1,3 @@
-import React from "react"
 import {Button, Card, Divider, Skeleton, Space, Typography} from "antd"
 import {LeftOutlined, PlusOutlined} from "@ant-design/icons"
 import {Link as RouteLink, useNavigate, useParams} from "react-router-dom"
@@ -48,8 +47,8 @@ const useStyles = createStyles(({token}) => ({
     }
 }))
 
-const LeftSidebar: React.FC = () => {
-    const params = useParams<{id: string; color: string}>()
+const LeftSidebar = () => {
+    const params = useParams<{id: string; isColor: string}>()
     const {isLoading, data} = useGetOthersVariantsByProductByIdQuery(params.id, {
         refetchOnMountOrArgChange: true,
         skip: !params.id
@@ -66,48 +65,47 @@ const LeftSidebar: React.FC = () => {
             <Card>
                 <Space size="middle" style={{marginBottom: 2}}>
                     <Button onClick={onClickToBack} shape="circle" icon={<LeftOutlined />} />
-                    <Title level={3} style={{marginBottom: 2}}>{params?.id ? "Редактировать" : "Добавить товар"}</Title>
+                    <Title level={3}
+                           style={{marginBottom: 2}}>{params.isColor ? "Добавить цвет" : params?.id ? "Редактировать" : "Добавить товар"}</Title>
                 </Space>
                 <Divider size="small" />
                 <NavigationSection />
-
-                {
-                    isLoading ?
-                        <div className={styles.menuOtherVariants}>
-                            <Skeleton title={false} paragraph={{rows: 3, width: "100%"}} />
-                        </div> : !params?.color &&
-                        data &&
-                        <div className={styles.menuOtherVariants}>
-                            <Title level={4}>Цвета продукта</Title>
-                            {
-                                data.map(
-                                    (variant) =>
-                                        variant.id !== Number(params.id) && (
-                                            <RouteLink
-                                                replace
-                                                key={variant.id}
-                                                to={`/products/product/${variant.id}`}
-                                                className={styles.menuItem}
-                                            >
-                                                <div className={styles.colorId}>#{variant.id}</div>
-                                                <div className={styles.colorCircle}
-                                                     style={{backgroundColor: variant.color.hex}} />
-                                                <div>{variant.title} ({variant.color.title})</div>
-                                            </RouteLink>
-                                        )
-                                )
-                            }
-                        </div>
-                }
-
-                {params.id && !params.color && (
-                    <RouteLink to={`/products/product/${params.id}/color`}>
+                <div className={styles.menuOtherVariants}>
+                    {
+                        isLoading ?
+                            <Skeleton title={false} paragraph={{rows: 3, width: "100%"}} /> :
+                            !params?.isColor &&
+                            data && data.length > 0 &&
+                            <>
+                                <Title level={4}>Цвета продукта</Title>
+                                {
+                                    data.map(
+                                        (variant) =>
+                                            variant.id !== Number(params.id) && (
+                                                <RouteLink
+                                                    replace
+                                                    key={variant.id}
+                                                    to={`/products/product/${variant.id}`}
+                                                    className={styles.menuItem}
+                                                >
+                                                    <div className={styles.colorId}>#{variant.id}</div>
+                                                    <div className={styles.colorCircle}
+                                                         style={{backgroundColor: variant.color.hex}} />
+                                                    <div>{variant.title} ({variant.color.title})</div>
+                                                </RouteLink>
+                                            )
+                                    )
+                                }
+                            </>
+                    }
+                </div>
+                {params.id && !params.isColor && (
+                    <RouteLink to={`/products/product/add-color/${params.id}`}>
                         <Button type="dashed" icon={<PlusOutlined />} size="large" block>
                             Добавить цвет
                         </Button>
                     </RouteLink>
                 )}
-
             </Card>
         </div>
     )

@@ -63,9 +63,10 @@ export interface ProductType {
     color: ProductColorType
     status: ProductStatusType
     measurements: {
+        id: number
         title: string
         description: Record<number, string>
-    }
+    }[]
 }
 
 /** ------------ ФИЛЬТР --------------- **/
@@ -96,6 +97,7 @@ export interface ProductFormValuesType {
     title: string
     category_id: number
     color_id: number
+    product_id?: number
     storage_id: number
     size_ids: number[]
     tags_id: string[]
@@ -112,9 +114,10 @@ export interface ProductFormValuesType {
     status_id: number
     is_new: boolean
     measurements: {
+        id?: number
         title: string
         description: Record<number, string>
-    }
+    }[]
 }
 
 export interface ProductOtherVariantType {

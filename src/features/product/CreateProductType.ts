@@ -26,7 +26,8 @@ export interface CreateProductType {
     }[]
     is_new: boolean
     measurements: {
+        id?: number
         title: string
         description: Record<number, string>
-    }
+    }[]
 }
