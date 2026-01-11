@@ -220,7 +220,7 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
                 })
             }
         },
-        [create, images, productId, update, isColor]
+        [create, images, productId, update, isColor, parentProductId]
     )
 
     // ---------- Memoized Left/Right blocks ----------
