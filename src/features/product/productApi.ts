@@ -55,7 +55,15 @@ export const productApi = createApi({
         getOthersVariantsByProductById: builder.query<ProductOtherVariantType[], string | undefined>({
             query: (id) => ({
                 url: `/product-variant/${id}/variants`
-            })
+            }),
+            providesTags: ["Product", "ProductOne"]
+        }),
+        deleteByProductId: builder.mutation<{message: string}, number | undefined>({
+            query: (id) => ({
+                url: `/product-variant/${id}`,
+                method: "DELETE"
+            }),
+            invalidatesTags: ["Product", "ProductOne"]
         })
     })
 })
@@ -66,4 +74,5 @@ export const {
     useGetProductByIdQuery,
     useGetOthersVariantsByProductByIdQuery,
     useUpdateProductMutation,
+    useDeleteByProductIdMutation
 } = productApi

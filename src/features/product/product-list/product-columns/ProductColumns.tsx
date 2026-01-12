@@ -6,6 +6,7 @@ import ProductTableSizesColumn from "./ProductTableSizesColumn.tsx"
 import ProductTableStatusColumn from "./ProductTableStatusColumn.tsx"
 import {EditOutlined} from "@ant-design/icons"
 import {Link} from "react-router-dom"
+import ProductTableDeleteAction from "./ProductTableDeleteAction.tsx"
 
 export const columns: ColumnsType<ProductType> = [
     {
@@ -18,7 +19,7 @@ export const columns: ColumnsType<ProductType> = [
         title: "Фото",
         dataIndex: "images",
         key: "images",
-        render: (images: ProductType["product_images"]) =>
+        render: (images: ProductType["images"]) =>
             <ProductTableImagesColumn images={images} />
     },
     {
@@ -68,9 +69,12 @@ export const columns: ColumnsType<ProductType> = [
     {
         key: "actions",
         render: (_, record) => (
-            <Link to={`/products/product/${record.id}`}>
-                <Button icon={<EditOutlined />} />
-            </Link>
+            <Space>
+                <Link to={`/products/product/${record.id}`}>
+                    <Button icon={<EditOutlined />} />
+                </Link>
+                <ProductTableDeleteAction productId={record.id} />
+            </Space>
         )
     }
 ]

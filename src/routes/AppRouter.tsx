@@ -2,14 +2,7 @@ import {BrowserRouter, Route, Routes} from "react-router-dom"
 import {lazy, Suspense} from "react"
 import PrivateLayout from "../layouts/PrivateLayout.tsx"
 import Layout from "../layouts/Layout.tsx"
-import CountriesPage from "../pages/settings/CountriesPage.tsx"
-import SizePage from "../pages/settings/SizePage.tsx"
 import SettingsLayout from "../layouts/SettingsLayout.tsx"
-import ProductCategoryPage from "../pages/settings/ProductCategoryPage.tsx"
-import SalesPointPage from "../pages/settings/SalesPointPage.tsx"
-import SourcePage from "../pages/settings/SourcePage.tsx"
-import ProductStoragePage from "../pages/settings/ProductStoragePage.tsx"
-import ProductPage from "../pages/ProductPage.tsx"
 
 export const Login = lazy(() => import("../pages/LoginPage.tsx"))
 export const HomePage = lazy(() => import("../pages/HomePage.tsx"))
@@ -20,6 +13,13 @@ export const NotFound = lazy(() => import("../pages/NotFoundPage.tsx"))
 export const ColorPage = lazy(() => import("../pages/settings/ColorPage.tsx"))
 export const ProductVariantStatusPage = lazy(() => import("../pages/settings/ProductVariantStatusPage.tsx"))
 export const ProductPropertyPage = lazy(() => import("../pages/settings/ProductPropertyPage.tsx"))
+export const ProductPage = lazy(() => import("../pages/ProductPage.tsx"))
+export const ProductStoragePage = lazy(() => import("../pages/settings/ProductStoragePage.tsx"))
+export const SourcePage = lazy(() => import("../pages/settings/SourcePage.tsx"))
+export const SalesPointPage = lazy(() => import("../pages/settings/SalesPointPage.tsx"))
+export const ProductCategoryPage = lazy(() => import("../pages/settings/ProductCategoryPage.tsx"))
+export const SizePage = lazy(() => import("../pages/settings/SizePage.tsx"))
+export const CountriesPage = lazy(() => import("../pages/settings/CountriesPage.tsx"))
 
 export const AppRouter = () => {
     return (
