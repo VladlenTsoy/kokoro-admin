@@ -135,7 +135,10 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
     // ---------- Handlers ----------
     const onSelectSizesHandler = useCallback<NonNullable<SelectProps<number[]>["onChange"]>>(
         (value, option) => {
-            if (!value || value.length === 0) return
+            if (!value || value.length === 0) {
+                setSelectedSizes([])
+                return
+            }
 
             if (Array.isArray(option) && option.length) {
                 const sortedOptions = [...option].sort((a, b) => Number(a.value) - Number(b.value))
