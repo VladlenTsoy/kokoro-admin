@@ -31,8 +31,8 @@ const ProductImageDragContext: React.FC<Props> = ({children, setActiveId, active
 
         if (over && active.id !== over.id) {
             setImageUrl((prev) => {
-                const oldIndex = prev.findIndex(val => val.id === active.id)
-                const newIndex = prev.findIndex(val => val.id === over.id)
+                const oldIndex = prev.findIndex(val => val.tmp_id === active.id)
+                const newIndex = prev.findIndex(val => val.tmp_id === over.id)
                 return arrayMove(prev, oldIndex, newIndex)
             })
         }
