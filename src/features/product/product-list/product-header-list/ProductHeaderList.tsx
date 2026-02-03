@@ -1,4 +1,4 @@
-import {useCallback} from "react"
+import {useCallback, useEffect, useRef} from "react"
 import {Button, Input, Space} from "antd"
 import ProductHeaderStatusFilter from "./ProductHeaderStatusFilter.tsx"
 import {PlusCircleFilled, SearchOutlined} from "@ant-design/icons"
@@ -19,11 +19,20 @@ const ProductHeaderList = () => {
     const {styles} = useStyles()
     const {params, updateParams} = useGetParams()
 
-    let timeout: number
+    const timeoutRef = useRef<number | null>(null)
     const onSearchHandler = (e: React.ChangeEvent<HTMLInputElement>) => {
-        clearTimeout(timeout)
-        timeout = window.setTimeout(() => updateParams("search", e.target.value), 300)
+        if (timeoutRef.current !== null) {
+            window.clearTimeout(timeoutRef.current)
+        }
+        timeoutRef.current = window.setTimeout(() => updateParams("search", e.target.value), 300)
     }
+    useEffect(() => {
+        return () => {
+            if (timeoutRef.current !== null) {
+                window.clearTimeout(timeoutRef.current)
+            }
+        }
+    }, [])
 
     const onCategoryIdsHandler = useCallback(
         (categoryId?: number) => updateParams("categoryIds", categoryId),
