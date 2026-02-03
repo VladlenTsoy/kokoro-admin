@@ -52,7 +52,7 @@ const ProductHeaderStatusFilter:React.FC<Props> = ({defaultSelected}) => {
         <Segmented
             className={styles.segmented}
             onChange={onChangeSegment}
-            defaultValue={defaultSelected || 0}
+            value={defaultSelected || 0}
             options={
                 [
                     {
