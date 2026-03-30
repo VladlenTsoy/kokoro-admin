@@ -30,4 +30,4 @@ steps:
   - task: PublishBuildArtifacts@1
     inputs:
       pathToPublish: "$(Build.ArtifactStagingDirectory)"
-      artifactName: darta-site.$(Build.BuildNumber)
+      artifactName: kokoro-admin.$(Build.BuildNumber)
