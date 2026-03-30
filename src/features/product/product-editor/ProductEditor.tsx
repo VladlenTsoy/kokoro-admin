@@ -77,8 +77,10 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
                 form.setFieldsValue({
                     product_id: data.product_id,
                     category_id: data.product.category_id,
+                    description: data.description,
                     price: data.price,
                     product_properties: productProperties,
+                    collection_ids: data.collections?.map((collection) => collection.id) || [],
                     size_ids: data.sizes.map((s) => s.size.id),
                     size_props: sizePropsToInitialValues,
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -105,6 +107,7 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
 
                 form.setFieldsValue({
                     title: data.title,
+                    description: data.description,
                     category_id: data.product.category_id,
                     color_id: data.color_id,
                     price: data.price,
@@ -115,6 +118,7 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
                             : undefined
                     },
                     product_properties: productProperties,
+                    collection_ids: data.collections?.map((collection) => collection.id) || [],
                     status_id: data.status_id,
                     storage_id: data.storage_id,
                     is_new: data.is_new,
@@ -186,10 +190,12 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
                     id: +productId,
                     data: {
                         title: values.title,
+                        description: values.description,
                         category_id: values.category_id,
                         color_id: values.color_id,
                         storage_id: values.storage_id,
                         product_properties: values.product_properties,
+                        collection_ids: values.collection_ids ?? [],
                         price: values.price,
                         discount: {
                             discount_percent: values?.discount?.percent,
@@ -205,11 +211,13 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
             } else {
                 create({
                     title: values.title,
+                    description: values.description,
                     category_id: values.category_id,
                     product_id: isColor ? parentProductId : undefined,
                     color_id: values.color_id,
                     storage_id: values.storage_id,
                     product_properties: values.product_properties,
+                    collection_ids: values.collection_ids ?? [],
                     price: values.price,
                     discount: {
                         discount_percent: values?.discount?.percent,

@@ -40,6 +40,7 @@ export interface ProductStatusType {
 export interface ProductType {
     id: number
     title: string
+    description?: string
     price: number
     product_id: number
     product: {
@@ -58,6 +59,10 @@ export interface ProductType {
     color_id: number
     images: ProductImageType[],
     tags: []
+    collections?: {
+        id: number
+        title: string
+    }[]
     sizes: ProductSizeType[]
     is_new: boolean
     color: ProductColorType
@@ -73,9 +78,12 @@ export interface ProductType {
 
 export interface SelectProductsFilterParams {
     categoryIds: number[]
+    collectionIds: number[]
     pagination: {current: number, pageSize: number}
+    salesPointIds: number[]
     search: string
     sizeIds: number[]
+    storageIds: number[]
     sorter: {field: string, order: "ascend" | "descend"}
     type: string
 }
@@ -95,12 +103,14 @@ export type ProductSizeMapType = Record<
 
 export interface ProductFormValuesType {
     title: string
+    description?: string
     category_id: number
     color_id: number
     product_id?: number
     storage_id: number
     size_ids: number[]
     tags_id: string[]
+    collection_ids?: number[]
     product_properties: number[]
     //
     price: number

@@ -1,5 +1,6 @@
 export interface CreateProductType {
     title: string
+    description?: string
     price: number
     product_id: number
     discount: {
@@ -17,7 +18,8 @@ export interface CreateProductType {
         size: number
         position?: number
     }[],
-    tags: string[]
+    tags?: number[]
+    collection_ids?: number[]
     product_sizes: {
         size_id: number
         qty: number

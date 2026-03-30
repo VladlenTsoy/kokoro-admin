@@ -21,6 +21,7 @@ export const SalesPointPage = lazy(() => import("../pages/settings/SalesPointPag
 export const ProductCategoryPage = lazy(() => import("../pages/settings/ProductCategoryPage.tsx"))
 export const SizePage = lazy(() => import("../pages/settings/SizePage.tsx"))
 export const CountriesPage = lazy(() => import("../pages/settings/CountriesPage.tsx"))
+export const CollectionsPage = lazy(() => import("../pages/settings/CollectionsPage.tsx"))
 export const EmployeesPage = lazy(() => import("../pages/admin/EmployeesPage.tsx"))
 export const RolesPage = lazy(() => import("../pages/admin/RolesPage.tsx"))
 export const ForbiddenPage = lazy(() => import("../pages/errors/ForbiddenPage.tsx"))
@@ -56,6 +57,7 @@ export const AppRouter = () => {
                                 <Route path="product-variant-statuses" element={<ProductVariantStatusPage />} />
                                 <Route path="product-properties" element={<ProductPropertyPage />} />
                                 <Route element={<SuperAdminGuard />}>
+                                    <Route path="collections" element={<CollectionsPage />} />
                                     <Route path="employees" element={<EmployeesPage />} />
                                     <Route path="roles" element={<RolesPage />} />
                                 </Route>

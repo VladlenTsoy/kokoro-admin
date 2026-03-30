@@ -83,7 +83,13 @@ const SettingsLayout = () => {
     const [query, setQuery] = useState("")
 
     const groups = useMemo<SettingsMenuGroup[]>(() => {
-        const result = [...BASE_SETTINGS_GROUPS]
+        const result = BASE_SETTINGS_GROUPS.map((group) => ({...group, children: [...group.children]}))
+        if (isSuperAdmin) {
+            const productGroup = result.find((group) => group.key === "product")
+            if (productGroup) {
+                productGroup.children.splice(1, 0, {key: "collections", label: "Коллекции"})
+            }
+        }
         if (isSuperAdmin) {
             result.push({
                 key: "admin",

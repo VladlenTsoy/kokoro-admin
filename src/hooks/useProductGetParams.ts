@@ -5,8 +5,17 @@ import type {SelectProductsFilterParams} from "../features/product/ProductType"
 const PAGE_CURRENT = 1
 const PAGE_SIZE = 30
 
-type UpdateKey = "search" | "pagination" | "categoryIds" | "sizeIds" | "clear"
+type UpdateKey =
+    | "search"
+    | "pagination"
+    | "categoryIds"
+    | "sizeIds"
+    | "collectionIds"
+    | "salesPointIds"
+    | "storageIds"
+    | "clear"
 type PaginationValue = {current?: number, pageSize?: number}
+type UpdateValue = PaginationValue | string | number | number[] | undefined
 
 function safeParseArrayParam(value: string | null): number[] {
     if (!value) return []
@@ -27,11 +36,14 @@ function readParamsFromLocation(locationSearch: string, locationPathname: string
     const status = locationPathname.replace("/products/", "").replace("/products", "") || "all"
     const search = query.get("search") || ""
     const categoryIds = safeParseArrayParam(query.get("categoryIds"))
+    const collectionIds = safeParseArrayParam(query.get("collectionIds"))
+    const salesPointIds = safeParseArrayParam(query.get("salesPointIds"))
+    const storageIds = safeParseArrayParam(query.get("storageIds"))
     const sizeIds = safeParseArrayParam(query.get("sizeIds"))
     const current = query.get("current") ? Number(query.get("current")) : PAGE_CURRENT
     const pageSize = query.get("pageSize") ? Number(query.get("pageSize")) : PAGE_SIZE
 
-    return {status, search, categoryIds, sizeIds, current, pageSize, query}
+    return {status, search, categoryIds, collectionIds, salesPointIds, storageIds, sizeIds, current, pageSize, query}
 }
 
 export const useGetParams = () => {
@@ -40,7 +52,7 @@ export const useGetParams = () => {
 
     // derive initial params from location
     const initial = useMemo(() => {
-        const {status, search, categoryIds, sizeIds, current, pageSize} = readParamsFromLocation(
+        const {status, search, categoryIds, collectionIds, salesPointIds, storageIds, sizeIds, current, pageSize} = readParamsFromLocation(
             location.search,
             location.pathname
         )
@@ -48,6 +60,9 @@ export const useGetParams = () => {
             type: status,
             search: search ?? "",
             categoryIds,
+            collectionIds,
+            salesPointIds,
+            storageIds,
             sizeIds,
             sorter: {field: "created_at", order: "descend"},
             pagination: {current, pageSize}
@@ -65,9 +80,16 @@ export const useGetParams = () => {
 
     // update query and navigate
     const updateParams = useCallback(
-        (key: UpdateKey, val: PaginationValue | string | number | undefined) => {
+        (key: UpdateKey, val: UpdateValue) => {
             // read current query from location to avoid overwriting unrelated params
-            const {query, categoryIds: currentCategoryIds, sizeIds: currentSizeIds} = readParamsFromLocation(
+            const {
+                query,
+                categoryIds: currentCategoryIds,
+                sizeIds: currentSizeIds,
+                collectionIds: currentCollectionIds,
+                salesPointIds: currentSalesPointIds,
+                storageIds: currentStorageIds
+            } = readParamsFromLocation(
                 location.search,
                 location.pathname
             )
@@ -117,10 +139,46 @@ export const useGetParams = () => {
                     break
                 }
 
+                case "collectionIds": {
+                    let next: number[] = []
+                    if (Array.isArray(val)) next = val.map(Number)
+                    else if (val == null) next = []
+                    else next = toggleInArray(currentCollectionIds, Number(val))
+                    if (next.length === 0) query.delete("collectionIds")
+                    else query.set("collectionIds", JSON.stringify(next))
+                    query.set("current", String(1))
+                    break
+                }
+
+                case "salesPointIds": {
+                    let next: number[] = []
+                    if (Array.isArray(val)) next = val.map(Number)
+                    else if (val == null) next = []
+                    else next = toggleInArray(currentSalesPointIds, Number(val))
+                    if (next.length === 0) query.delete("salesPointIds")
+                    else query.set("salesPointIds", JSON.stringify(next))
+                    query.set("current", String(1))
+                    break
+                }
+
+                case "storageIds": {
+                    let next: number[] = []
+                    if (Array.isArray(val)) next = val.map(Number)
+                    else if (val == null) next = []
+                    else next = toggleInArray(currentStorageIds, Number(val))
+                    if (next.length === 0) query.delete("storageIds")
+                    else query.set("storageIds", JSON.stringify(next))
+                    query.set("current", String(1))
+                    break
+                }
+
                 case "clear": {
                     query.delete("search")
                     query.delete("categoryIds")
                     query.delete("sizeIds")
+                    query.delete("collectionIds")
+                    query.delete("salesPointIds")
+                    query.delete("storageIds")
                     query.set("current", String(1))
                     break
                 }
@@ -136,7 +194,17 @@ export const useGetParams = () => {
 
     // Sync local `params` state when location changes
     useEffect(() => {
-        const {status, search, categoryIds, sizeIds, current, pageSize} = readParamsFromLocation(
+        const {
+            status,
+            search,
+            categoryIds,
+            collectionIds,
+            salesPointIds,
+            storageIds,
+            sizeIds,
+            current,
+            pageSize
+        } = readParamsFromLocation(
             location.search,
             location.pathname
         )
@@ -145,6 +213,9 @@ export const useGetParams = () => {
             type: status,
             search: search || "",
             categoryIds,
+            collectionIds,
+            salesPointIds,
+            storageIds,
             sizeIds,
             sorter: {field: "created_at", order: "descend"},
             pagination: {

@@ -3,6 +3,9 @@ import {Button, Drawer, Typography} from "antd"
 import {FilterFilled, ClearOutlined} from "@ant-design/icons"
 import ProductHeaderCategoryFilter from "./ProductHeaderCategoryFilter.tsx"
 import ProductHeaderSizeFilter from "./ProductHeaderSizeFilter.tsx"
+import ProductHeaderCollectionFilter from "./ProductHeaderCollectionFilter.tsx"
+import ProductHeaderSalesPointFilter from "./ProductHeaderSalesPointFilter.tsx"
+import ProductHeaderStorageFilter from "./ProductHeaderStorageFilter.tsx"
 import {createStyles} from "antd-style"
 
 const useStyles = createStyles(() => ({
@@ -27,12 +30,30 @@ const {Title} = Typography
 interface Props {
     onCategories: (categoryId?: number) => void
     onSizes: (sizeId?: number) => void
+    onCollections: (collectionIds: number[]) => void
+    onSalesPoints: (salesPointIds: number[]) => void
+    onStorages: (storageIds: number[]) => void
     onClearFilter: () => void
     categoryIds: number[]
     sizeIds: number[]
+    collectionIds: number[]
+    salesPointIds: number[]
+    storageIds: number[]
 }
 
-const ProductHeaderFilter: React.FC<Props> = ({onCategories, categoryIds, sizeIds, onSizes, onClearFilter}) => {
+const ProductHeaderFilter: React.FC<Props> = ({
+    onCategories,
+    categoryIds,
+    sizeIds,
+    onSizes,
+    onClearFilter,
+    onCollections,
+    onSalesPoints,
+    onStorages,
+    collectionIds,
+    salesPointIds,
+    storageIds
+}) => {
     const {styles} = useStyles()
     const [visible, setVisible] = useState(false)
 
@@ -62,9 +83,18 @@ const ProductHeaderFilter: React.FC<Props> = ({onCategories, categoryIds, sizeId
                         <Title level={3} className={styles.title}>Фильтрация</Title>
                         <ProductHeaderCategoryFilter onCategories={onCategories} categoryIds={categoryIds} />
                         <ProductHeaderSizeFilter sizeIds={sizeIds} onSizes={onSizes} />
+                        <ProductHeaderCollectionFilter value={collectionIds} onChange={onCollections} />
+                        <ProductHeaderSalesPointFilter value={salesPointIds} onChange={onSalesPoints} />
+                        <ProductHeaderStorageFilter value={storageIds} onChange={onStorages} />
                         <Button
                             icon={<ClearOutlined />}
-                            disabled={!categoryIds.length && !sizeIds.length}
+                            disabled={
+                                !categoryIds.length &&
+                                !sizeIds.length &&
+                                !collectionIds.length &&
+                                !salesPointIds.length &&
+                                !storageIds.length
+                            }
                             onClick={resetHandler}
                         >
                             Сбросить фильтр

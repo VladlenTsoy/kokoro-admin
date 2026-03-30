@@ -19,6 +19,8 @@ import {productApi} from "./product/productApi.ts"
 import {authApi} from "./admin/authApi.ts"
 import {employeeApi} from "./admin/employeeApi.ts"
 import {roleApi} from "./admin/roleApi.ts"
+import {collectionApi} from "./settings/collection/collectionApi.ts"
+import {orderApi} from "./orders/orderApi.ts"
 
 const persistConfig = {
     key: "root",
@@ -43,6 +45,8 @@ const persistedCombineReducers = persistCombineReducers(persistConfig, {
     [authApi.reducerPath]: authApi.reducer,
     [employeeApi.reducerPath]: employeeApi.reducer,
     [roleApi.reducerPath]: roleApi.reducer,
+    [collectionApi.reducerPath]: collectionApi.reducer,
+    [orderApi.reducerPath]: orderApi.reducer,
 })
 
 export const store = configureStore({
@@ -65,6 +69,8 @@ export const store = configureStore({
             .concat(authApi.middleware)
             .concat(employeeApi.middleware)
             .concat(roleApi.middleware)
+            .concat(collectionApi.middleware)
+            .concat(orderApi.middleware)
 })
 
 export const persistor = persistStore(store)

@@ -43,6 +43,18 @@ const ProductHeaderList = () => {
         (sizeId?: number) => updateParams("sizeIds", sizeId),
         [updateParams]
     )
+    const onCollectionIdsHandler = useCallback(
+        (collectionIds: number[]) => updateParams("collectionIds", collectionIds),
+        [updateParams]
+    )
+    const onSalesPointIdsHandler = useCallback(
+        (salesPointIds: number[]) => updateParams("salesPointIds", salesPointIds),
+        [updateParams]
+    )
+    const onStorageIdsHandler = useCallback(
+        (storageIds: number[]) => updateParams("storageIds", storageIds),
+        [updateParams]
+    )
 
     const onClearFilterHandler = useCallback(
         () => updateParams("clear", undefined),
@@ -57,8 +69,14 @@ const ProductHeaderList = () => {
                 <ProductHeaderFilter
                     categoryIds={params.categoryIds}
                     sizeIds={params.sizeIds}
+                    collectionIds={params.collectionIds}
+                    salesPointIds={params.salesPointIds}
+                    storageIds={params.storageIds}
                     onCategories={onCategoryIdsHandler}
                     onSizes={onSizeIdsHandler}
+                    onCollections={onCollectionIdsHandler}
+                    onSalesPoints={onSalesPointIdsHandler}
+                    onStorages={onStorageIdsHandler}
                     onClearFilter={onClearFilterHandler}
                 />
                 <Link to="/products/product/create">

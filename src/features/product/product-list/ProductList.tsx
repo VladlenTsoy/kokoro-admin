@@ -12,6 +12,9 @@ const ProductList = () => {
         page: current,
         pageSize: pageSize,
         categoryIds: params.categoryIds,
+        collectionIds: params.collectionIds,
+        salesPointIds: params.salesPointIds,
+        storageIds: params.storageIds,
         sizeIds: params.sizeIds,
         search: params.search,
         statusId: params.type

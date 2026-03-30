@@ -5,6 +5,7 @@ import ColorFormSelect from "../../../settings/color/ColorFormSelect.tsx"
 import ProductStoragesFormSelect from "../../../settings/sales-point/ProductStoragesFormSelect.tsx"
 import SizesFormSelect, {type SizesFormSelectProps} from "../../../settings/size/SizesFormSelect.tsx"
 import ProductVariantTagsFormSelect from "../../../product-variant-tags/ProductVariantTagsFormSelect.tsx"
+import CollectionsFormSelect from "../../../settings/collection/CollectionsFormSelect.tsx"
 
 const {Title} = Typography
 
@@ -28,6 +29,14 @@ const BaseSection: React.FC<Props> = ({onSelectSizesChange}) => {
                     </Form.Item>
                 </Col>
                 <Col xl={12} md={12} xs={24}>
+                    <Form.Item
+                        label="Описание"
+                        name="description"
+                    >
+                        <Input.TextArea placeholder="Введите описание" autoSize={{minRows: 1, maxRows: 4}} />
+                    </Form.Item>
+                </Col>
+                <Col xl={12} md={12} xs={24}>
                     <ProductCategoryFormSelect />
                 </Col>
                 <Col xl={12} md={12} xs={24}>
@@ -41,6 +50,9 @@ const BaseSection: React.FC<Props> = ({onSelectSizesChange}) => {
                 </Col>
                 <Col xl={12} md={12} xs={24}>
                     <ProductVariantTagsFormSelect />
+                </Col>
+                <Col xl={12} md={12} xs={24}>
+                    <CollectionsFormSelect />
                 </Col>
             </Row>
         </Card>

@@ -12,17 +12,33 @@ export const productApi = createApi({
             page: number,
             pageSize: number,
             categoryIds?: number[],
+            collectionIds?: number[],
+            salesPointIds?: number[],
+            storageIds?: number[],
             sizeIds?: number[],
             search?: string,
             statusId?: string
         }>({
-            query: ({page, pageSize, categoryIds, sizeIds, search, statusId}) => ({
+            query: ({
+                page,
+                pageSize,
+                categoryIds,
+                collectionIds,
+                salesPointIds,
+                storageIds,
+                sizeIds,
+                search,
+                statusId
+            }) => ({
                 url: `/product-variant/all`,
                 method: "POST",
                 body: {
                     page: page,
                     pageSize: pageSize,
                     categoryIds: categoryIds,
+                    collectionIds: collectionIds,
+                    salesPointIds: salesPointIds,
+                    storageIds: storageIds,
                     sizeIds: sizeIds,
                     search: search,
                     statusId: statusId === "all" ? undefined : statusId

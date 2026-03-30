@@ -28,6 +28,14 @@ export const columns: ColumnsType<ProductType> = [
         key: "title"
     },
     {
+        title: "Описание",
+        dataIndex: "description",
+        key: "description",
+        render: (value?: string) => value ? (
+            value.length > 70 ? `${value.slice(0, 70)}...` : value
+        ) : "—"
+    },
+    {
         title: "Цвет",
         dataIndex: ["color", "title"],
         key: "color",
@@ -65,6 +73,13 @@ export const columns: ColumnsType<ProductType> = [
         dataIndex: ["status"],
         key: "status",
         render: (value: ProductType["status"]) => <ProductTableStatusColumn status={value} />
+    },
+    {
+        title: "Коллекции",
+        key: "collections",
+        render: (_, record) => record.collections?.length
+            ? record.collections.map((collection) => collection.title).join(", ")
+            : "—"
     },
     {
         key: "actions",
