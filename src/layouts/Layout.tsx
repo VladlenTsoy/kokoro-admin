@@ -6,64 +6,85 @@ import HeaderNotification from "./header/HeaderNotification.tsx"
 import HeaderLanguage from "./header/HeaderLanguage.tsx"
 import HeaderProfile from "./header/HeaderProfile.tsx"
 import {Outlet} from "react-router-dom"
+import HeaderThemeSwitch from "./header/HeaderThemeSwitch.tsx"
+import HeaderSettingsButton from "./header/HeaderSettingsButton.tsx"
 
 const {Header, Content, Footer} = AntdLayout
 
-const useStyles = createStyles(() => ({
+const useStyles = createStyles(({token}) => ({
+    root: {
+        minHeight: "100vh",
+        background: "transparent"
+    },
     header: {
         display: "flex",
         alignItems: "center",
-        justifyContent: "space-between"
+        justifyContent: "space-between",
+        gap: 16,
+        height: 80,
+        lineHeight: "80px",
+        paddingInline: 20,
+        margin: "14px 14px 0",
+        border: `1px solid ${token.colorBorder}`,
+        borderRadius: token.borderRadiusLG + 8
     },
     menu: {
         display: "flex",
-        alignItems: "center"
+        alignItems: "center",
+        minWidth: 0,
+        flex: 1
     },
     right: {
         display: "flex",
         alignItems: "center",
-        gap: 6
+        gap: 10,
+        flexShrink: 0
+    },
+    content: {
+        padding: 20
+    },
+    surface: {
+        borderRadius: token.borderRadiusLG + 10,
+        border: `1px solid ${token.colorBorder}`,
+        background: token.colorBgContainer,
+        minHeight: "calc(100vh - 190px)",
+        padding: 22,
+        boxShadow: "0 16px 50px rgba(10, 20, 32, 0.08)"
+    },
+    footer: {
+        textAlign: "center",
+        background: "transparent",
+        color: token.colorTextSecondary,
+        paddingBottom: 20
     }
 }))
 
 const Layout = () => {
-    // const {
-    //     token: {colorBgContainer, borderRadiusLG}
-    // } = theme.useToken()
     const {styles} = useStyles()
 
 
     return (
-        <AntdLayout>
+        <AntdLayout className={styles.root}>
             <Header className={styles.header}>
                 <div className={styles.menu}>
                     <HeaderMenu />
                 </div>
                 <div className={styles.right}>
                     <HeaderSearch />
+                    <HeaderSettingsButton />
                     <HeaderNotification />
+                    <HeaderThemeSwitch />
                     <HeaderLanguage />
                     <HeaderProfile />
                 </div>
             </Header>
-            <Content style={{padding: "48px"}}>
-                {/*<Breadcrumb*/}
-                {/*    style={{margin: "16px 0"}}*/}
-                {/*    items={[{title: "Home"}, {title: "List"}, {title: "App"}]}*/}
-                {/*/>*/}
-                {/*<div*/}
-                {/*    style={{*/}
-                {/*        background: colorBgContainer,*/}
-                {/*        minHeight: 280,*/}
-                {/*        padding: 24,*/}
-                {/*        borderRadius: borderRadiusLG*/}
-                {/*    }}*/}
-                {/*>*/}
+            <Content className={styles.content}>
+                <section className={styles.surface}>
                     <Outlet />
-                {/*</div>*/}
+                </section>
             </Content>
-            <Footer style={{textAlign: "center"}}>
-                Ant Design ©{new Date().getFullYear()} Created by Ant UED
+            <Footer className={styles.footer}>
+                KOKORO Admin • {new Date().getFullYear()}
             </Footer>
         </AntdLayout>
     )

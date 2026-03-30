@@ -1,14 +1,31 @@
 import {Navigate, Outlet} from "react-router-dom"
-import {useSelectedAuthData} from "../features/auth/authSlice.ts"
+import {setEmployee, useSelectedAuthData} from "../features/auth/authSlice.ts"
+import {useGetMeQuery} from "../features/admin/authApi.ts"
+import {useDispatch} from "../features/store.ts"
+import {useEffect} from "react"
+import {Spin} from "antd"
 
 const PrivateLayout = () => {
-    const {token} = useSelectedAuthData()
+    const dispatch = useDispatch()
+    const {accessToken, employee} = useSelectedAuthData()
+    const {data, isLoading} = useGetMeQuery(undefined, {
+        skip: !accessToken || Boolean(employee)
+    })
 
-    if (!token) {
+    useEffect(() => {
+        if (data) {
+            dispatch(setEmployee(data))
+        }
+    }, [data, dispatch])
+
+    if (!accessToken) {
         return <Navigate to="/login" replace />
     }
 
-    // Если авторизован — показываем вложенные маршруты
+    if (!employee && isLoading) {
+        return <Spin fullscreen />
+    }
+
     return <Outlet />
 }
 

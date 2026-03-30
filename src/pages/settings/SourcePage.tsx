@@ -7,6 +7,7 @@ import {
     useDeleteSourceMutation
 } from "../../features/source/sourceApi.ts"
 import type {SourceType} from "../../features/source/SourceType.ts"
+import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
 
 const SourcePage: React.FC = () => {
     const {data, isLoading} = useGetSourcesQuery()
@@ -33,15 +34,15 @@ const SourcePage: React.FC = () => {
 
     const columns = [
         {title: "ID", dataIndex: "id"},
-        {title: "Title", dataIndex: "title"},
-        {title: "Code", dataIndex: "code"},
+        {title: "Название", dataIndex: "title"},
+        {title: "Код", dataIndex: "code"},
         {
-            title: "Active",
+            title: "Активен",
             dataIndex: "isActive",
-            render: (val: boolean) => (val ? "Yes" : "No")
+            render: (val: boolean) => (val ? "Да" : "Нет")
         },
         {
-            title: "Actions",
+            title: "Действия",
             render: (_: any, record: SourceType) => (
                 <>
                     <Button
@@ -52,11 +53,11 @@ const SourcePage: React.FC = () => {
                             setIsModalOpen(true)
                         }}
                     >
-                        Edit
+                        Редактировать
                     </Button>
-                    <Popconfirm title="Delete source?" onConfirm={() => deleteSource(record.id)}>
+                    <Popconfirm title="Удалить источник?" onConfirm={() => deleteSource(record.id)}>
                         <Button type="link" danger>
-                            Delete
+                            Удалить
                         </Button>
                     </Popconfirm>
                 </>
@@ -66,39 +67,38 @@ const SourcePage: React.FC = () => {
 
     return (
         <div>
-            <Button
-                type="primary"
-                style={{marginBottom: 16}}
-                onClick={() => {
+            <SettingsTableSection
+                title="Источники заказов"
+                subtitle="Управление каналами поступления заказов."
+                addButtonText="Добавить источник"
+                onAdd={() => {
                     setEditingSource(null)
                     form.resetFields()
                     setIsModalOpen(true)
                 }}
             >
-                Add Source
-            </Button>
-
-            <Table
-                loading={isLoading}
-                dataSource={data || []}
-                columns={columns}
-                rowKey="id"
-            />
+                <Table
+                    loading={isLoading}
+                    dataSource={data || []}
+                    columns={columns}
+                    rowKey="id"
+                />
+            </SettingsTableSection>
 
             <Modal
-                title={editingSource ? "Edit Source" : "Add Source"}
+                title={editingSource ? "Редактирование источника" : "Создание источника"}
                 open={isModalOpen}
                 onCancel={() => setIsModalOpen(false)}
                 onOk={handleSubmit}
             >
                 <Form form={form} layout="vertical">
-                    <Form.Item name="title" label="Title" rules={[{required: true}]}>
+                    <Form.Item name="title" label="Название" rules={[{required: true}]}>
                         <Input />
                     </Form.Item>
-                    <Form.Item name="code" label="Code" rules={[{required: true}]}>
+                    <Form.Item name="code" label="Код" rules={[{required: true}]}>
                         <Input />
                     </Form.Item>
-                    <Form.Item name="isActive" label="Active" valuePropName="checked">
+                    <Form.Item name="isActive" label="Активен" valuePropName="checked">
                         <Switch />
                     </Form.Item>
                 </Form>

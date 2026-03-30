@@ -1,0 +1,51 @@
+body {
+    transition: background-color 220ms ease, color 220ms ease;
+}
+
+body[data-theme="light"] {
+    background:
+        radial-gradient(1200px 400px at 15% -10%, rgba(177, 232, 28, 0.22), transparent 55%),
+        radial-gradient(900px 350px at 90% 0%, rgba(146, 205, 255, 0.2), transparent 50%),
+        linear-gradient(180deg, #f7fafc 0%, #edf2f8 100%);
+}
+
+body[data-theme="dark"] {
+    background:
+        radial-gradient(1000px 380px at 10% -5%, rgba(90, 130, 255, 0.22), transparent 60%),
+        radial-gradient(850px 360px at 100% 0%, rgba(0, 211, 255, 0.18), transparent 50%),
+        linear-gradient(180deg, #0b111a 0%, #0f1724 55%, #131d2c 100%);
+}
+
+body[data-theme="dark"] .ant-layout {
+    background: transparent;
+}
+
+body[data-theme="dark"] .ant-layout-header {
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(132, 161, 196, 0.2);
+}
+
+body[data-theme="dark"] .ant-layout-content {
+    background: transparent;
+}
+
+body[data-theme="dark"] .ant-layout-footer {
+    color: #8fa1b7;
+}
+
+.ant-card {
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.ant-card:hover {
+    transform: translateY(-1px);
+}
+
+.ant-table-wrapper .ant-table {
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.ant-table-thead > tr > th {
+    font-weight: 600;
+}

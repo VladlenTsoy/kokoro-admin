@@ -1,8 +1,110 @@
-const HeaderProfile = () => {
-    return (
-        <div>
+import {Avatar, Button, Dropdown, Form, Input, Modal, Space, Typography, message} from "antd"
+import type {MenuProps} from "antd"
+import {useState} from "react"
+import {useNavigate} from "react-router-dom"
+import {clearAuthData, useSelectedAuthData} from "../../features/auth/authSlice.ts"
+import {useDispatch} from "../../features/store.ts"
+import {useChangePasswordMutation, useLogoutMutation} from "../../features/admin/authApi.ts"
+import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
+import {DownOutlined, UserOutlined} from "@ant-design/icons"
 
-        </div>
+const HeaderProfile = () => {
+    const dispatch = useDispatch()
+    const navigate = useNavigate()
+    const {employee, refreshToken} = useSelectedAuthData()
+    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
+    const [changePassword, {isLoading: isChangingPassword}] = useChangePasswordMutation()
+    const [logout, {isLoading: isLoggingOut}] = useLogoutMutation()
+    const [form] = Form.useForm<{currentPassword: string; newPassword: string}>()
+
+    const handleLogout = async () => {
+        try {
+            if (refreshToken) {
+                await logout({refreshToken}).unwrap()
+            }
+        } catch {
+            // Даже если серверный logout не удался, локальную сессию нужно завершить.
+        } finally {
+            dispatch(clearAuthData())
+            navigate("/login", {replace: true})
+        }
+    }
+
+    const handleChangePassword = async () => {
+        try {
+            const values = await form.validateFields()
+            await changePassword(values).unwrap()
+            message.success("Пароль успешно изменён")
+            setIsPasswordModalOpen(false)
+            form.resetFields()
+        } catch (error) {
+            message.error(getNestErrorMessage(error))
+        }
+    }
+
+    const menuItems: MenuProps["items"] = [
+        {key: "changePassword", label: "Сменить пароль"},
+        {key: "logout", label: "Выйти", danger: true}
+    ]
+
+    const onMenuClick: MenuProps["onClick"] = ({key}) => {
+        if (key === "changePassword") {
+            setIsPasswordModalOpen(true)
+            return
+        }
+
+        if (key === "logout") {
+            void handleLogout()
+        }
+    }
+
+    if (!employee) {
+        return null
+    }
+
+    return (
+        <>
+            <Dropdown menu={{items: menuItems, onClick: onMenuClick}} trigger={["click"]}>
+                <Button loading={isLoggingOut} size="large">
+                    <Space size={8}>
+                        <Avatar size={24} icon={<UserOutlined />} />
+                        <span>{employee.firstName} {employee.lastName}</span>
+                        <DownOutlined style={{fontSize: 12}} />
+                    </Space>
+                </Button>
+            </Dropdown>
+            <Modal
+                title="Смена пароля"
+                open={isPasswordModalOpen}
+                onCancel={() => setIsPasswordModalOpen(false)}
+                onOk={handleChangePassword}
+                confirmLoading={isChangingPassword}
+            >
+                <Typography.Paragraph type="secondary">
+                    Пароль должен быть длиной от 8 до 100 символов.
+                </Typography.Paragraph>
+                <Form form={form} layout="vertical">
+                    <Form.Item
+                        label="Текущий пароль"
+                        name="currentPassword"
+                        rules={[{required: true, message: "Введите текущий пароль"}]}
+                    >
+                        <Input.Password />
+                    </Form.Item>
+                    <Form.Item
+                        label="Новый пароль"
+                        name="newPassword"
+                        rules={[
+                            {required: true, message: "Введите новый пароль"},
+                            {min: 8, message: "Минимум 8 символов"},
+                            {max: 100, message: "Максимум 100 символов"}
+                        ]}
+                    >
+                        <Input.Password />
+                    </Form.Item>
+                </Form>
+            </Modal>
+        </>
     )
 }
 

@@ -7,6 +7,7 @@ import {
     useDeleteSizeMutation
 } from "../../features/settings/size/sizeApi.ts"
 import type {SizeType} from "../../features/settings/size/SizeTypes.ts"
+import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
 
 const SizePage: React.FC = () => {
     const {data: sizes, isLoading} = useGetSizesQuery()
@@ -67,24 +68,23 @@ const SizePage: React.FC = () => {
 
     return (
         <>
-            <Button
-                type="primary"
-                style={{marginBottom: 16}}
-                onClick={() => {
+            <SettingsTableSection
+                title="Размеры"
+                subtitle="Справочник размеров для карточек товаров."
+                addButtonText="Добавить размер"
+                onAdd={() => {
                     setEditingSize(null)
                     form.resetFields()
                     setIsModalOpen(true)
                 }}
             >
-                Добавить размер
-            </Button>
-
-            <Table
-                rowKey="id"
-                loading={isLoading}
-                dataSource={sizes}
-                columns={columns}
-            />
+                <Table
+                    rowKey="id"
+                    loading={isLoading}
+                    dataSource={sizes}
+                    columns={columns}
+                />
+            </SettingsTableSection>
 
             <Modal
                 open={isModalOpen}

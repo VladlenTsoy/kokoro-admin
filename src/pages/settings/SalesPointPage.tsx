@@ -7,6 +7,7 @@ import {
     useDeleteSalesPointMutation
 } from "../../features/settings/sales-point/salesPointApi.ts"
 import type {SalesPointType} from "../../features/settings/sales-point/SalesPointTypes.ts"
+import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
 
 const SalesPointPage: React.FC = () => {
     const {data, isLoading} = useGetSalesPointsQuery()
@@ -40,11 +41,11 @@ const SalesPointPage: React.FC = () => {
 
     const columns = [
         {title: "ID", dataIndex: "id"},
-        {title: "Title", dataIndex: "title"},
-        {title: "Latitude", dataIndex: ["location", "lat"]},
-        {title: "Longitude", dataIndex: ["location", "lng"]},
+        {title: "Название", dataIndex: "title"},
+        {title: "Широта", dataIndex: ["location", "lat"]},
+        {title: "Долгота", dataIndex: ["location", "lng"]},
         {
-            title: "Actions",
+            title: "Действия",
             render: (_: any, record: SalesPointType) => (
                 <>
                     <Button
@@ -59,11 +60,11 @@ const SalesPointPage: React.FC = () => {
                             setIsModalOpen(true)
                         }}
                     >
-                        Edit
+                        Редактировать
                     </Button>
-                    <Popconfirm title="Delete sales point?" onConfirm={() => deleteSalesPoint(record.id)}>
+                    <Popconfirm title="Удалить точку продаж?" onConfirm={() => deleteSalesPoint(record.id)}>
                         <Button type="link" danger>
-                            Delete
+                            Удалить
                         </Button>
                     </Popconfirm>
                 </>
@@ -73,39 +74,38 @@ const SalesPointPage: React.FC = () => {
 
     return (
         <div>
-            <Button
-                type="primary"
-                style={{marginBottom: 16}}
-                onClick={() => {
+            <SettingsTableSection
+                title="Точки продаж"
+                subtitle="Управление филиалами и их геопозицией."
+                addButtonText="Добавить точку продаж"
+                onAdd={() => {
                     setEditingPoint(null)
                     form.resetFields()
                     setIsModalOpen(true)
                 }}
             >
-                Add Sales Point
-            </Button>
-
-            <Table
-                loading={isLoading}
-                dataSource={data || []}
-                columns={columns}
-                rowKey="id"
-            />
+                <Table
+                    loading={isLoading}
+                    dataSource={data || []}
+                    columns={columns}
+                    rowKey="id"
+                />
+            </SettingsTableSection>
 
             <Modal
-                title={editingPoint ? "Edit Sales Point" : "Add Sales Point"}
+                title={editingPoint ? "Редактирование точки продаж" : "Создание точки продаж"}
                 open={isModalOpen}
                 onCancel={() => setIsModalOpen(false)}
                 onOk={handleSubmit}
             >
                 <Form form={form} layout="vertical">
-                    <Form.Item name="title" label="Title" rules={[{required: true}]}>
+                    <Form.Item name="title" label="Название" rules={[{required: true}]}>
                         <Input />
                     </Form.Item>
-                    <Form.Item name="lat" label="Latitude" rules={[{required: true}]}>
+                    <Form.Item name="lat" label="Широта" rules={[{required: true}]}>
                         <InputNumber style={{width: "100%"}} step={0.000001} />
                     </Form.Item>
-                    <Form.Item name="lng" label="Longitude" rules={[{required: true}]}>
+                    <Form.Item name="lng" label="Долгота" rules={[{required: true}]}>
                         <InputNumber style={{width: "100%"}} step={0.000001} />
                     </Form.Item>
                 </Form>

@@ -7,6 +7,7 @@ import {
     useDeleteProductVariantStatusMutation
 } from "../../features/product-variant-status/productVariantStatusApi.ts"
 import type {ProductVariantStatusType} from "../../features/product-variant-status/ProductVariantStatusType.ts"
+import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
 
 const ProductVariantStatusPage: React.FC = () => {
     const {data, isLoading} = useGetProductVariantStatusesQuery()
@@ -33,9 +34,9 @@ const ProductVariantStatusPage: React.FC = () => {
 
     const columns = [
         {title: "ID", dataIndex: "id"},
-        {title: "Title", dataIndex: "title"},
+        {title: "Название", dataIndex: "title"},
         {
-            title: "Actions",
+            title: "Действия",
             render: (_: any, record: ProductVariantStatusType) => (
                 <>
                     <Button
@@ -46,11 +47,11 @@ const ProductVariantStatusPage: React.FC = () => {
                             setIsModalOpen(true)
                         }}
                     >
-                        Edit
+                        Редактировать
                     </Button>
-                    <Popconfirm title="Delete source?" onConfirm={() => deleteProductVariantStatus(record.id)}>
+                    <Popconfirm title="Удалить статус?" onConfirm={() => deleteProductVariantStatus(record.id)}>
                         <Button type="link" danger>
-                            Delete
+                            Удалить
                         </Button>
                     </Popconfirm>
                 </>
@@ -60,24 +61,23 @@ const ProductVariantStatusPage: React.FC = () => {
 
     return (
         <div>
-            <Button
-                type="primary"
-                style={{marginBottom: 16}}
-                onClick={() => {
+            <SettingsTableSection
+                title="Статусы вариантов товара"
+                subtitle="Справочник статусов для жизненного цикла товарных вариантов."
+                addButtonText="Добавить статус продукта"
+                onAdd={() => {
                     setEditingProductVariantStatus(null)
                     form.resetFields()
                     setIsModalOpen(true)
                 }}
             >
-                Добавить статус продукта
-            </Button>
-
-            <Table
-                loading={isLoading}
-                dataSource={data || []}
-                columns={columns}
-                rowKey="id"
-            />
+                <Table
+                    loading={isLoading}
+                    dataSource={data || []}
+                    columns={columns}
+                    rowKey="id"
+                />
+            </SettingsTableSection>
 
             <Modal
                 title={editingProductVariantStatus ? "Изменить статус продукта" : "Создать статус продукта"}
@@ -86,13 +86,13 @@ const ProductVariantStatusPage: React.FC = () => {
                 onOk={handleSubmit}
             >
                 <Form form={form} layout="vertical">
-                    <Form.Item name="title" label="Title" rules={[{required: true}]}>
+                    <Form.Item name="title" label="Название" rules={[{required: true}]}>
                         <Input />
                     </Form.Item>
                     <Form.Item name="position" label="Позиция" rules={[{required: false}]}>
                         <Input />
                     </Form.Item>
-                    <Form.Item name="is_default" label="Active" valuePropName="checked">
+                    <Form.Item name="is_default" label="По умолчанию" valuePropName="checked">
                         <Switch />
                     </Form.Item>
                 </Form>

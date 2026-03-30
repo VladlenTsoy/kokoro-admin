@@ -1,9 +1,18 @@
-import {Button} from "antd"
-import {NotificationFilled} from "@ant-design/icons"
+import {Badge, Button, Tooltip} from "antd"
+import {BellOutlined} from "@ant-design/icons"
 
 const HeaderNotification = () => {
     return (
-        <Button size="large" icon={<NotificationFilled />} />
+        <Tooltip title="Уведомления">
+            <Badge count={3} size="small">
+                <Button
+                    size="large"
+                    shape="circle"
+                    type="default"
+                    icon={<BellOutlined />}
+                />
+            </Badge>
+        </Tooltip>
     )
 }
 

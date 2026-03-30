@@ -16,13 +16,16 @@ const themeSlice = createSlice({
     reducers: {
         changeThemeMode: (state, action: PayloadAction<ThemeState["mode"]>) => {
             state.mode = action.payload
+        },
+        toggleThemeMode: (state) => {
+            state.mode = state.mode === "light" ? "dark" : "light"
         }
     }
 })
 
 export default themeSlice.reducer
 
-export const {changeThemeMode} = themeSlice.actions
+export const {changeThemeMode, toggleThemeMode} = themeSlice.actions
 
 export const useSelectedTheme = () => {
     return useSelector((state: StoreState) => state.theme.mode)

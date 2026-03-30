@@ -1,10 +1,32 @@
 import {Select} from "antd"
+import {GlobalOutlined} from "@ant-design/icons"
+import {createStyles} from "antd-style"
+
+const useStyles = createStyles(({token}) => ({
+    select: {
+        width: 130,
+        "& .ant-select-selector": {
+            borderRadius: token.borderRadiusLG,
+            borderColor: token.colorBorder
+        }
+    }
+}))
 
 const HeaderLanguage = () => {
+    const {styles} = useStyles()
+
     return (
-        <Select defaultValue="ru" size="large">
-            <Select.Option value="ru">Русский</Select.Option>
-        </Select>
+        <Select
+            className={styles.select}
+            defaultValue="ru"
+            size="large"
+            suffixIcon={<GlobalOutlined />}
+            options={[
+                {value: "ru", label: "Русский"},
+                {value: "uz", label: "O'zbekcha"},
+                {value: "en", label: "English"}
+            ]}
+        />
     )
 }
 

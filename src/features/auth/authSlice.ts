@@ -1,30 +1,60 @@
-import {createSlice} from "@reduxjs/toolkit"
-import type {StoreState} from "../store.ts"
+import {createSlice, type PayloadAction} from "@reduxjs/toolkit"
 import {useSelector} from "react-redux"
+import type {StoreState} from "../store.ts"
+import type {AuthResponse, EmployeeSafe} from "./authTypes.ts"
 
 interface AuthState {
-    token?: string | null
-    tokenExpiredDate: number | null
+    accessToken: string | null
+    refreshToken: string | null
+    tokenType: "Bearer"
+    expiresInMinutes: number | null
+    refreshTokenExpiresInDays: number | null
+    employee: EmployeeSafe | null
 }
 
 const initialState: AuthState = {
-    token: "ttt",
-    tokenExpiredDate: null
+    accessToken: null,
+    refreshToken: null,
+    tokenType: "Bearer",
+    expiresInMinutes: null,
+    refreshTokenExpiresInDays: null,
+    employee: null
 }
 
 const authSlice = createSlice({
     name: "auth",
     initialState,
     reducers: {
+        setAuthData: (state, action: PayloadAction<AuthResponse>) => {
+            state.accessToken = action.payload.accessToken
+            state.refreshToken = action.payload.refreshToken
+            state.tokenType = action.payload.tokenType
+            state.expiresInMinutes = action.payload.expiresInMinutes
+            state.refreshTokenExpiresInDays = action.payload.refreshTokenExpiresInDays
+            state.employee = action.payload.employee
+        },
+        setEmployee: (state, action: PayloadAction<EmployeeSafe>) => {
+            state.employee = action.payload
+        },
         clearAuthData: (state) => {
-            state.token = null
-            state.tokenExpiredDate = null
+            state.accessToken = null
+            state.refreshToken = null
+            state.tokenType = "Bearer"
+            state.expiresInMinutes = null
+            state.refreshTokenExpiresInDays = null
+            state.employee = null
         }
     }
 })
 
+export const {setAuthData, setEmployee, clearAuthData} = authSlice.actions
+
 export default authSlice.reducer
 
-export const useSelectedAuthData = () => {
-    return useSelector((state: StoreState) => state.auth)
+export const useSelectedAuthData = () => useSelector((state: StoreState) => state.auth)
+
+export const useIsSuperAdmin = () => {
+    return useSelector((state: StoreState) =>
+        Boolean(state.auth.employee?.roles.some((role) => role.code === "SUPER_ADMIN"))
+    )
 }

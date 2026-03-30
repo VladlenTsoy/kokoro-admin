@@ -7,6 +7,7 @@ import {
     useDeleteColorMutation
 } from "../../features/settings/color/colorApi.ts"
 import type {ColorType} from "../../features/settings/color/ColorTypes.ts"
+import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
 
 const ColorPage: React.FC = () => {
     const {data: colors, isLoading} = useGetColorsQuery()
@@ -77,24 +78,23 @@ const ColorPage: React.FC = () => {
 
     return (
         <>
-            <Button
-                type="primary"
-                style={{marginBottom: 16}}
-                onClick={() => {
+            <SettingsTableSection
+                title="Цвета"
+                subtitle="Управляйте палитрой и статусами доступных цветов."
+                addButtonText="Добавить цвет"
+                onAdd={() => {
                     setEditingColor(null)
                     form.resetFields()
                     setIsModalOpen(true)
                 }}
             >
-                Добавить цвет
-            </Button>
-
-            <Table
-                rowKey="id"
-                loading={isLoading}
-                dataSource={colors}
-                columns={columns}
-            />
+                <Table
+                    rowKey="id"
+                    loading={isLoading}
+                    dataSource={colors}
+                    columns={columns}
+                />
+            </SettingsTableSection>
 
             <Modal
                 open={isModalOpen}

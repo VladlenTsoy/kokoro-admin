@@ -1,8 +1,9 @@
-import {BrowserRouter, Route, Routes} from "react-router-dom"
+import {BrowserRouter, Navigate, Route, Routes} from "react-router-dom"
 import {lazy, Suspense} from "react"
 import PrivateLayout from "../layouts/PrivateLayout.tsx"
 import Layout from "../layouts/Layout.tsx"
 import SettingsLayout from "../layouts/SettingsLayout.tsx"
+import SuperAdminGuard from "../components/SuperAdminGuard.tsx"
 
 export const Login = lazy(() => import("../pages/LoginPage.tsx"))
 export const HomePage = lazy(() => import("../pages/HomePage.tsx"))
@@ -20,6 +21,9 @@ export const SalesPointPage = lazy(() => import("../pages/settings/SalesPointPag
 export const ProductCategoryPage = lazy(() => import("../pages/settings/ProductCategoryPage.tsx"))
 export const SizePage = lazy(() => import("../pages/settings/SizePage.tsx"))
 export const CountriesPage = lazy(() => import("../pages/settings/CountriesPage.tsx"))
+export const EmployeesPage = lazy(() => import("../pages/admin/EmployeesPage.tsx"))
+export const RolesPage = lazy(() => import("../pages/admin/RolesPage.tsx"))
+export const ForbiddenPage = lazy(() => import("../pages/errors/ForbiddenPage.tsx"))
 
 export const AppRouter = () => {
     return (
@@ -28,6 +32,7 @@ export const AppRouter = () => {
                 <Routes>
                     {/* Public */}
                     <Route path="/login" element={<Login />} />
+                    <Route path="/forbidden" element={<ForbiddenPage />} />
 
                     <Route element={<PrivateLayout />}>
                         <Route path="/" element={<Layout />}>
@@ -40,6 +45,7 @@ export const AppRouter = () => {
                             <Route path="products/product/add-color/:variantId" element={<ProductPage />} />
                             <Route path="clients" element={<ClientsPage />} />
                             <Route path="/settings" element={<SettingsLayout />}>
+                                <Route index element={<Navigate to="product-categories" replace />} />
                                 <Route path="countries" element={<CountriesPage />} />
                                 <Route path="colors" element={<ColorPage />} />
                                 <Route path="sizes" element={<SizePage />} />
@@ -49,7 +55,13 @@ export const AppRouter = () => {
                                 <Route path="sources" element={<SourcePage />} />
                                 <Route path="product-variant-statuses" element={<ProductVariantStatusPage />} />
                                 <Route path="product-properties" element={<ProductPropertyPage />} />
+                                <Route element={<SuperAdminGuard />}>
+                                    <Route path="employees" element={<EmployeesPage />} />
+                                    <Route path="roles" element={<RolesPage />} />
+                                </Route>
                             </Route>
+                            <Route path="admin/employees" element={<Navigate to="/settings/employees" replace />} />
+                            <Route path="admin/roles" element={<Navigate to="/settings/roles" replace />} />
                         </Route>
 
                     </Route>

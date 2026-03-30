@@ -16,6 +16,9 @@ import {fileUploaderApi} from "./file-uploader/fileUploaderApi.ts"
 import {productVariantStatusApi} from "./product-variant-status/productVariantStatusApi.ts"
 import {productPropertyApi} from "./settings/product-property/productPropertyApi.ts"
 import {productApi} from "./product/productApi.ts"
+import {authApi} from "./admin/authApi.ts"
+import {employeeApi} from "./admin/employeeApi.ts"
+import {roleApi} from "./admin/roleApi.ts"
 
 const persistConfig = {
     key: "root",
@@ -37,6 +40,9 @@ const persistedCombineReducers = persistCombineReducers(persistConfig, {
     [productVariantStatusApi.reducerPath]: productVariantStatusApi.reducer,
     [productPropertyApi.reducerPath]: productPropertyApi.reducer,
     [productApi.reducerPath]: productApi.reducer,
+    [authApi.reducerPath]: authApi.reducer,
+    [employeeApi.reducerPath]: employeeApi.reducer,
+    [roleApi.reducerPath]: roleApi.reducer,
 })
 
 export const store = configureStore({
@@ -56,6 +62,9 @@ export const store = configureStore({
             .concat(productVariantStatusApi.middleware)
             .concat(productPropertyApi.middleware)
             .concat(productApi.middleware)
+            .concat(authApi.middleware)
+            .concat(employeeApi.middleware)
+            .concat(roleApi.middleware)
 })
 
 export const persistor = persistStore(store)
