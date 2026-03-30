@@ -1,9 +1,10 @@
-import {createApi, fetchBaseQuery} from "@reduxjs/toolkit/query/react"
+import {createApi} from "@reduxjs/toolkit/query/react"
 import type {ProductCategoryType, ProductCategoryWithSubCategoryType} from "./ProductCategoryTypes.ts"
+import {addFileUploaderApi} from "../../utils/appApiConfig.ts"
 
 export const productCategoryApi = createApi({
     reducerPath: "productCategoryApi",
-    baseQuery: fetchBaseQuery({baseUrl: "http://localhost:3000/api/admin"}),
+    baseQuery: addFileUploaderApi,
     tagTypes: ["ProductCategory", "ProductCategoryWithSubCategory"],
     endpoints: (builder) => ({
         getCategories: builder.query<ProductCategoryType[], void>({

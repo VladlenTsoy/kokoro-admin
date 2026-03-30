@@ -1,0 +1,33 @@
+# Node.js with React
+# Build a Node.js project that uses React.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
+
+trigger:
+- main
+
+pool:
+  name: Desli VPS
+
+steps:
+  - script: echo $(BuildVersion) # display BuildVersion
+  - script: echo $(Build.BuildNumber) #display Run Number
+  - task: EnvTransform@0
+    inputs:
+      inputType: 'file'
+      inputFile: '$(Build.SourcesDirectory)/.env.release'
+      outputFile: '$(Build.ArtifactStagingDirectory)/.env'
+  - task: CopyFiles@2
+    inputs:
+      SourceFolder: $(Build.SourcesDirectory)
+      Contents: |
+        **/*
+        !.git/**/*
+        !node_modules/**/*
+        !dist/*
+        !logs/*
+      TargetFolder: $(Build.ArtifactStagingDirectory)
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathToPublish: "$(Build.ArtifactStagingDirectory)"
+      artifactName: darta-site.$(Build.BuildNumber)

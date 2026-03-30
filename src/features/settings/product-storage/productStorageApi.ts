@@ -1,9 +1,10 @@
-import {createApi, fetchBaseQuery} from "@reduxjs/toolkit/query/react"
+import {createApi} from "@reduxjs/toolkit/query/react"
 import type {ProductStorageType} from "./productStorageTypes"
+import {publicApiBaseQuery} from "../../../utils/appApiConfig.ts"
 
 export const productStorageApi = createApi({
     reducerPath: "productStorageApi",
-    baseQuery: fetchBaseQuery({baseUrl: "http://localhost:3000/api"}),
+    baseQuery: publicApiBaseQuery,
     tagTypes: ["ProductStorage"],
     endpoints: (builder) => ({
         getStorages: builder.query<ProductStorageType[], void>({

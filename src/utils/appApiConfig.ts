@@ -1,5 +1,11 @@
 import {fetchBaseQuery} from "@reduxjs/toolkit/query/react"
 
-export const addFileUploaderApi = fetchBaseQuery({baseUrl: "http://localhost:3000/api/admin"})
+const adminApiBaseUrl = import.meta.env.VITE_API_ADMIN_URL
+const publicApiBaseUrl = adminApiBaseUrl.replace(/\/admin\/?$/, "")
 
-export const domainUrlForImage = "https://kokoro-app.ams3.cdn.digitaloceanspaces.com/"
+export const addFileUploaderApi = fetchBaseQuery({baseUrl: adminApiBaseUrl})
+export const publicApiBaseQuery = fetchBaseQuery({baseUrl: publicApiBaseUrl})
+
+export const adminApiUrl = adminApiBaseUrl
+export const publicApiUrl = publicApiBaseUrl
+export const domainUrlForImage = import.meta.env.VITE_CDN_URL

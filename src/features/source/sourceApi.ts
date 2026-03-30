@@ -1,9 +1,10 @@
-import {createApi, fetchBaseQuery} from "@reduxjs/toolkit/query/react"
+import {createApi} from "@reduxjs/toolkit/query/react"
 import type {SourceType} from "./SourceType.ts"
+import {publicApiBaseQuery} from "../../utils/appApiConfig.ts"
 
 export const sourceApi = createApi({
     reducerPath: "sourceApi",
-    baseQuery: fetchBaseQuery({baseUrl: "http://localhost:3000/api"}),
+    baseQuery: publicApiBaseQuery,
     tagTypes: ["Source"],
     endpoints: (builder) => ({
         getSources: builder.query<SourceType[], void>({

@@ -1,9 +1,10 @@
-import {createApi, fetchBaseQuery} from "@reduxjs/toolkit/query/react"
+import {createApi} from "@reduxjs/toolkit/query/react"
 import type {CountryType, CityType} from "./CountryTypes.ts"
+import {addFileUploaderApi} from "../../../utils/appApiConfig.ts"
 
 export const countriesApi = createApi({
     reducerPath: "countriesApi",
-    baseQuery: fetchBaseQuery({baseUrl: "http://localhost:3000/api/admin"}),
+    baseQuery: addFileUploaderApi,
     tagTypes: ["Country", "City"],
     endpoints: (builder) => ({
         // === Countries ===

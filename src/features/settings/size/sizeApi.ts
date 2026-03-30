@@ -1,9 +1,10 @@
-import {createApi, fetchBaseQuery} from "@reduxjs/toolkit/query/react"
+import {createApi} from "@reduxjs/toolkit/query/react"
 import type {SizeType} from "./SizeTypes.ts"
+import {addFileUploaderApi} from "../../../utils/appApiConfig.ts"
 
 export const sizeApi = createApi({
     reducerPath: "sizeApi",
-    baseQuery: fetchBaseQuery({baseUrl: "http://localhost:3000/api/admin"}),
+    baseQuery: addFileUploaderApi,
     tagTypes: ["Size"],
     endpoints: (builder) => ({
         getSizes: builder.query<SizeType[], void>({

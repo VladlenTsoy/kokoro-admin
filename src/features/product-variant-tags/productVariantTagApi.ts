@@ -1,9 +1,10 @@
-import {createApi, fetchBaseQuery} from "@reduxjs/toolkit/query/react"
+import {createApi} from "@reduxjs/toolkit/query/react"
 import type {ProductVariantTagType} from "./ProductVariantTagType.ts"
+import {addFileUploaderApi} from "../../utils/appApiConfig.ts"
 
 export const productVariantTagApi = createApi({
     reducerPath: "productVariantTagApi",
-    baseQuery: fetchBaseQuery({baseUrl: "http://localhost:3000/api/admin"}),
+    baseQuery: addFileUploaderApi,
     tagTypes: ["product-variant-tag"],
     endpoints: build => ({
         getAllTags: build.query<ProductVariantTagType[], void>({
