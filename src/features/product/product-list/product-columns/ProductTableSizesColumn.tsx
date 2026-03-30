@@ -1,4 +1,4 @@
-import type {ProductSizeType} from "../ProductType.ts"
+import type {ProductSizeType} from "../../ProductType.ts"
 import React from "react"
 import {createStyles} from "antd-style"
 import cn from "classnames"

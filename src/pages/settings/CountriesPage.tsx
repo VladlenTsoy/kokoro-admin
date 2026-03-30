@@ -47,9 +47,16 @@ const CountryCityPage: React.FC = () => {
             }
         } else {
             if (editingItem) {
-                await updateCity({id: editingItem.id, ...values})
+                await updateCity({
+                    countryId: editingItem.parentId,
+                    cityId: editingItem.id,
+                    data: values
+                })
             } else {
-                await createCity({...values, countryId: editingItem?.parentId})
+                await createCity({
+                    countryId: editingItem?.parentId,
+                    city: values
+                })
             }
         }
         setIsModalOpen(false)
@@ -60,7 +67,7 @@ const CountryCityPage: React.FC = () => {
         if (type === "country") {
             await deleteCountry(id)
         } else {
-            await deleteCity(id)
+            await deleteCity({countryId: editingItem?.parentId, cityId: id})
         }
     }
 
@@ -101,7 +108,7 @@ const CountryCityPage: React.FC = () => {
                         </Button>
                         <Popconfirm
                             title="Удалить город?"
-                            onConfirm={() => handleDelete("city", record.id)}
+                            onConfirm={() => deleteCity({countryId: country.id, cityId: record.id})}
                         >
                             <Button danger>Удалить</Button>
                         </Popconfirm>

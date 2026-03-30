@@ -22,7 +22,7 @@ export const countriesApi = createApi({
 
         getCountry: builder.query<CountryType, number>({
             query: (id) => `countries/${id}`,
-            providesTags: (result, error, id) => [
+            providesTags: (_result, _error, id) => [
                 {type: "Country" as const, id},
                 {type: "Country" as const, id: "LIST"}
             ]
@@ -44,7 +44,7 @@ export const countriesApi = createApi({
                 method: "PUT", // или PATCH если на сервере так принято
                 body: patch
             }),
-            invalidatesTags: (result, error, arg) => [
+            invalidatesTags: (_result, _error, arg) => [
                 {type: "Country", id: arg.id},
                 {type: "Country", id: "LIST"}
             ]
@@ -55,7 +55,7 @@ export const countriesApi = createApi({
                 url: `countries/${id}`,
                 method: "DELETE"
             }),
-            invalidatesTags: (result, error, id) => [
+            invalidatesTags: (_result, _error, id) => [
                 {type: "Country", id},
                 {type: "Country", id: "LIST"}
             ]
@@ -69,7 +69,7 @@ export const countriesApi = createApi({
                 body: city
             }),
             // инвалидация самой страны (чтобы обновить список городов), можно добавить City tag если нужно
-            invalidatesTags: (result, error, {countryId}) => [{type: "Country", id: countryId}]
+            invalidatesTags: (_result, _error, {countryId}) => [{type: "Country", id: countryId}]
         }),
 
         updateCity: builder.mutation<
@@ -81,7 +81,7 @@ export const countriesApi = createApi({
                 method: "PUT", // или PATCH
                 body: data
             }),
-            invalidatesTags: (result, error, {countryId, cityId}) => [
+            invalidatesTags: (_result, _error, {countryId, cityId}) => [
                 {type: "Country", id: countryId},
                 {type: "City", id: cityId}
             ]
@@ -95,7 +95,7 @@ export const countriesApi = createApi({
                 url: `countries/${countryId}/cities/${cityId}`,
                 method: "DELETE"
             }),
-            invalidatesTags: (result, error, {countryId, cityId}) => [
+            invalidatesTags: (_result, _error, {countryId, cityId}) => [
                 {type: "Country", id: countryId},
                 {type: "City", id: cityId}
             ]

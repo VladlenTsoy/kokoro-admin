@@ -6,6 +6,7 @@ const PAGE_CURRENT = 1
 const PAGE_SIZE = 30
 
 type UpdateKey = "search" | "pagination" | "categoryIds" | "sizeIds" | "clear"
+type PaginationValue = {current?: number, pageSize?: number}
 
 function safeParseArrayParam(value: string | null): number[] {
     if (!value) return []
@@ -64,7 +65,7 @@ export const useGetParams = () => {
 
     // update query and navigate
     const updateParams = useCallback(
-        (key: UpdateKey, val: {current?: number, pageSize?: number} | string | number | undefined) => {
+        (key: UpdateKey, val: PaginationValue | string | number | undefined) => {
             // read current query from location to avoid overwriting unrelated params
             const {query, categoryIds: currentCategoryIds, sizeIds: currentSizeIds} = readParamsFromLocation(
                 location.search,
@@ -84,9 +85,11 @@ export const useGetParams = () => {
                 }
 
                 case "pagination": {
-                    // val expected { current?: number; pageSize?: number }
-                    if (val?.current != null) query.set("current", String(Number(val.current)))
-                    if (val?.pageSize != null) query.set("pageSize", String(Number(val.pageSize)))
+                    const pagination = typeof val === "object" && val !== null && !Array.isArray(val)
+                        ? val as PaginationValue
+                        : undefined
+                    if (pagination?.current != null) query.set("current", String(Number(pagination.current)))
+                    if (pagination?.pageSize != null) query.set("pageSize", String(Number(pagination.pageSize)))
                     break
                 }
 

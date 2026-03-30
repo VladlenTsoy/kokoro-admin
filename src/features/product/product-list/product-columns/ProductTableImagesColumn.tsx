@@ -1,10 +1,10 @@
 import React from "react"
-import type {ProductType} from "../../ProductType.ts"
+import type {ProductImageType, ProductType} from "../../ProductType.ts"
 import {Tag, Image} from "antd"
 import {domainUrlForImage} from "../../../../utils/appApiConfig.ts"
 
 interface Props {
-    images?: ProductType["product_images"]
+    images?: ProductType["images"]
 }
 
 const ProductTableImagesColumn: React.FC<Props> = ({images}) => {
@@ -13,7 +13,7 @@ const ProductTableImagesColumn: React.FC<Props> = ({images}) => {
 
     return (
         <Image.PreviewGroup
-            items={images.map((image) => `${domainUrlForImage}${image.path}`)}
+            items={images.map((image: ProductImageType) => `${domainUrlForImage}${image.path}`)}
         >
             <Image
                 alt={images[0].name}
