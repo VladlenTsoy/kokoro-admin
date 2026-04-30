@@ -7,6 +7,7 @@ import ProductHeaderFilter from "./product-filter/ProductHeaderFilter.tsx"
 import {Link} from "react-router-dom"
 import {createStyles} from "antd-style"
 import {useGetParams} from "../../../../hooks/useProductGetParams.ts"
+import {useCan} from "../../../auth/permissions.ts"
 
 const useStyles = createStyles(({token}) => ({
     container: {
@@ -46,6 +47,7 @@ const useStyles = createStyles(({token}) => ({
 const ProductHeaderList = () => {
     const {styles} = useStyles()
     const {params, updateParams} = useGetParams()
+    const canCreateCatalog = useCan("catalog.create")
 
     const timeoutRef = useRef<number | null>(null)
     const onSearchHandler = (e: ChangeEvent<HTMLInputElement>) => {
@@ -107,9 +109,11 @@ const ProductHeaderList = () => {
                     onStorages={onStorageIdsHandler}
                     onClearFilter={onClearFilterHandler}
                 />
-                <Link to="/products/product/create">
-                    <Button icon={<PlusCircleFilled />} size="large">Добавить</Button>
-                </Link>
+                {canCreateCatalog && (
+                    <Link to="/products/product/create">
+                        <Button icon={<PlusCircleFilled />} size="large">Добавить</Button>
+                    </Link>
+                )}
             </Space>
         </div>
     )

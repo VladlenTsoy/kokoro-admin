@@ -1,12 +1,13 @@
 import {useGetProductsQuery} from "../productApi.ts"
 import {Table} from "antd"
 import {useGetParams} from "../../../hooks/useProductGetParams.ts"
-import {columns} from "./product-columns/ProductColumns.tsx"
+import {useProductColumns} from "./product-columns/ProductColumns.tsx"
 import ProductHeaderList from "./product-header-list/ProductHeaderList.tsx"
 
 
 const ProductList = () => {
     const {params, updateParams} = useGetParams()
+    const columns = useProductColumns()
     const {current, pageSize} = params.pagination
     const {isLoading, data} = useGetProductsQuery({
         page: current,

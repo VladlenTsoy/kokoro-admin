@@ -1,11 +1,12 @@
 import {createApi} from "@reduxjs/toolkit/query/react"
-import type {Role} from "../auth/authTypes.ts"
+import type {PermissionCatalogModule, PermissionCode, Role} from "../auth/authTypes.ts"
 import {addFileUploaderApi} from "../../utils/appApiConfig.ts"
 
 interface CreateRoleRequest {
     code: string
     name: string
     isActive: boolean
+    permissions: PermissionCode[]
 }
 
 interface UpdateRoleRequest {
@@ -13,13 +14,18 @@ interface UpdateRoleRequest {
     code?: string
     name?: string
     isActive?: boolean
+    permissions?: PermissionCode[]
 }
 
 export const roleApi = createApi({
     reducerPath: "roleApi",
     baseQuery: addFileUploaderApi,
-    tagTypes: ["Role"],
+    tagTypes: ["Role", "PermissionCatalog"],
     endpoints: (builder) => ({
+        getRolePermissions: builder.query<PermissionCatalogModule[], void>({
+            query: () => "roles/permissions",
+            providesTags: [{type: "PermissionCatalog", id: "LIST"}]
+        }),
         getRoles: builder.query<Role[], void>({
             query: () => "roles",
             providesTags: (result) =>
@@ -64,6 +70,7 @@ export const roleApi = createApi({
 })
 
 export const {
+    useGetRolePermissionsQuery,
     useGetRolesQuery,
     useGetRoleByIdQuery,
     useCreateRoleMutation,

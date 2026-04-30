@@ -2,6 +2,7 @@ import {createSlice, type PayloadAction} from "@reduxjs/toolkit"
 import {useSelector} from "react-redux"
 import type {StoreState} from "../store.ts"
 import type {AuthResponse, EmployeeSafe} from "./authTypes.ts"
+import {can} from "./permissions.ts"
 
 interface AuthState {
     accessToken: string | null
@@ -53,8 +54,5 @@ export default authSlice.reducer
 
 export const useSelectedAuthData = () => useSelector((state: StoreState) => state.auth)
 
-export const useIsSuperAdmin = () => {
-    return useSelector((state: StoreState) =>
-        Boolean(state.auth.employee?.roles.some((role) => role.code === "SUPER_ADMIN"))
-    )
-}
+export const useHasPermission = (permission: string) =>
+    useSelector((state: StoreState) => can(state.auth.employee?.permissions, permission))

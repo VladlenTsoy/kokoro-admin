@@ -1,11 +1,17 @@
 import {Button, Tooltip} from "antd"
 import {SettingOutlined} from "@ant-design/icons"
 import {useLocation, useNavigate} from "react-router-dom"
+import {useCanAny} from "../../features/auth/permissions.ts"
 
 const HeaderSettingsButton = () => {
     const navigate = useNavigate()
     const {pathname} = useLocation()
     const isSettingsPage = pathname.startsWith("/settings")
+    const canOpenSettings = useCanAny(["settings.read", "catalog.read", "marketing.read", "staff.read"])
+
+    if (!canOpenSettings) {
+        return null
+    }
 
     return (
         <Tooltip title="Настройки">

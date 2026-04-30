@@ -38,6 +38,7 @@ import type {
 import {getNestErrorMessage} from "../utils/getNestErrorMessage.ts"
 import {useGetOrderStatusesQuery} from "../features/order-status/orderStatusApi.ts"
 import {formatMoney} from "../utils/formatters.ts"
+import {useCan} from "../features/auth/permissions.ts"
 
 const paymentStatusOptions: Array<{label: string; value: OrderPaymentStatus}> = [
     {label: "pending", value: "pending"},
@@ -78,6 +79,8 @@ const OrdersPage = () => {
     const [updateOrderStatus, {isLoading: isUpdatingStatus}] = useUpdateOrderStatusMutation()
     const [cancelOrder, {isLoading: isCancelling}] = useCancelOrderMutation()
     const [createOrderComment, {isLoading: isCreatingComment}] = useCreateOrderCommentMutation()
+    const canUpdateOrders = useCan("orders.update")
+    const canDeleteOrders = useCan("orders.delete")
 
     const openOrder = (id: number) => setSelectedOrderId(id)
     const currentActionOrderId = actionOrderId ?? selectedOrderId
@@ -240,13 +243,13 @@ const OrdersPage = () => {
                 render: (_, order) => (
                     <Space>
                         <Button onClick={() => openOrder(order.id)}>Открыть</Button>
-                        <Button onClick={() => openStatusModal(order.id)}>Статус</Button>
-                        <Button danger onClick={() => openCancelModal(order.id)}>Отмена</Button>
+                        {canUpdateOrders && <Button onClick={() => openStatusModal(order.id)}>Статус</Button>}
+                        {canDeleteOrders && <Button danger onClick={() => openCancelModal(order.id)}>Отмена</Button>}
                     </Space>
                 )
             }
         ],
-        []
+        [canDeleteOrders, canUpdateOrders]
     )
 
     const itemColumns: ColumnsType<OrderItem> = [
@@ -380,7 +383,7 @@ const OrdersPage = () => {
 
                         <Card
                             title="История статусов"
-                            extra={<Button onClick={() => setCommentModalOpen(true)}>Добавить комментарий</Button>}
+                            extra={canUpdateOrders ? <Button onClick={() => setCommentModalOpen(true)}>Добавить комментарий</Button> : null}
                         >
                             <Timeline
                                 items={(orderHistory || selectedOrder.histories || []).map((item) => ({

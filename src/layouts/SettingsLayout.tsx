@@ -2,13 +2,16 @@ import type {MenuProps} from "antd"
 import {Card, Input, Menu, Space, Tag, Typography} from "antd"
 import {createStyles} from "antd-style"
 import {Outlet, useLocation, useNavigate} from "react-router-dom"
-import {useIsSuperAdmin} from "../features/auth/authSlice.ts"
+import {useSelectedAuthData} from "../features/auth/authSlice.ts"
 import {useMemo, useState} from "react"
 import {SearchOutlined} from "@ant-design/icons"
+import {can} from "../features/auth/permissions.ts"
+import type {PermissionCode} from "../features/auth/authTypes.ts"
 
 interface SettingsMenuChild {
     key: string
     label: string
+    permission: PermissionCode
 }
 
 interface SettingsMenuGroup {
@@ -22,39 +25,48 @@ const BASE_SETTINGS_GROUPS: SettingsMenuGroup[] = [
         key: "product",
         label: "Продукт",
         children: [
-            {key: "product-categories", label: "Категории"},
-            {key: "sizes", label: "Размеры"},
-            {key: "colors", label: "Цвета"},
-            {key: "product-variant-statuses", label: "Статусы"},
-            {key: "product-properties", label: "Свойства"}
+            {key: "product-categories", label: "Категории", permission: "catalog.read"},
+            {key: "collections", label: "Коллекции", permission: "catalog.read"},
+            {key: "sizes", label: "Размеры", permission: "catalog.read"},
+            {key: "colors", label: "Цвета", permission: "catalog.read"},
+            {key: "product-variant-statuses", label: "Статусы", permission: "catalog.read"},
+            {key: "product-properties", label: "Свойства", permission: "catalog.read"}
         ]
     },
     {
         key: "delivery",
         label: "Доставка",
-        children: [{key: "countries", label: "Страны и города"}]
+        children: [{key: "countries", label: "Страны и города", permission: "settings.read"}]
     },
     {
         key: "branch",
         label: "Филиал",
         children: [
-            {key: "sales-points", label: "Точки продаж"},
-            {key: "product-storages", label: "Склады"}
+            {key: "sales-points", label: "Точки продаж", permission: "settings.read"},
+            {key: "product-storages", label: "Склады", permission: "settings.read"}
         ]
     },
     {
         key: "order",
         label: "Заказ",
-        children: [{key: "sources", label: "Источник"}]
+        children: [{key: "sources", label: "Источник", permission: "settings.read"}]
     },
     {
         key: "ops",
         label: "Операции",
         children: [
-            {key: "promo-codes", label: "Промокоды"},
-            {key: "order-statuses", label: "Статусы заказов"},
-            {key: "notifications", label: "Уведомления"},
-            {key: "payments", label: "Платежи"}
+            {key: "promo-codes", label: "Промокоды", permission: "marketing.read"},
+            {key: "order-statuses", label: "Статусы заказов", permission: "settings.read"},
+            {key: "notifications", label: "Уведомления", permission: "settings.read"},
+            {key: "payments", label: "Платежи", permission: "settings.read"}
+        ]
+    },
+    {
+        key: "admin",
+        label: "Администрирование",
+        children: [
+            {key: "employees", label: "Сотрудники", permission: "staff.read"},
+            {key: "roles", label: "Роли", permission: "staff.read"}
         ]
     }
 ]
@@ -93,29 +105,17 @@ const SettingsLayout = () => {
     const navigate = useNavigate()
     const location = useLocation()
     const {styles} = useStyles()
-    const isSuperAdmin = useIsSuperAdmin()
+    const {employee} = useSelectedAuthData()
     const [query, setQuery] = useState("")
 
     const groups = useMemo<SettingsMenuGroup[]>(() => {
-        const result = BASE_SETTINGS_GROUPS.map((group) => ({...group, children: [...group.children]}))
-        if (isSuperAdmin) {
-            const productGroup = result.find((group) => group.key === "product")
-            if (productGroup) {
-                productGroup.children.splice(1, 0, {key: "collections", label: "Коллекции"})
-            }
-        }
-        if (isSuperAdmin) {
-            result.push({
-                key: "admin",
-                label: "Администрирование",
-                children: [
-                    {key: "employees", label: "Сотрудники"},
-                    {key: "roles", label: "Роли"}
-                ]
-            })
-        }
-        return result
-    }, [isSuperAdmin])
+        return BASE_SETTINGS_GROUPS
+            .map((group) => ({
+                ...group,
+                children: group.children.filter((child) => can(employee?.permissions, child.permission))
+            }))
+            .filter((group) => group.children.length > 0)
+    }, [employee?.permissions])
 
     const filteredGroups = useMemo<SettingsMenuGroup[]>(() => {
         const normalizedQuery = query.trim().toLowerCase()
@@ -163,7 +163,6 @@ const SettingsLayout = () => {
                     <div className={styles.menuHeader}>
                         <Space className={styles.summary}>
                             <Tag color="blue">Разделов: {allChildrenCount}</Tag>
-                            {isSuperAdmin && <Tag color="gold">SUPER_ADMIN</Tag>}
                         </Space>
                         <Input
                             className={styles.menuSearch}

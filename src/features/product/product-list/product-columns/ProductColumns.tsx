@@ -8,9 +8,14 @@ import {EditOutlined} from "@ant-design/icons"
 import {Link} from "react-router-dom"
 import ProductTableDeleteAction from "./ProductTableDeleteAction.tsx"
 import {formatMoney} from "../../../../utils/formatters.ts"
+import {useCan} from "../../../auth/permissions.ts"
 
-export const columns: ColumnsType<ProductType> = [
-    {
+export const useProductColumns = (): ColumnsType<ProductType> => {
+    const canUpdateCatalog = useCan("catalog.update")
+    const canDeleteCatalog = useCan("catalog.delete")
+
+    return [
+        {
         title: "ID",
         dataIndex: "id",
         key: "id",
@@ -82,15 +87,20 @@ export const columns: ColumnsType<ProductType> = [
             ? record.collections.map((collection) => collection.title).join(", ")
             : "—"
     },
-    {
-        key: "actions",
-        render: (_, record) => (
-            <Space>
-                <Link to={`/products/product/${record.id}`}>
-                    <Button icon={<EditOutlined />} />
-                </Link>
-                <ProductTableDeleteAction productId={record.id} />
-            </Space>
-        )
-    }
-]
+        ...(canUpdateCatalog || canDeleteCatalog
+            ? [{
+                key: "actions",
+                render: (_: unknown, record: ProductType) => (
+                    <Space>
+                        {canUpdateCatalog && (
+                            <Link to={`/products/product/${record.id}`}>
+                                <Button icon={<EditOutlined />} />
+                            </Link>
+                        )}
+                        {canDeleteCatalog && <ProductTableDeleteAction productId={record.id} />}
+                    </Space>
+                )
+            } satisfies ColumnsType<ProductType>[number]]
+            : [])
+    ]
+}

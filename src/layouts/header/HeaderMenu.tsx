@@ -9,8 +9,11 @@ import {createStyles} from "antd-style"
 import {useLocation, useNavigate} from "react-router-dom"
 import LogoBlack from "../../assets/images/logo_black.svg"
 import LogoWhite from "../../assets/images/logo_white.svg"
-import {useMemo} from "react"
+import {useMemo, type ReactNode} from "react"
 import {useSelectedTheme} from "../../features/theme/themeSlice.ts"
+import {useSelectedAuthData} from "../../features/auth/authSlice.ts"
+import {can} from "../../features/auth/permissions.ts"
+import type {PermissionCode} from "../../features/auth/authTypes.ts"
 
 const useStyles = createStyles(() => ({
     root: {
@@ -67,6 +70,7 @@ const HeaderMenu = () => {
     const navigate = useNavigate()
     const {pathname} = useLocation()
     const mode = useSelectedTheme()
+    const {employee} = useSelectedAuthData()
     const logoSrc = mode === "dark" ? LogoWhite : LogoBlack
     const pathValue = useMemo(() => {
         try {
@@ -78,13 +82,15 @@ const HeaderMenu = () => {
     }, [pathname])
 
     const options = useMemo(() => {
-        return [
-            {label: "Главная", value: "/", icon: <HomeOutlined />},
-            {label: "Заказы", value: "/orders", icon: <ShoppingOutlined />},
-            {label: "Одежда", value: "/products", icon: <SkinOutlined />},
-            {label: "Клиенты", value: "/clients", icon: <TeamOutlined />}
+        const items: Array<{label: string; value: string; icon: ReactNode; permission: PermissionCode}> = [
+            {label: "Главная", value: "/", icon: <HomeOutlined />, permission: "dashboard.read"},
+            {label: "Заказы", value: "/orders", icon: <ShoppingOutlined />, permission: "orders.read"},
+            {label: "Одежда", value: "/products", icon: <SkinOutlined />, permission: "catalog.read"},
+            {label: "Клиенты", value: "/clients", icon: <TeamOutlined />, permission: "clients.read"}
         ]
-    }, [])
+
+        return items.filter((item) => can(employee?.permissions, item.permission))
+    }, [employee?.permissions])
 
     const selectedValue = useMemo(() => {
         const values = options.map((option) => option.value)

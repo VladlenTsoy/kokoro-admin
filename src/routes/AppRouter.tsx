@@ -4,7 +4,10 @@ import {Spin} from "antd"
 import PrivateLayout from "../layouts/PrivateLayout.tsx"
 import Layout from "../layouts/Layout.tsx"
 import SettingsLayout from "../layouts/SettingsLayout.tsx"
-import SuperAdminGuard from "../components/SuperAdminGuard.tsx"
+import PermissionGuard from "../components/PermissionGuard.tsx"
+import {useSelectedAuthData} from "../features/auth/authSlice.ts"
+import {can} from "../features/auth/permissions.ts"
+import type {PermissionCode} from "../features/auth/authTypes.ts"
 
 export const Login = lazy(() => import("../pages/LoginPage.tsx"))
 export const HomePage = lazy(() => import("../pages/HomePage.tsx"))
@@ -31,6 +34,20 @@ export const EmployeesPage = lazy(() => import("../pages/admin/EmployeesPage.tsx
 export const RolesPage = lazy(() => import("../pages/admin/RolesPage.tsx"))
 export const ForbiddenPage = lazy(() => import("../pages/errors/ForbiddenPage.tsx"))
 
+const SETTINGS_INDEX_ITEMS: Array<{to: string; permission: PermissionCode}> = [
+    {to: "product-categories", permission: "catalog.read"},
+    {to: "countries", permission: "settings.read"},
+    {to: "promo-codes", permission: "marketing.read"},
+    {to: "employees", permission: "staff.read"}
+]
+
+const SettingsIndexRedirect = () => {
+    const {employee} = useSelectedAuthData()
+    const firstAvailable = SETTINGS_INDEX_ITEMS.find((item) => can(employee?.permissions, item.permission))
+
+    return <Navigate to={firstAvailable?.to ?? "/forbidden"} replace />
+}
+
 export const AppRouter = () => {
     return (
         <BrowserRouter>
@@ -42,31 +59,49 @@ export const AppRouter = () => {
 
                     <Route element={<PrivateLayout />}>
                         <Route path="/" element={<Layout />}>
-                            <Route index element={<HomePage />} />
-                            <Route path="orders" element={<OrdersPage />} />
-                            <Route path="products" element={<ProductsPage />} />
-                            <Route path="products/:id" element={<ProductsPage />} />
-                            <Route path="products/product/create" element={<ProductPage />} />
-                            <Route path="products/product/:id" element={<ProductPage />} />
-                            <Route path="products/product/add-color/:variantId" element={<ProductPage />} />
-                            <Route path="clients" element={<ClientsPage />} />
+                            <Route element={<PermissionGuard permission="dashboard.read" />}>
+                                <Route index element={<HomePage />} />
+                            </Route>
+                            <Route element={<PermissionGuard permission="orders.read" />}>
+                                <Route path="orders" element={<OrdersPage />} />
+                            </Route>
+                            <Route element={<PermissionGuard permission="catalog.read" />}>
+                                <Route path="products" element={<ProductsPage />} />
+                                <Route path="products/:id" element={<ProductsPage />} />
+                            </Route>
+                            <Route element={<PermissionGuard permission="catalog.create" />}>
+                                <Route path="products/product/create" element={<ProductPage />} />
+                                <Route path="products/product/add-color/:variantId" element={<ProductPage />} />
+                            </Route>
+                            <Route element={<PermissionGuard permission="catalog.update" />}>
+                                <Route path="products/product/:id" element={<ProductPage />} />
+                            </Route>
+                            <Route element={<PermissionGuard permission="clients.read" />}>
+                                <Route path="clients" element={<ClientsPage />} />
+                            </Route>
                             <Route path="/settings" element={<SettingsLayout />}>
-                                <Route index element={<Navigate to="product-categories" replace />} />
-                                <Route path="countries" element={<CountriesPage />} />
-                                <Route path="colors" element={<ColorPage />} />
-                                <Route path="sizes" element={<SizePage />} />
-                                <Route path="product-categories" element={<ProductCategoryPage />} />
-                                <Route path="sales-points" element={<SalesPointPage />} />
-                                <Route path="product-storages" element={<ProductStoragePage />} />
-                                <Route path="sources" element={<SourcePage />} />
-                                <Route path="product-variant-statuses" element={<ProductVariantStatusPage />} />
-                                <Route path="product-properties" element={<ProductPropertyPage />} />
-                                <Route path="promo-codes" element={<PromoCodesPage />} />
-                                <Route path="order-statuses" element={<OrderStatusesPage />} />
-                                <Route path="notifications" element={<OrderNotificationsPage />} />
-                                <Route path="payments" element={<PaymentsPage />} />
-                                <Route element={<SuperAdminGuard />}>
+                                <Route index element={<SettingsIndexRedirect />} />
+                                <Route element={<PermissionGuard permission="settings.read" />}>
+                                    <Route path="countries" element={<CountriesPage />} />
+                                    <Route path="sales-points" element={<SalesPointPage />} />
+                                    <Route path="product-storages" element={<ProductStoragePage />} />
+                                    <Route path="sources" element={<SourcePage />} />
+                                    <Route path="order-statuses" element={<OrderStatusesPage />} />
+                                    <Route path="notifications" element={<OrderNotificationsPage />} />
+                                    <Route path="payments" element={<PaymentsPage />} />
+                                </Route>
+                                <Route element={<PermissionGuard permission="catalog.read" />}>
+                                    <Route path="colors" element={<ColorPage />} />
+                                    <Route path="sizes" element={<SizePage />} />
+                                    <Route path="product-categories" element={<ProductCategoryPage />} />
+                                    <Route path="product-variant-statuses" element={<ProductVariantStatusPage />} />
+                                    <Route path="product-properties" element={<ProductPropertyPage />} />
                                     <Route path="collections" element={<CollectionsPage />} />
+                                </Route>
+                                <Route element={<PermissionGuard permission="marketing.read" />}>
+                                    <Route path="promo-codes" element={<PromoCodesPage />} />
+                                </Route>
+                                <Route element={<PermissionGuard permission="staff.read" />}>
                                     <Route path="employees" element={<EmployeesPage />} />
                                     <Route path="roles" element={<RolesPage />} />
                                 </Route>

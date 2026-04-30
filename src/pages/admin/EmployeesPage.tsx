@@ -24,8 +24,9 @@ import {
     useUpdateEmployeeMutation,
     useUpdateEmployeeRolesMutation
 } from "../../features/admin/employeeApi.ts"
-import {useGetRolesQuery} from "../../features/admin/roleApi.ts"
-import type {EmployeeSafe} from "../../features/auth/authTypes.ts"
+import {useGetRolePermissionsQuery, useGetRolesQuery} from "../../features/admin/roleApi.ts"
+import type {EmployeeSafe, PermissionAction, PermissionCatalogModule, PermissionCode} from "../../features/auth/authTypes.ts"
+import {useCan} from "../../features/auth/permissions.ts"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 import {getApiStatusCode} from "../../utils/getApiStatusCode.ts"
 import PageHeading from "../../components/PageHeading.tsx"
@@ -44,9 +45,41 @@ interface RolesOnlyFormValues {
     roleIds: number[]
 }
 
+const PERMISSION_ACTIONS: PermissionAction[] = ["read", "create", "update", "delete", "manage"]
+
+function summarizePermissions(permissions: PermissionCode[], catalog?: PermissionCatalogModule[]) {
+    if (!permissions.length) {
+        return "—"
+    }
+
+    if (!catalog?.length) {
+        return permissions.join(", ")
+    }
+
+    return catalog
+        .map((module) => {
+            const actions = PERMISSION_ACTIONS.filter((action) =>
+                permissions.includes(`${module.code}.${action}` as PermissionCode)
+            )
+
+            if (!actions.length) {
+                return null
+            }
+
+            return `${module.title}: ${actions.join(", ")}`
+        })
+        .filter(Boolean)
+        .join("; ") || "—"
+}
+
 const EmployeesPage = () => {
     const {data: employeesData, isLoading: isEmployeesLoading, error: employeesError} = useGetEmployeesQuery()
     const {data: rolesData, isLoading: isRolesLoading, error: rolesError} = useGetRolesQuery()
+    const {
+        data: permissionCatalog,
+        isLoading: isPermissionCatalogLoading,
+        error: permissionCatalogError
+    } = useGetRolePermissionsQuery()
     const [createEmployee, {isLoading: isCreating}] = useCreateEmployeeMutation()
     const [updateEmployee, {isLoading: isUpdating}] = useUpdateEmployeeMutation()
     const [updateEmployeeRoles, {isLoading: isUpdatingRoles}] = useUpdateEmployeeRolesMutation()
@@ -58,6 +91,7 @@ const EmployeesPage = () => {
     const [rolesEmployee, setRolesEmployee] = useState<EmployeeSafe | null>(null)
     const [form] = Form.useForm<EmployeeFormValues>()
     const [rolesForm] = Form.useForm<RolesOnlyFormValues>()
+    const canManageStaff = useCan("staff.manage")
 
     const employees = useMemo(
         () => (employeesData ? [...employeesData].sort((a, b) => b.id - a.id) : []),
@@ -65,7 +99,11 @@ const EmployeesPage = () => {
     )
     const roles = useMemo(() => (rolesData ? [...rolesData].sort((a, b) => b.id - a.id) : []), [rolesData])
 
-    if (getApiStatusCode(employeesError) === 403 || getApiStatusCode(rolesError) === 403) {
+    if (
+        getApiStatusCode(employeesError) === 403 ||
+        getApiStatusCode(rolesError) === 403 ||
+        getApiStatusCode(permissionCatalogError) === 403
+    ) {
         return <Navigate to="/forbidden" replace />
     }
 
@@ -95,7 +133,7 @@ const EmployeesPage = () => {
             email: employee.email,
             firstName: employee.firstName,
             lastName: employee.lastName,
-            phone: employee.phone,
+            phone: employee.phone ?? "",
             roleIds: employee.roles.map((role) => role.id),
             isActive: employee.isActive
         })
@@ -106,6 +144,18 @@ const EmployeesPage = () => {
         setRolesEmployee(employee)
         rolesForm.setFieldsValue({roleIds: employee.roles.map((role) => role.id)})
         setIsRolesModalOpen(true)
+    }
+
+    const closeEditModal = () => {
+        setEditingEmployee(null)
+        setIsEditModalOpen(false)
+        form.resetFields()
+    }
+
+    const closeRolesModal = () => {
+        setRolesEmployee(null)
+        setIsRolesModalOpen(false)
+        rolesForm.resetFields()
     }
 
     const handleSubmit = async () => {
@@ -137,7 +187,7 @@ const EmployeesPage = () => {
                 message.success("Сотрудник создан")
             }
 
-            setIsEditModalOpen(false)
+            closeEditModal()
         } catch (error) {
             message.error(getNestErrorMessage(error))
         }
@@ -152,7 +202,7 @@ const EmployeesPage = () => {
             const values = await rolesForm.validateFields()
             await updateEmployeeRoles({id: rolesEmployee.id, roleIds: values.roleIds}).unwrap()
             message.success("Роли сотрудника обновлены")
-            setIsRolesModalOpen(false)
+            closeRolesModal()
         } catch (error) {
             message.error(getNestErrorMessage(error))
         }
@@ -175,7 +225,7 @@ const EmployeesPage = () => {
             key: "fullName",
             render: (_, employee) => `${employee.firstName} ${employee.lastName}`
         },
-        {title: "Телефон", dataIndex: "phone"},
+        {title: "Телефон", dataIndex: "phone", render: (phone?: string | null) => phone || "—"},
         {
             title: "Статус",
             dataIndex: "isActive",
@@ -195,23 +245,30 @@ const EmployeesPage = () => {
             )
         },
         {
-            title: "Действия",
-            key: "actions",
-            width: 320,
-            render: (_, employee) => (
-                <Space>
-                    <Button onClick={() => openEdit(employee)}>Редактировать</Button>
-                    <Button onClick={() => openRolesOnly(employee)}>Только роли</Button>
-                    <Popconfirm
-                        title="Удалить сотрудника?"
-                        onConfirm={() => handleDelete(employee.id)}
-                        okButtonProps={{loading: isDeleting}}
-                    >
-                        <Button danger>Удалить</Button>
-                    </Popconfirm>
-                </Space>
-            )
-        }
+            title: "Доступы",
+            dataIndex: "permissions",
+            render: (permissions: PermissionCode[]) => summarizePermissions(permissions ?? [], permissionCatalog)
+        },
+        ...(canManageStaff
+            ? [{
+                title: "Действия",
+                key: "actions",
+                width: 320,
+                render: (_: unknown, employee: EmployeeSafe) => (
+                    <Space>
+                        <Button onClick={() => openEdit(employee)}>Редактировать</Button>
+                        <Button onClick={() => openRolesOnly(employee)}>Только роли</Button>
+                        <Popconfirm
+                            title="Удалить сотрудника?"
+                            onConfirm={() => handleDelete(employee.id)}
+                            okButtonProps={{loading: isDeleting}}
+                        >
+                            <Button danger>Удалить</Button>
+                        </Popconfirm>
+                    </Space>
+                )
+            } satisfies ColumnsType<EmployeeSafe>[number]]
+            : [])
     ]
 
     return (
@@ -219,11 +276,11 @@ const EmployeesPage = () => {
             <PageHeading
                 title="Сотрудники"
                 subtitle="Команда админки, статусы активности и распределение ролей."
-                extra={(
+                extra={canManageStaff ? (
                     <Button type="primary" onClick={openCreate}>
                         Добавить сотрудника
                     </Button>
-                )}
+                ) : null}
             />
 
             <Card>
@@ -231,23 +288,25 @@ const EmployeesPage = () => {
                     <Statistic title="Всего сотрудников" value={employees.length} />
                     <Statistic title="Активные" value={employees.filter((employee) => employee.isActive).length} />
                     <Statistic title="Ролей в системе" value={roles.length} />
+                    <Statistic title="Модулей доступа" value={permissionCatalog?.length ?? 0} loading={isPermissionCatalogLoading} />
                 </Space>
             </Card>
 
             <Card>
                 <Table<EmployeeSafe>
                     rowKey="id"
-                    loading={isEmployeesLoading || isRolesLoading}
+                    loading={isEmployeesLoading || isRolesLoading || isPermissionCatalogLoading}
                     columns={columns}
                     dataSource={employees}
                     pagination={false}
+                    scroll={{x: 1100}}
                 />
             </Card>
 
             <Modal
                 title={editingEmployee ? "Редактирование сотрудника" : "Создание сотрудника"}
                 open={isEditModalOpen}
-                onCancel={() => setIsEditModalOpen(false)}
+                onCancel={closeEditModal}
                 onOk={handleSubmit}
                 confirmLoading={isCreating || isUpdating}
                 width={700}
@@ -327,7 +386,7 @@ const EmployeesPage = () => {
             <Modal
                 title={`Роли: ${rolesEmployee?.firstName ?? ""} ${rolesEmployee?.lastName ?? ""}`.trim()}
                 open={isRolesModalOpen}
-                onCancel={() => setIsRolesModalOpen(false)}
+                onCancel={closeRolesModal}
                 onOk={handleRolesSubmit}
                 confirmLoading={isUpdatingRoles}
             >

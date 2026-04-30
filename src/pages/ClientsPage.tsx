@@ -12,6 +12,7 @@ import {
 } from "../features/clients/clientApi.ts"
 import {getNestErrorMessage} from "../utils/getNestErrorMessage.ts"
 import {formatMoney} from "../utils/formatters.ts"
+import {useCan} from "../features/auth/permissions.ts"
 
 const ClientsPage = () => {
     const [filters, setFilters] = useState<{search?: string; page: number; pageSize: number}>({
@@ -35,6 +36,8 @@ const ClientsPage = () => {
     const [blockClient] = useBlockClientMutation()
     const [unblockClient] = useUnblockClientMutation()
     const [updateClient, {isLoading: isUpdating}] = useUpdateClientMutation()
+    const canUpdateClients = useCan("clients.update")
+    const canDeleteClients = useCan("clients.delete")
 
     const handleBlockToggle = async (client: AdminClient) => {
         try {
@@ -104,10 +107,12 @@ const ClientsPage = () => {
             render: (_, client) => (
                 <Space>
                     <Button onClick={() => setSelectedClientId(client.id)}>Открыть</Button>
-                    <Button onClick={() => openEdit(client)}>Редактировать</Button>
-                    <Button danger={client.isActive} onClick={() => handleBlockToggle(client)}>
-                        {client.isActive ? "Блок" : "Разблок"}
-                    </Button>
+                    {canUpdateClients && <Button onClick={() => openEdit(client)}>Редактировать</Button>}
+                    {canDeleteClients && (
+                        <Button danger={client.isActive} onClick={() => handleBlockToggle(client)}>
+                            {client.isActive ? "Блок" : "Разблок"}
+                        </Button>
+                    )}
                 </Space>
             )
         }
