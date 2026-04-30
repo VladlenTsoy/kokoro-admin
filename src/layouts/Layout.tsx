@@ -26,22 +26,41 @@ const useStyles = createStyles(({token}) => ({
         paddingInline: 20,
         margin: "14px 14px 0",
         border: `1px solid ${token.colorBorder}`,
-        borderRadius: token.borderRadiusLG + 8
+        borderRadius: token.borderRadiusLG + 8,
+        background: token.colorBgContainer,
+        boxShadow: "0 10px 35px rgba(15, 23, 42, 0.08)",
+        "@media (max-width: 1100px)": {
+            alignItems: "stretch",
+            flexDirection: "column",
+            height: "auto",
+            lineHeight: 1.5,
+            paddingBlock: 14
+        }
     },
     menu: {
         display: "flex",
         alignItems: "center",
         minWidth: 0,
-        flex: 1
+        flex: 1,
+        "@media (max-width: 1100px)": {
+            width: "100%"
+        }
     },
     right: {
         display: "flex",
         alignItems: "center",
         gap: 10,
-        flexShrink: 0
+        flexShrink: 0,
+        "@media (max-width: 1100px)": {
+            justifyContent: "flex-end",
+            flexWrap: "wrap"
+        }
     },
     content: {
-        padding: 20
+        padding: 20,
+        "@media (max-width: 768px)": {
+            padding: 12
+        }
     },
     surface: {
         borderRadius: token.borderRadiusLG + 10,
@@ -49,7 +68,11 @@ const useStyles = createStyles(({token}) => ({
         background: token.colorBgContainer,
         minHeight: "calc(100vh - 190px)",
         padding: 22,
-        boxShadow: "0 16px 50px rgba(10, 20, 32, 0.08)"
+        boxShadow: "0 16px 50px rgba(10, 20, 32, 0.08)",
+        "@media (max-width: 768px)": {
+            padding: 14,
+            borderRadius: token.borderRadiusLG
+        }
     },
     footer: {
         textAlign: "center",

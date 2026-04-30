@@ -13,10 +13,21 @@ import {useMemo} from "react"
 import {useSelectedTheme} from "../../features/theme/themeSlice.ts"
 
 const useStyles = createStyles(() => ({
+    root: {
+        display: "flex",
+        alignItems: "center",
+        minWidth: 0,
+        width: "100%",
+        gap: 14,
+        "@media (max-width: 760px)": {
+            alignItems: "stretch",
+            flexDirection: "column"
+        }
+    },
     headerLogo: {
         display: "inline-flex",
         alignItems: "center",
-        marginInlineEnd: 14
+        flexShrink: 0
     },
     headerLogoImage: {
         display: "flex",
@@ -28,6 +39,8 @@ const useStyles = createStyles(() => ({
         width: "fit-content",
         maxWidth: "100%",
         flex: "0 0 auto",
+        overflowX: "auto",
+        scrollbarWidth: "none",
         "& .ant-segmented-group": {
             gap: 6
         },
@@ -42,6 +55,9 @@ const useStyles = createStyles(() => ({
         },
         ".ant-segmented-thumb": {
             borderRadius: 12
+        },
+        "&::-webkit-scrollbar": {
+            display: "none"
         }
     }
 }))
@@ -76,7 +92,7 @@ const HeaderMenu = () => {
     }, [options, pathValue])
 
     return (
-        <>
+        <div className={styles.root}>
             <div className={styles.headerLogo}>
                 <img className={styles.headerLogoImage} src={logoSrc} alt="KOKORO" />
             </div>
@@ -86,7 +102,7 @@ const HeaderMenu = () => {
                 value={selectedValue}
                 onChange={(value) => navigate(value)}
             />
-        </>
+        </div>
     )
 }
 

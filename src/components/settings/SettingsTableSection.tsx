@@ -1,4 +1,6 @@
-import {Button, Card, Space} from "antd"
+import {PlusOutlined} from "@ant-design/icons"
+import {Button, Space} from "antd"
+import {createStyles} from "antd-style"
 import type {ReactNode} from "react"
 import PageHeading from "../PageHeading.tsx"
 
@@ -10,6 +12,15 @@ interface SettingsTableSectionProps {
     children: ReactNode
 }
 
+const useStyles = createStyles(({token}) => ({
+    tableSurface: {
+        border: `1px solid ${token.colorBorderSecondary}`,
+        borderRadius: token.borderRadiusLG,
+        background: token.colorBgContainer,
+        overflow: "hidden"
+    }
+}))
+
 const SettingsTableSection = ({
     title,
     subtitle,
@@ -17,20 +28,22 @@ const SettingsTableSection = ({
     onAdd,
     children
 }: SettingsTableSectionProps) => {
+    const {styles} = useStyles()
+
     return (
-        <Space direction="vertical" size={14} style={{width: "100%"}}>
+        <Space orientation="vertical" size={14} style={{width: "100%"}}>
             <PageHeading
                 title={title}
                 subtitle={subtitle}
                 extra={(
-                    <Button type="primary" onClick={onAdd}>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={onAdd}>
                         {addButtonText}
                     </Button>
                 )}
             />
-            <Card>
+            <div className={styles.tableSurface}>
                 {children}
-            </Card>
+            </div>
         </Space>
     )
 }

@@ -1,6 +1,7 @@
 import {Button, Card, Form, Input, Modal, Popconfirm, Space, Statistic, Switch, Table, Tag, message} from "antd"
 import type {ColumnsType} from "antd/es/table"
 import {useMemo, useState} from "react"
+import {Navigate} from "react-router-dom"
 import {
     useCreateRoleMutation,
     useDeleteRoleMutation,
@@ -10,7 +11,6 @@ import {
 import type {Role} from "../../features/auth/authTypes.ts"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 import {getApiStatusCode} from "../../utils/getApiStatusCode.ts"
-import ForbiddenPage from "../errors/ForbiddenPage.tsx"
 import PageHeading from "../../components/PageHeading.tsx"
 
 interface RoleFormValues {
@@ -32,7 +32,7 @@ const RolesPage = () => {
     const roles = useMemo(() => (data ? [...data].sort((a, b) => b.id - a.id) : []), [data])
 
     if (getApiStatusCode(error) === 403) {
-        return <ForbiddenPage />
+        return <Navigate to="/forbidden" replace />
     }
 
     const openCreate = () => {
@@ -116,7 +116,7 @@ const RolesPage = () => {
     ]
 
     return (
-        <Space direction="vertical" size={16} style={{width: "100%"}}>
+        <Space orientation="vertical" size={16} style={{width: "100%"}}>
             <PageHeading
                 title="Роли"
                 subtitle="Управление ролями и уровнем доступа сотрудников."

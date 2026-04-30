@@ -11,6 +11,7 @@ import {
     useUpdateClientMutation
 } from "../features/clients/clientApi.ts"
 import {getNestErrorMessage} from "../utils/getNestErrorMessage.ts"
+import {formatMoney} from "../utils/formatters.ts"
 
 const ClientsPage = () => {
     const [filters, setFilters] = useState<{search?: string; page: number; pageSize: number}>({
@@ -19,6 +20,7 @@ const ClientsPage = () => {
         pageSize: 20
     })
     const [selectedClientId, setSelectedClientId] = useState<number | null>(null)
+    const [editingClientId, setEditingClientId] = useState<number | null>(null)
     const [isEditModalOpen, setEditModalOpen] = useState(false)
     const [editForm] = Form.useForm<{name?: string; phone?: string}>()
 
@@ -50,17 +52,23 @@ const ClientsPage = () => {
 
     const openEdit = (client: AdminClient) => {
         editForm.setFieldsValue({name: client.name, phone: client.phone})
-        setSelectedClientId(client.id)
+        setEditingClientId(client.id)
         setEditModalOpen(true)
     }
 
+    const closeEdit = () => {
+        setEditingClientId(null)
+        setEditModalOpen(false)
+        editForm.resetFields()
+    }
+
     const saveEdit = async () => {
-        if (!selectedClientId) return
+        if (!editingClientId) return
         try {
             const values = await editForm.validateFields()
-            await updateClient({id: selectedClientId, body: values}).unwrap()
+            await updateClient({id: editingClientId, body: values}).unwrap()
             message.success("Клиент обновлён")
-            setEditModalOpen(false)
+            closeEdit()
         } catch (error) {
             message.error(getNestErrorMessage(error))
         }
@@ -87,7 +95,7 @@ const ClientsPage = () => {
             title: "Сумма покупок",
             key: "totalSpent",
             width: 140,
-            render: (_, client) => client.totalSpent != null ? `${client.totalSpent.toLocaleString()} сум` : "—"
+            render: (_, client) => formatMoney(client.totalSpent)
         },
         {
             title: "Действия",
@@ -106,7 +114,7 @@ const ClientsPage = () => {
     ]
 
     return (
-        <Space direction="vertical" size={18} style={{width: "100%"}}>
+        <Space orientation="vertical" size={18} style={{width: "100%"}}>
             <PageHeading title="Клиенты" subtitle="Список клиентов, статусы и профиль." />
 
             <Card>
@@ -141,7 +149,7 @@ const ClientsPage = () => {
             >
                 {isClientLoading && <Typography.Text type="secondary">Загрузка...</Typography.Text>}
                 {!isClientLoading && clientDetails && (
-                    <Space direction="vertical" size={16} style={{width: "100%"}}>
+                    <Space orientation="vertical" size={16} style={{width: "100%"}}>
                         <Descriptions bordered size="small" column={2}>
                             <Descriptions.Item label="Имя">{clientDetails.name}</Descriptions.Item>
                             <Descriptions.Item label="Телефон">{clientDetails.phone}</Descriptions.Item>
@@ -159,7 +167,7 @@ const ClientsPage = () => {
             <Modal
                 title="Редактировать клиента"
                 open={isEditModalOpen}
-                onCancel={() => setEditModalOpen(false)}
+                onCancel={closeEdit}
                 onOk={saveEdit}
                 confirmLoading={isUpdating}
             >

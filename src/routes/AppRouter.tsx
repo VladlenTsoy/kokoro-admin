@@ -1,5 +1,6 @@
 import {BrowserRouter, Navigate, Route, Routes} from "react-router-dom"
 import {lazy, Suspense} from "react"
+import {Spin} from "antd"
 import PrivateLayout from "../layouts/PrivateLayout.tsx"
 import Layout from "../layouts/Layout.tsx"
 import SettingsLayout from "../layouts/SettingsLayout.tsx"
@@ -33,7 +34,7 @@ export const ForbiddenPage = lazy(() => import("../pages/errors/ForbiddenPage.ts
 export const AppRouter = () => {
     return (
         <BrowserRouter>
-            <Suspense fallback={<div>Загрузка...</div>}>
+            <Suspense fallback={<Spin fullscreen tip="Загрузка..." />}>
                 <Routes>
                     {/* Public */}
                     <Route path="/login" element={<Login />} />

@@ -115,7 +115,7 @@ const OrderNotificationsPage = () => {
     ]
 
     return (
-        <Space direction="vertical" size={16} style={{width: "100%"}}>
+        <Space orientation="vertical" size={16} style={{width: "100%"}}>
             <SettingsTableSection
                 title="Уведомления по статусам"
                 subtitle="Настройка шаблонов уведомлений и аудит логов отправки."

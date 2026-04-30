@@ -63,10 +63,14 @@ const useStyles = createStyles(({token}) => ({
     wrapper: {
         display: "grid",
         gridTemplateColumns: "280px 1fr",
-        gap: 16
+        gap: 16,
+        "@media (max-width: 980px)": {
+            gridTemplateColumns: "1fr"
+        }
     },
     menuCard: {
-        borderRadius: token.borderRadiusLG + 4
+        borderRadius: token.borderRadiusLG + 4,
+        alignSelf: "start"
     },
     contentCard: {
         borderRadius: token.borderRadiusLG + 4

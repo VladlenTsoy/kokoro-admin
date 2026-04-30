@@ -7,6 +7,7 @@ import ProductTableStatusColumn from "./ProductTableStatusColumn.tsx"
 import {EditOutlined} from "@ant-design/icons"
 import {Link} from "react-router-dom"
 import ProductTableDeleteAction from "./ProductTableDeleteAction.tsx"
+import {formatMoney} from "../../../../utils/formatters.ts"
 
 export const columns: ColumnsType<ProductType> = [
     {
@@ -66,7 +67,7 @@ export const columns: ColumnsType<ProductType> = [
         title: "Цена",
         dataIndex: "price",
         key: "price",
-        render: (value: number) => value.toLocaleString() + " сум"
+        render: (value: number) => formatMoney(value)
     },
     {
         title: "Статус",

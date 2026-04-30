@@ -16,6 +16,15 @@ type UpdateKey =
     | "clear"
 type PaginationValue = {current?: number, pageSize?: number}
 type UpdateValue = PaginationValue | string | number | number[] | undefined
+type ArrayFilterKey = Extract<UpdateKey, "categoryIds" | "sizeIds" | "collectionIds" | "salesPointIds" | "storageIds">
+
+const ARRAY_FILTER_KEYS: ArrayFilterKey[] = [
+    "categoryIds",
+    "sizeIds",
+    "collectionIds",
+    "salesPointIds",
+    "storageIds"
+]
 
 function safeParseArrayParam(value: string | null): number[] {
     if (!value) return []
@@ -46,6 +55,31 @@ function readParamsFromLocation(locationSearch: string, locationPathname: string
     return {status, search, categoryIds, collectionIds, salesPointIds, storageIds, sizeIds, current, pageSize, query}
 }
 
+function isArrayFilterKey(key: UpdateKey): key is ArrayFilterKey {
+    return ARRAY_FILTER_KEYS.includes(key as ArrayFilterKey)
+}
+
+function normalizeArrayValue(value: UpdateValue, currentValue: number[]) {
+    if (Array.isArray(value)) return value.map(Number)
+    if (value == null) return []
+
+    const numericValue = Number(value)
+    if (!Number.isFinite(numericValue)) return currentValue
+
+    return currentValue.includes(numericValue)
+        ? currentValue.filter((item) => item !== numericValue)
+        : [...currentValue, numericValue]
+}
+
+function setArrayQueryParam(query: URLSearchParams, key: ArrayFilterKey, value: number[]) {
+    if (value.length === 0) {
+        query.delete(key)
+        return
+    }
+
+    query.set(key, JSON.stringify(value))
+}
+
 export const useGetParams = () => {
     const navigate = useNavigate()
     const location = useLocation()
@@ -72,12 +106,6 @@ export const useGetParams = () => {
 
     const [params, setParams] = useState<SelectProductsFilterParams>(initial)
 
-    // utility: toggle value in array (returns new array)
-    const toggleInArray = useCallback((arr: number[], val: number) => {
-        const exists = arr.includes(val)
-        return exists ? arr.filter((v) => v !== val) : [...arr, val]
-    }, [])
-
     // update query and navigate
     const updateParams = useCallback(
         (key: UpdateKey, val: UpdateValue) => {
@@ -94,7 +122,19 @@ export const useGetParams = () => {
                 location.pathname
             )
 
-            switch (key) {
+            if (isArrayFilterKey(key)) {
+                const currentValuesByKey: Record<ArrayFilterKey, number[]> = {
+                    categoryIds: currentCategoryIds,
+                    sizeIds: currentSizeIds,
+                    collectionIds: currentCollectionIds,
+                    salesPointIds: currentSalesPointIds,
+                    storageIds: currentStorageIds
+                }
+                const nextValues = normalizeArrayValue(val, currentValuesByKey[key])
+
+                setArrayQueryParam(query, key, nextValues)
+                query.set("current", String(1))
+            } else switch (key) {
                 case "search": {
                     if (val == null || String(val).trim() === "") {
                         query.delete("search")
@@ -115,63 +155,6 @@ export const useGetParams = () => {
                     break
                 }
 
-                case "categoryIds": {
-                    // val is the id to toggle (number) or an array to replace
-                    let next: number[] = []
-                    if (Array.isArray(val)) next = val.map(Number)
-                    else if (val == null) next = []
-                    else next = toggleInArray(currentCategoryIds, Number(val))
-                    if (next.length === 0) query.delete("categoryIds")
-                    else query.set("categoryIds", JSON.stringify(next))
-                    // reset page on filter change
-                    query.set("current", String(1))
-                    break
-                }
-
-                case "sizeIds": {
-                    let next: number[] = []
-                    if (Array.isArray(val)) next = val.map(Number)
-                    else if (val == null) next = []
-                    else next = toggleInArray(currentSizeIds, Number(val))
-                    if (next.length === 0) query.delete("sizeIds")
-                    else query.set("sizeIds", JSON.stringify(next))
-                    query.set("current", String(1))
-                    break
-                }
-
-                case "collectionIds": {
-                    let next: number[] = []
-                    if (Array.isArray(val)) next = val.map(Number)
-                    else if (val == null) next = []
-                    else next = toggleInArray(currentCollectionIds, Number(val))
-                    if (next.length === 0) query.delete("collectionIds")
-                    else query.set("collectionIds", JSON.stringify(next))
-                    query.set("current", String(1))
-                    break
-                }
-
-                case "salesPointIds": {
-                    let next: number[] = []
-                    if (Array.isArray(val)) next = val.map(Number)
-                    else if (val == null) next = []
-                    else next = toggleInArray(currentSalesPointIds, Number(val))
-                    if (next.length === 0) query.delete("salesPointIds")
-                    else query.set("salesPointIds", JSON.stringify(next))
-                    query.set("current", String(1))
-                    break
-                }
-
-                case "storageIds": {
-                    let next: number[] = []
-                    if (Array.isArray(val)) next = val.map(Number)
-                    else if (val == null) next = []
-                    else next = toggleInArray(currentStorageIds, Number(val))
-                    if (next.length === 0) query.delete("storageIds")
-                    else query.set("storageIds", JSON.stringify(next))
-                    query.set("current", String(1))
-                    break
-                }
-
                 case "clear": {
                     query.delete("search")
                     query.delete("categoryIds")
@@ -189,7 +172,7 @@ export const useGetParams = () => {
             // navigate without reloading, pushing new entry to history
             navigate(to, {replace: false})
         },
-        [location.pathname, location.search, navigate, toggleInArray]
+        [location.pathname, location.search, navigate]
     )
 
     // Sync local `params` state when location changes

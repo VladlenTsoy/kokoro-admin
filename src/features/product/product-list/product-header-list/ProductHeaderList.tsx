@@ -1,4 +1,5 @@
 import {useCallback, useEffect, useRef} from "react"
+import type {ChangeEvent} from "react"
 import {Button, Input, Space} from "antd"
 import ProductHeaderStatusFilter from "./ProductHeaderStatusFilter.tsx"
 import {PlusCircleFilled, SearchOutlined} from "@ant-design/icons"
@@ -7,11 +8,38 @@ import {Link} from "react-router-dom"
 import {createStyles} from "antd-style"
 import {useGetParams} from "../../../../hooks/useProductGetParams.ts"
 
-const useStyles = createStyles(() => ({
+const useStyles = createStyles(({token}) => ({
     container: {
         display: "flex",
         justifyContent: "space-between",
-        marginBottom: 16
+        gap: 12,
+        marginBottom: 16,
+        "@media (max-width: 960px)": {
+            alignItems: "stretch",
+            flexDirection: "column"
+        }
+    },
+    actions: {
+        display: "flex",
+        justifyContent: "flex-end",
+        gap: 8,
+        "@media (max-width: 960px)": {
+            justifyContent: "flex-start",
+            flexWrap: "wrap"
+        },
+        [`@media (max-width: ${token.screenSM}px)`]: {
+            flexDirection: "column",
+            width: "100%",
+            ".ant-input-affix-wrapper, .ant-btn, a": {
+                width: "100%"
+            }
+        }
+    },
+    search: {
+        width: 260,
+        [`@media (max-width: ${token.screenSM}px)`]: {
+            width: "100%"
+        }
     }
 }))
 
@@ -20,7 +48,7 @@ const ProductHeaderList = () => {
     const {params, updateParams} = useGetParams()
 
     const timeoutRef = useRef<number | null>(null)
-    const onSearchHandler = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const onSearchHandler = (e: ChangeEvent<HTMLInputElement>) => {
         if (timeoutRef.current !== null) {
             window.clearTimeout(timeoutRef.current)
         }
@@ -64,8 +92,8 @@ const ProductHeaderList = () => {
     return (
         <div className={styles.container}>
             <ProductHeaderStatusFilter defaultSelected={Number(params.type)} />
-            <Space>
-                <Input placeholder="Поиск..." size="large" suffix={<SearchOutlined />} onChange={onSearchHandler} />
+            <Space className={styles.actions}>
+                <Input className={styles.search} placeholder="Поиск..." size="large" suffix={<SearchOutlined />} onChange={onSearchHandler} />
                 <ProductHeaderFilter
                     categoryIds={params.categoryIds}
                     sizeIds={params.sizeIds}

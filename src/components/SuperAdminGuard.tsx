@@ -2,7 +2,6 @@ import {Navigate, Outlet} from "react-router-dom"
 import {Spin} from "antd"
 import {useIsSuperAdmin, useSelectedAuthData} from "../features/auth/authSlice.ts"
 import {useGetMeQuery} from "../features/admin/authApi.ts"
-import ForbiddenPage from "../pages/errors/ForbiddenPage.tsx"
 
 const SuperAdminGuard = () => {
     const {accessToken, employee} = useSelectedAuthData()
@@ -21,7 +20,7 @@ const SuperAdminGuard = () => {
     }
 
     if (!isSuperAdmin) {
-        return <ForbiddenPage />
+        return <Navigate to="/forbidden" replace />
     }
 
     return <Outlet />

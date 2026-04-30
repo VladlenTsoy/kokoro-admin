@@ -3,6 +3,7 @@ import type {ColumnsType} from "antd/es/table"
 import PageHeading from "../components/PageHeading.tsx"
 import {useGetOrdersSummaryQuery} from "../features/orders/orderApi.ts"
 import {useNavigate} from "react-router-dom"
+import {formatMoney} from "../utils/formatters.ts"
 
 interface FeedItem {
     id: number
@@ -38,7 +39,7 @@ const HomePage = () => {
     ]
 
     return (
-        <Space direction="vertical" size={18} style={{width: "100%"}}>
+        <Space orientation="vertical" size={18} style={{width: "100%"}}>
             <PageHeading
                 title="Панель управления"
                 subtitle="Срез по операционным метрикам и последним изменениям."
@@ -62,7 +63,7 @@ const HomePage = () => {
                 </Col>
                 <Col xs={24} md={12} xl={6}>
                     <Card>
-                        <Statistic title="Выручка сегодня" value={summary?.revenueToday ?? 0} loading={isLoading} suffix="сум" />
+                        <Statistic title="Выручка сегодня" value={formatMoney(summary?.revenueToday ?? 0)} loading={isLoading} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={6}>
@@ -78,7 +79,7 @@ const HomePage = () => {
                         <Typography.Title level={5} style={{marginTop: 0}}>
                             Выполнение KPI
                         </Typography.Title>
-                        <Space direction="vertical" style={{width: "100%"}} size={14}>
+                        <Space orientation="vertical" style={{width: "100%"}} size={14}>
                             <div>
                                 <Typography.Text>Обработка заказов</Typography.Text>
                                 <Progress percent={84} strokeColor="#79D6FF" />

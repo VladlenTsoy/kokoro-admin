@@ -6,6 +6,9 @@ import React from "react"
 
 const useStyles = createStyles(() => ({
     segmented: {
+        maxWidth: "100%",
+        overflowX: "auto",
+        scrollbarWidth: "none",
         "& .ant-segmented-group": {
             gap: 6
         },
@@ -18,6 +21,9 @@ const useStyles = createStyles(() => ({
         },
         ".ant-segmented-thumb": {
             borderRadius: 12
+        },
+        "&::-webkit-scrollbar": {
+            display: "none"
         }
     }
 }))

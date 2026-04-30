@@ -37,6 +37,7 @@ import type {
 } from "../features/orders/OrderTypes.ts"
 import {getNestErrorMessage} from "../utils/getNestErrorMessage.ts"
 import {useGetOrderStatusesQuery} from "../features/order-status/orderStatusApi.ts"
+import {formatMoney} from "../utils/formatters.ts"
 
 const paymentStatusOptions: Array<{label: string; value: OrderPaymentStatus}> = [
     {label: "pending", value: "pending"},
@@ -57,6 +58,7 @@ const deliveryStatusOptions: Array<{label: string; value: OrderDeliveryStatus}> 
 const OrdersPage = () => {
     const [filters, setFilters] = useState<GetAdminOrdersParams>({page: 1, pageSize: 20})
     const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
+    const [actionOrderId, setActionOrderId] = useState<number | null>(null)
 
     const [isStatusModalOpen, setStatusModalOpen] = useState(false)
     const [isCancelModalOpen, setCancelModalOpen] = useState(false)
@@ -78,13 +80,42 @@ const OrdersPage = () => {
     const [createOrderComment, {isLoading: isCreatingComment}] = useCreateOrderCommentMutation()
 
     const openOrder = (id: number) => setSelectedOrderId(id)
+    const currentActionOrderId = actionOrderId ?? selectedOrderId
+
+    const openStatusModal = (id: number) => {
+        setActionOrderId(id)
+        setStatusModalOpen(true)
+    }
+
+    const openCancelModal = (id: number) => {
+        setActionOrderId(id)
+        setCancelModalOpen(true)
+    }
+
+    const closeStatusModal = () => {
+        setStatusModalOpen(false)
+        setActionOrderId(null)
+        statusForm.resetFields()
+    }
+
+    const closeCancelModal = () => {
+        setCancelModalOpen(false)
+        setActionOrderId(null)
+        cancelForm.resetFields()
+    }
+
+    const closeCommentModal = () => {
+        setCommentModalOpen(false)
+        setActionOrderId(null)
+        commentForm.resetFields()
+    }
 
     const handleStatusSubmit = async () => {
-        if (!selectedOrderId) return
+        if (!currentActionOrderId) return
         try {
             const values = await statusForm.validateFields()
             await updateOrderStatus({
-                id: selectedOrderId,
+                id: currentActionOrderId,
                 body: {
                     statusId: values.statusId,
                     comment: values.comment,
@@ -92,40 +123,37 @@ const OrdersPage = () => {
                 }
             }).unwrap()
             message.success("Статус заказа обновлён")
-            setStatusModalOpen(false)
-            statusForm.resetFields()
+            closeStatusModal()
         } catch (error) {
             message.error(getNestErrorMessage(error))
         }
     }
 
     const handleCancelSubmit = async () => {
-        if (!selectedOrderId) return
+        if (!currentActionOrderId) return
         try {
             const values = await cancelForm.validateFields()
-            await cancelOrder({id: selectedOrderId, reason: values.reason}).unwrap()
+            await cancelOrder({id: currentActionOrderId, reason: values.reason}).unwrap()
             message.success("Заказ отменён")
-            setCancelModalOpen(false)
-            cancelForm.resetFields()
+            closeCancelModal()
         } catch (error) {
             message.error(getNestErrorMessage(error))
         }
     }
 
     const handleCommentSubmit = async () => {
-        if (!selectedOrderId) return
+        if (!currentActionOrderId) return
         try {
             const values = await commentForm.validateFields()
             await createOrderComment({
-                id: selectedOrderId,
+                id: currentActionOrderId,
                 body: {
                     message: values.message,
                     visibleForClient: values.visibleForClient
                 }
             }).unwrap()
             message.success("Комментарий добавлен")
-            setCommentModalOpen(false)
-            commentForm.resetFields()
+            closeCommentModal()
         } catch (error) {
             message.error(getNestErrorMessage(error))
         }
@@ -159,7 +187,7 @@ const OrdersPage = () => {
                 title: "Сумма",
                 dataIndex: "total",
                 width: 150,
-                render: (total: number) => `${total.toLocaleString()} сум`
+                render: (total: number) => formatMoney(total)
             },
             {
                 title: "Статус заказа",
@@ -212,8 +240,8 @@ const OrdersPage = () => {
                 render: (_, order) => (
                     <Space>
                         <Button onClick={() => openOrder(order.id)}>Открыть</Button>
-                        <Button onClick={() => {setSelectedOrderId(order.id); setStatusModalOpen(true)}}>Статус</Button>
-                        <Button danger onClick={() => {setSelectedOrderId(order.id); setCancelModalOpen(true)}}>Отмена</Button>
+                        <Button onClick={() => openStatusModal(order.id)}>Статус</Button>
+                        <Button danger onClick={() => openCancelModal(order.id)}>Отмена</Button>
                     </Space>
                 )
             }
@@ -227,13 +255,13 @@ const OrdersPage = () => {
         {title: "Описание", key: "description", render: (_, item) => item.productVariant?.description || "—"},
         {title: "Размер", key: "size", render: (_, item) => item.size?.title || "—"},
         {title: "Qty", dataIndex: "qty", width: 80},
-        {title: "Цена", dataIndex: "price", width: 130, render: (value: number) => `${value.toLocaleString()} сум`},
+        {title: "Цена", dataIndex: "price", width: 130, render: (value: number) => formatMoney(value)},
         {title: "Discount", dataIndex: "discount", width: 100},
         {title: "Promotion", dataIndex: "promotion", width: 110, render: (value: boolean) => (value ? "Yes" : "No")}
     ]
 
     return (
-        <Space direction="vertical" size={18} style={{width: "100%"}}>
+        <Space orientation="vertical" size={18} style={{width: "100%"}}>
             <PageHeading title="Заказы" subtitle="Управление жизненным циклом заказов." />
 
             <Card>
@@ -303,7 +331,7 @@ const OrdersPage = () => {
             >
                 {isOrderLoading && <Typography.Text type="secondary">Загрузка...</Typography.Text>}
                 {!isOrderLoading && selectedOrder && (
-                    <Space direction="vertical" size={16} style={{width: "100%"}}>
+                    <Space orientation="vertical" size={16} style={{width: "100%"}}>
                         <Descriptions title="Шапка заказа" bordered size="small" column={2}>
                             <Descriptions.Item label="Номер">{selectedOrder.orderNumber || selectedOrder.id}</Descriptions.Item>
                             <Descriptions.Item label="Статус">{selectedOrder.status?.title || "—"}</Descriptions.Item>
@@ -373,7 +401,7 @@ const OrdersPage = () => {
             <Modal
                 title="Смена статуса"
                 open={isStatusModalOpen}
-                onCancel={() => setStatusModalOpen(false)}
+                onCancel={closeStatusModal}
                 onOk={handleStatusSubmit}
                 confirmLoading={isUpdatingStatus}
             >
@@ -393,7 +421,7 @@ const OrdersPage = () => {
             <Modal
                 title="Отмена заказа"
                 open={isCancelModalOpen}
-                onCancel={() => setCancelModalOpen(false)}
+                onCancel={closeCancelModal}
                 onOk={handleCancelSubmit}
                 confirmLoading={isCancelling}
             >
@@ -407,7 +435,7 @@ const OrdersPage = () => {
             <Modal
                 title="Комментарий к заказу"
                 open={isCommentModalOpen}
-                onCancel={() => setCommentModalOpen(false)}
+                onCancel={closeCommentModal}
                 onOk={handleCommentSubmit}
                 confirmLoading={isCreatingComment}
             >

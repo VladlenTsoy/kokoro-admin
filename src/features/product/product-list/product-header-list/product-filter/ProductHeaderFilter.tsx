@@ -1,5 +1,5 @@
 import React, {useState} from "react"
-import {Button, Drawer, Typography} from "antd"
+import {Badge, Button, Drawer} from "antd"
 import {FilterFilled, ClearOutlined} from "@ant-design/icons"
 import ProductHeaderCategoryFilter from "./ProductHeaderCategoryFilter.tsx"
 import ProductHeaderSizeFilter from "./ProductHeaderSizeFilter.tsx"
@@ -16,16 +16,11 @@ const useStyles = createStyles(() => ({
         justifyContent: "space-between",
         flexDirection: "column"
     },
-    title: {
-        marginBottom: "1.5rem!important"
-    },
     actions: {
         display: "flex",
         gap: 8
     }
 }))
-
-const {Title} = Typography
 
 interface Props {
     onCategories: (categoryId?: number) => void
@@ -56,6 +51,13 @@ const ProductHeaderFilter: React.FC<Props> = ({
 }) => {
     const {styles} = useStyles()
     const [visible, setVisible] = useState(false)
+    const activeFiltersCount = (
+        categoryIds.length +
+        sizeIds.length +
+        collectionIds.length +
+        salesPointIds.length +
+        storageIds.length
+    )
 
     // Сбросить фильтрацию
     const resetHandler = () => {
@@ -66,21 +68,26 @@ const ProductHeaderFilter: React.FC<Props> = ({
 
     return (
         <>
-            <Button icon={<FilterFilled />} size="large" onClick={() => setVisible(true)}>Фильтр</Button>
+            <Badge count={activeFiltersCount} size="small">
+                <Button icon={<FilterFilled />} size="large" onClick={() => setVisible(true)}>Фильтр</Button>
+            </Badge>
             <Drawer
+                title="Фильтрация"
                 open={visible}
                 onClose={close}
-                // className={styles.drawer}
-                // getContainer="#site-layout-content"
                 placement="right"
-                style={{left: "auto"}}
-                size={470}
-                closeIcon={false}
+                width="min(470px, 100vw)"
                 zIndex={998}
+                footer={(
+                    <div className={styles.actions}>
+                        <Button size="large" block onClick={close}>
+                            Закрыть
+                        </Button>
+                    </div>
+                )}
             >
                 <div className={styles.container}>
                     <div>
-                        <Title level={3} className={styles.title}>Фильтрация</Title>
                         <ProductHeaderCategoryFilter onCategories={onCategories} categoryIds={categoryIds} />
                         <ProductHeaderSizeFilter sizeIds={sizeIds} onSizes={onSizes} />
                         <ProductHeaderCollectionFilter value={collectionIds} onChange={onCollections} />
@@ -98,11 +105,6 @@ const ProductHeaderFilter: React.FC<Props> = ({
                             onClick={resetHandler}
                         >
                             Сбросить фильтр
-                        </Button>
-                    </div>
-                    <div className={styles.actions}>
-                        <Button size="large" block onClick={close}>
-                            Закрыть
                         </Button>
                     </div>
                 </div>

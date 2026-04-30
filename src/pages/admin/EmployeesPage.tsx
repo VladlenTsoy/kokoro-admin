@@ -16,6 +16,7 @@ import {
 } from "antd"
 import type {ColumnsType} from "antd/es/table"
 import {useMemo, useState} from "react"
+import {Navigate} from "react-router-dom"
 import {
     useCreateEmployeeMutation,
     useDeleteEmployeeMutation,
@@ -27,7 +28,6 @@ import {useGetRolesQuery} from "../../features/admin/roleApi.ts"
 import type {EmployeeSafe} from "../../features/auth/authTypes.ts"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 import {getApiStatusCode} from "../../utils/getApiStatusCode.ts"
-import ForbiddenPage from "../errors/ForbiddenPage.tsx"
 import PageHeading from "../../components/PageHeading.tsx"
 
 interface EmployeeFormValues {
@@ -66,7 +66,7 @@ const EmployeesPage = () => {
     const roles = useMemo(() => (rolesData ? [...rolesData].sort((a, b) => b.id - a.id) : []), [rolesData])
 
     if (getApiStatusCode(employeesError) === 403 || getApiStatusCode(rolesError) === 403) {
-        return <ForbiddenPage />
+        return <Navigate to="/forbidden" replace />
     }
 
     const roleOptions = roles.map((role) => ({
@@ -215,7 +215,7 @@ const EmployeesPage = () => {
     ]
 
     return (
-        <Space direction="vertical" size={16} style={{width: "100%"}}>
+        <Space orientation="vertical" size={16} style={{width: "100%"}}>
             <PageHeading
                 title="Сотрудники"
                 subtitle="Команда админки, статусы активности и распределение ролей."
