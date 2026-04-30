@@ -1,4 +1,5 @@
 import type {Dayjs} from "dayjs"
+import type {ProductVariantTagType} from "../product-variant-tags/ProductVariantTagType.ts"
 
 /** ------------ ПРОДУКТ --------------- **/
 
@@ -58,7 +59,7 @@ export interface ProductType {
     status_id: number
     color_id: number
     images: ProductImageType[],
-    tags: []
+    tags: ProductVariantTagType[]
     collections?: {
         id: number
         title: string
@@ -109,7 +110,7 @@ export interface ProductFormValuesType {
     product_id?: number
     storage_id: number
     size_ids: number[]
-    tags_id: string[]
+    tags?: number[]
     collection_ids?: number[]
     product_properties: number[]
     //

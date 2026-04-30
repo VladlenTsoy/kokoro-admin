@@ -9,6 +9,7 @@ interface SettingsTableSectionProps {
     subtitle: string
     addButtonText: string
     onAdd: () => void
+    canAdd?: boolean
     children: ReactNode
 }
 
@@ -26,6 +27,7 @@ const SettingsTableSection = ({
     subtitle,
     addButtonText,
     onAdd,
+    canAdd = true,
     children
 }: SettingsTableSectionProps) => {
     const {styles} = useStyles()
@@ -35,11 +37,11 @@ const SettingsTableSection = ({
             <PageHeading
                 title={title}
                 subtitle={subtitle}
-                extra={(
+                extra={canAdd ? (
                     <Button type="primary" icon={<PlusOutlined />} onClick={onAdd}>
                         {addButtonText}
                     </Button>
-                )}
+                ) : null}
             />
             <div className={styles.tableSurface}>
                 {children}

@@ -18,6 +18,7 @@ export const NotFound = lazy(() => import("../pages/NotFoundPage.tsx"))
 export const ColorPage = lazy(() => import("../pages/settings/ColorPage.tsx"))
 export const ProductVariantStatusPage = lazy(() => import("../pages/settings/ProductVariantStatusPage.tsx"))
 export const ProductPropertyPage = lazy(() => import("../pages/settings/ProductPropertyPage.tsx"))
+export const ProductTagsPage = lazy(() => import("../pages/settings/ProductTagsPage.tsx"))
 export const ProductPage = lazy(() => import("../pages/ProductPage.tsx"))
 export const ProductStoragePage = lazy(() => import("../pages/settings/ProductStoragePage.tsx"))
 export const SourcePage = lazy(() => import("../pages/settings/SourcePage.tsx"))
@@ -96,6 +97,7 @@ export const AppRouter = () => {
                                     <Route path="product-categories" element={<ProductCategoryPage />} />
                                     <Route path="product-variant-statuses" element={<ProductVariantStatusPage />} />
                                     <Route path="product-properties" element={<ProductPropertyPage />} />
+                                    <Route path="product-tags" element={<ProductTagsPage />} />
                                     <Route path="collections" element={<CollectionsPage />} />
                                 </Route>
                                 <Route element={<PermissionGuard permission="marketing.read" />}>

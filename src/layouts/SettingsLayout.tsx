@@ -29,6 +29,7 @@ const BASE_SETTINGS_GROUPS: SettingsMenuGroup[] = [
             {key: "collections", label: "Коллекции", permission: "catalog.read"},
             {key: "sizes", label: "Размеры", permission: "catalog.read"},
             {key: "colors", label: "Цвета", permission: "catalog.read"},
+            {key: "product-tags", label: "Теги", permission: "catalog.read"},
             {key: "product-variant-statuses", label: "Статусы", permission: "catalog.read"},
             {key: "product-properties", label: "Свойства", permission: "catalog.read"}
         ]

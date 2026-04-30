@@ -81,6 +81,7 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
                     price: data.price,
                     product_properties: productProperties,
                     collection_ids: data.collections?.map((collection) => collection.id) || [],
+                    tags: data.tags?.map((tag) => tag.id) || [],
                     size_ids: data.sizes.map((s) => s.size.id),
                     size_props: sizePropsToInitialValues,
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -119,6 +120,7 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
                     },
                     product_properties: productProperties,
                     collection_ids: data.collections?.map((collection) => collection.id) || [],
+                    tags: data.tags?.map((tag) => tag.id) || [],
                     status_id: data.status_id,
                     storage_id: data.storage_id,
                     is_new: data.is_new,
@@ -196,6 +198,7 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
                         storage_id: values.storage_id,
                         product_properties: values.product_properties,
                         collection_ids: values.collection_ids ?? [],
+                        tags: values.tags ?? [],
                         price: values.price,
                         discount: {
                             discount_percent: values?.discount?.percent,
@@ -218,6 +221,7 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
                     storage_id: values.storage_id,
                     product_properties: values.product_properties,
                     collection_ids: values.collection_ids ?? [],
+                    tags: values.tags ?? [],
                     price: values.price,
                     discount: {
                         discount_percent: values?.discount?.percent,
