@@ -38,7 +38,7 @@ const ProductStoragePage: React.FC = () => {
         {title: "ID точки продаж", dataIndex: "salesPointId"},
         {
             title: "Действия",
-            render: (_: any, record: ProductStorageType) => (
+            render: (_: unknown, record: ProductStorageType) => (
                 <>
                     <Button
                         type="link"

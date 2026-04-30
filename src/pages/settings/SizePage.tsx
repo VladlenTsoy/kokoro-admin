@@ -44,7 +44,7 @@ const SizePage: React.FC = () => {
         {
             title: "Действия",
             key: "actions",
-            render: (_: any, record: SizeType) => (
+            render: (_: unknown, record: SizeType) => (
                 <Space>
                     <Button
                         type="link"

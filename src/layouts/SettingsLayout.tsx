@@ -46,6 +46,16 @@ const BASE_SETTINGS_GROUPS: SettingsMenuGroup[] = [
         key: "order",
         label: "Заказ",
         children: [{key: "sources", label: "Источник"}]
+    },
+    {
+        key: "ops",
+        label: "Операции",
+        children: [
+            {key: "promo-codes", label: "Промокоды"},
+            {key: "order-statuses", label: "Статусы заказов"},
+            {key: "notifications", label: "Уведомления"},
+            {key: "payments", label: "Платежи"}
+        ]
     }
 ]
 

@@ -37,7 +37,7 @@ const ProductVariantStatusPage: React.FC = () => {
         {title: "Название", dataIndex: "title"},
         {
             title: "Действия",
-            render: (_: any, record: ProductVariantStatusType) => (
+            render: (_: unknown, record: ProductVariantStatusType) => (
                 <>
                     <Button
                         type="link"

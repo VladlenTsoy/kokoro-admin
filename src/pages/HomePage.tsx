@@ -1,6 +1,8 @@
-import {Card, Col, Progress, Row, Space, Statistic, Table, Tag, Typography} from "antd"
+import {Button, Card, Col, Progress, Row, Space, Statistic, Table, Tag, Typography} from "antd"
 import type {ColumnsType} from "antd/es/table"
 import PageHeading from "../components/PageHeading.tsx"
+import {useGetOrdersSummaryQuery} from "../features/orders/orderApi.ts"
+import {useNavigate} from "react-router-dom"
 
 interface FeedItem {
     id: number
@@ -17,6 +19,8 @@ const feed: FeedItem[] = [
 ]
 
 const HomePage = () => {
+    const navigate = useNavigate()
+    const {data: summary, isLoading} = useGetOrdersSummaryQuery()
     const columns: ColumnsType<FeedItem> = [
         {title: "Событие", dataIndex: "event"},
         {title: "Кто", dataIndex: "actor", width: 160},
@@ -38,22 +42,27 @@ const HomePage = () => {
             <PageHeading
                 title="Панель управления"
                 subtitle="Срез по операционным метрикам и последним изменениям."
+                extra={(
+                    <Button type="primary" onClick={() => navigate("/orders?statusId=1")}>
+                        Новые заказы
+                    </Button>
+                )}
             />
 
             <Row gutter={[16, 16]}>
                 <Col xs={24} md={12} xl={6}>
                     <Card>
-                        <Statistic title="Заказы за сегодня" value={128} />
+                        <Statistic title="Заказы сегодня" value={summary?.ordersToday ?? 0} loading={isLoading} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={6}>
                     <Card>
-                        <Statistic title="Новых клиентов" value={27} />
+                        <Statistic title="Новые заказы" value={summary?.newOrders ?? 0} loading={isLoading} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={6}>
                     <Card>
-                        <Statistic title="Активных сотрудников" value={14} />
+                        <Statistic title="Выручка сегодня" value={summary?.revenueToday ?? 0} loading={isLoading} suffix="сум" />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={6}>

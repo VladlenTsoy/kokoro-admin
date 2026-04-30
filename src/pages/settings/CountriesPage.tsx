@@ -22,12 +22,15 @@ const CountryCityPage: React.FC = () => {
     const [deleteCity] = useDeleteCityMutation()
 
     const [isModalOpen, setIsModalOpen] = useState(false)
-    const [editingItem, setEditingItem] = useState<any>(null)
+    type EditingItem = (CountryType | CityType) & {parentId?: number}
+    const [editingItem, setEditingItem] = useState<EditingItem | null>(null)
+    const [selectedCountryId, setSelectedCountryId] = useState<number | null>(null)
     const [modalType, setModalType] = useState<"country" | "city">("country")
     const [form] = Form.useForm()
 
-    const openModal = (type: "country" | "city", item?: any, parentId?: number) => {
+    const openModal = (type: "country" | "city", item?: CountryType | CityType | null, parentId?: number) => {
         setModalType(type)
+        setSelectedCountryId(parentId ?? null)
         setEditingItem(item ? {...item, parentId} : null)
         if (item) {
             form.setFieldsValue(item)
@@ -48,13 +51,13 @@ const CountryCityPage: React.FC = () => {
         } else {
             if (editingItem) {
                 await updateCity({
-                    countryId: editingItem.parentId,
+                    countryId: editingItem.parentId as number,
                     cityId: editingItem.id,
                     data: values
                 })
-            } else {
+            } else if (selectedCountryId !== null) {
                 await createCity({
-                    countryId: editingItem?.parentId,
+                    countryId: selectedCountryId,
                     city: values
                 })
             }
@@ -63,11 +66,11 @@ const CountryCityPage: React.FC = () => {
         form.resetFields()
     }
 
-    const handleDelete = async (type: "country" | "city", id: number) => {
+    const handleDelete = async (type: "country" | "city", id: number, parentId?: number) => {
         if (type === "country") {
             await deleteCountry(id)
-        } else {
-            await deleteCity({countryId: editingItem?.parentId, cityId: id})
+        } else if (parentId !== undefined) {
+            await deleteCity({countryId: parentId, cityId: id})
         }
     }
 

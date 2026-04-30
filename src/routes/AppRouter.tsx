@@ -22,6 +22,10 @@ export const ProductCategoryPage = lazy(() => import("../pages/settings/ProductC
 export const SizePage = lazy(() => import("../pages/settings/SizePage.tsx"))
 export const CountriesPage = lazy(() => import("../pages/settings/CountriesPage.tsx"))
 export const CollectionsPage = lazy(() => import("../pages/settings/CollectionsPage.tsx"))
+export const PromoCodesPage = lazy(() => import("../pages/settings/PromoCodesPage.tsx"))
+export const OrderStatusesPage = lazy(() => import("../pages/settings/OrderStatusesPage.tsx"))
+export const OrderNotificationsPage = lazy(() => import("../pages/settings/OrderNotificationsPage.tsx"))
+export const PaymentsPage = lazy(() => import("../pages/settings/PaymentsPage.tsx"))
 export const EmployeesPage = lazy(() => import("../pages/admin/EmployeesPage.tsx"))
 export const RolesPage = lazy(() => import("../pages/admin/RolesPage.tsx"))
 export const ForbiddenPage = lazy(() => import("../pages/errors/ForbiddenPage.tsx"))
@@ -56,6 +60,10 @@ export const AppRouter = () => {
                                 <Route path="sources" element={<SourcePage />} />
                                 <Route path="product-variant-statuses" element={<ProductVariantStatusPage />} />
                                 <Route path="product-properties" element={<ProductPropertyPage />} />
+                                <Route path="promo-codes" element={<PromoCodesPage />} />
+                                <Route path="order-statuses" element={<OrderStatusesPage />} />
+                                <Route path="notifications" element={<OrderNotificationsPage />} />
+                                <Route path="payments" element={<PaymentsPage />} />
                                 <Route element={<SuperAdminGuard />}>
                                     <Route path="collections" element={<CollectionsPage />} />
                                     <Route path="employees" element={<EmployeesPage />} />

@@ -7,6 +7,9 @@ export interface OrderStatus {
     createdAt: string
 }
 
+export type OrderPaymentStatus = "pending" | "paid" | "failed" | "refunded"
+export type OrderDeliveryStatus = "pending" | "preparing" | "ready" | "delivering" | "delivered" | "cancelled"
+
 export interface OrderPaymentMethod {
     id: number
     title: string
@@ -85,9 +88,73 @@ export interface AdminOrder {
     client: OrderClient | null
     clientAddress: OrderClientAddress | null
     items: OrderItem[]
+    orderNumber?: string
+    updatedAt?: string
+    deliveryStatus?: OrderDeliveryStatus | null
+    paymentStatus?: OrderPaymentStatus | null
+    assignedEmployee?: {
+        id: number
+        firstName: string
+        lastName: string
+        phone?: string
+        email?: string
+    } | null
+    subtotal?: number
+    discountTotal?: number
+    promoCode?: string | null
+    promoDiscount?: number
+    bonusSpent?: number
+    bonusEarned?: number
+    deliveryPrice?: number
+    cancelReason?: string | null
+    histories?: OrderHistoryItem[]
+    comments?: OrderCommentItem[]
 }
 
 export interface AdminOrdersResponse {
     items: AdminOrder[]
     total: number
+    page: number
+    pageSize: number
+}
+
+export interface OrdersSummaryResponse {
+    ordersToday: number
+    newOrders: number
+    revenueToday: number
+}
+
+export interface OrderHistoryItem {
+    id: number
+    createdAt: string
+    fromStatusId?: number | null
+    toStatusId?: number | null
+    comment?: string | null
+    visibleForClient?: boolean
+    createdByEmployeeId?: number | null
+}
+
+export interface OrderCommentItem {
+    id: number
+    message: string
+    visibleForClient: boolean
+    createdAt: string
+    employee?: {
+        id: number
+        firstName: string
+        lastName: string
+    } | null
+}
+
+export interface GetAdminOrdersParams {
+    search?: string
+    statusId?: number
+    paymentMethodId?: number
+    sourceId?: number
+    paymentStatus?: OrderPaymentStatus
+    deliveryStatus?: OrderDeliveryStatus
+    from?: string
+    to?: string
+    page?: number
+    pageSize?: number
 }

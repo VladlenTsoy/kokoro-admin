@@ -39,7 +39,7 @@ const ProductCategoryPage: React.FC = () => {
         {title: "Скрыта", dataIndex: "is_hide", render: (val: boolean) => (val ? "Да" : "Нет")},
         {
             title: "Действия",
-            render: (_: any, record: ProductCategoryType) => (
+            render: (_: unknown, record: ProductCategoryType) => (
                 <>
                     <Button
                         type="link"

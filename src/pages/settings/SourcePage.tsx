@@ -43,7 +43,7 @@ const SourcePage: React.FC = () => {
         },
         {
             title: "Действия",
-            render: (_: any, record: SourceType) => (
+            render: (_: unknown, record: SourceType) => (
                 <>
                     <Button
                         type="link"

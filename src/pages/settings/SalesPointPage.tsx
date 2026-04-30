@@ -46,7 +46,7 @@ const SalesPointPage: React.FC = () => {
         {title: "Долгота", dataIndex: ["location", "lng"]},
         {
             title: "Действия",
-            render: (_: any, record: SalesPointType) => (
+            render: (_: unknown, record: SalesPointType) => (
                 <>
                     <Button
                         type="link"
