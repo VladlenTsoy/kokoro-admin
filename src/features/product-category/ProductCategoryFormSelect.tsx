@@ -1,6 +1,25 @@
 import React from "react"
 import {Form, TreeSelect} from "antd"
 import {useGetCategoriesWithSubCategoriesQuery} from "./productCategoryApi"
+import type {ProductCategoryWithSubCategoryType} from "./ProductCategoryTypes.ts"
+
+interface CategoryTreeNode {
+    title: string
+    value: number
+    selectable: boolean
+    children: CategoryTreeNode[]
+}
+
+function mapCategoryToTreeNode(category: ProductCategoryWithSubCategoryType): CategoryTreeNode {
+    const children = category.sub_categories?.map(mapCategoryToTreeNode) ?? []
+
+    return {
+        title: category.title,
+        value: category.id,
+        selectable: children.length === 0,
+        children
+    }
+}
 
 const CategoryFormSelect: React.FC = () => {
     const {data: categories, isLoading} = useGetCategoriesWithSubCategoriesQuery(
@@ -8,21 +27,7 @@ const CategoryFormSelect: React.FC = () => {
         {refetchOnMountOrArgChange: true}
     )
 
-    const treeData = categories?.map(cat => ({
-        title: cat.title,
-        value: cat.id,
-        selectable: false,
-        children: cat.sub_categories?.map(sub => ({
-            title: sub.title,
-            value: sub.id,
-            selectable: false,
-            children: sub.sub_categories?.map(third => ({
-                title: third.title,
-                value: third.id,
-                selectable: true
-            }))
-        }))
-    }))
+    const treeData = categories?.map(mapCategoryToTreeNode)
 
     return (
         <Form.Item
