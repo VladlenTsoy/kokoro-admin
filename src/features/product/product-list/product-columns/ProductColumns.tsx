@@ -34,14 +34,6 @@ export const useProductColumns = (): ColumnsType<ProductType> => {
         key: "title"
     },
     {
-        title: "Описание",
-        dataIndex: "description",
-        key: "description",
-        render: (value?: string) => value ? (
-            value.length > 70 ? `${value.slice(0, 70)}...` : value
-        ) : "—"
-    },
-    {
         title: "Цвет",
         dataIndex: ["color", "title"],
         key: "color",

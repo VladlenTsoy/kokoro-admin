@@ -1,4 +1,4 @@
-import {Col, Form, type FormProps, Row, type SelectProps} from "antd"
+import {Col, Form, type FormProps, message, Row, type SelectProps} from "antd"
 import BaseSection from "./content/BaseSection.tsx"
 import PriceSection from "./content/PriceSection.tsx"
 import QtySection from "./content/QtySection.tsx"
@@ -15,6 +15,8 @@ import {useCallback, useEffect, useMemo, useState} from "react"
 import dayjs from "dayjs"
 import type {CreateProductType} from "../CreateProductType.ts"
 import {domainUrlForImage} from "../../../utils/appApiConfig.ts"
+import {useNavigate} from "react-router-dom"
+import {getNestErrorMessage} from "../../../utils/getNestErrorMessage.ts"
 
 const useStyles = createStyles(() => ({
     content: {
@@ -36,9 +38,11 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
         refetchOnFocus: true,
         skip: !productId
     })
-    const [create] = useCreateProductMutation()
-    const [update] = useUpdateProductMutation()
+    const [create, {isLoading: isCreating}] = useCreateProductMutation()
+    const [update, {isLoading: isUpdating}] = useUpdateProductMutation()
     const {styles} = useStyles()
+    const navigate = useNavigate()
+    const isSaving = isCreating || isUpdating
 
     // ---------- Состояния ----------
     const [selectedSizes, setSelectedSizes] = useState<{id: number; title: string}[]>([])
@@ -171,76 +175,84 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
     }, [discountMode, form])
 
     // ---------- Submit ----------
-    const onFinishHandler: FormProps<ProductFormValuesType>["onFinish"] = useCallback((values: ProductFormValuesType) => {
-            const productSizes: CreateProductType["product_sizes"] = Object.values(values.size_props)
-            const productImages: CreateProductType["product_images"] = images.reduce<CreateProductType["product_images"]>((arr, image, index) => {
-                if (image.name && image.path && image.size) {
-                    return [...arr, {
-                        id: image.id,
-                        name: image.name,
-                        path: image.path,
-                        size: image.size,
-                        to_delete: image.to_delete,
-                        position: index + 1
-                    }]
-                }
-                return arr
-            }, [])
+    const buildProductPayload = useCallback((values: ProductFormValuesType): Partial<CreateProductType> => {
+        const productSizes: CreateProductType["product_sizes"] = Object.values(values.size_props ?? {})
+        const productImages: CreateProductType["product_images"] = images.reduce<CreateProductType["product_images"]>((arr, image, index) => {
+            if (image.name && image.path && image.size) {
+                return [...arr, {
+                    id: image.id,
+                    name: image.name,
+                    path: image.path,
+                    size: image.size,
+                    to_delete: image.to_delete,
+                    position: index + 1
+                }]
+            }
+            return arr
+        }, [])
+
+        return {
+            title: values.title,
+            description: values.description,
+            category_id: values.category_id,
+            product_id: isColor ? parentProductId : undefined,
+            color_id: values.color_id,
+            storage_id: values.storage_id,
+            product_properties: values.product_properties,
+            collection_ids: values.collection_ids ?? [],
+            tags: values.tags ?? [],
+            price: values.price,
+            discount: {
+                discount_percent: values?.discount?.percent,
+                end_date: values?.discount?.end_at?.toISOString()
+            },
+            product_sizes: productSizes,
+            is_new: values.is_new,
+            product_images: productImages,
+            status_id: values.status_id,
+            measurements: values.measurements
+        }
+    },
+        [images, isColor, parentProductId]
+    )
+
+    const onFinishHandler: FormProps<ProductFormValuesType>["onFinish"] = useCallback(async (values: ProductFormValuesType) => {
+        const hideLoading = message.loading(productId && !isColor ? "Сохраняем товар..." : "Создаём товар...", 0)
+
+        try {
+            const payload = buildProductPayload(values)
 
             if (productId && !isColor) {
-                update({
+                await update({
                     id: +productId,
-                    data: {
-                        title: values.title,
-                        description: values.description,
-                        category_id: values.category_id,
-                        color_id: values.color_id,
-                        storage_id: values.storage_id,
-                        product_properties: values.product_properties,
-                        collection_ids: values.collection_ids ?? [],
-                        tags: values.tags ?? [],
-                        price: values.price,
-                        discount: {
-                            discount_percent: values?.discount?.percent,
-                            end_date: values?.discount?.end_at?.toISOString()
-                        },
-                        product_sizes: productSizes,
-                        is_new: values.is_new,
-                        product_images: productImages,
-                        status_id: values.status_id,
-                        measurements: values.measurements
-                    }
-                })
+                    data: payload
+                }).unwrap()
+                hideLoading()
+                message.success("Товар обновлён")
             } else {
-                create({
-                    title: values.title,
-                    description: values.description,
-                    category_id: values.category_id,
-                    product_id: isColor ? parentProductId : undefined,
-                    color_id: values.color_id,
-                    storage_id: values.storage_id,
-                    product_properties: values.product_properties,
-                    collection_ids: values.collection_ids ?? [],
-                    tags: values.tags ?? [],
-                    price: values.price,
-                    discount: {
-                        discount_percent: values?.discount?.percent,
-                        end_date: values?.discount?.end_at?.toISOString()
-                    },
-                    product_sizes: productSizes,
-                    is_new: values.is_new,
-                    product_images: productImages,
-                    status_id: values.status_id,
-                    measurements: values.measurements
-                })
+                await create(payload).unwrap()
+                hideLoading()
+                message.success(isColor ? "Цвет товара создан" : "Товар создан")
+                navigate("/products")
             }
-        },
-        [create, images, productId, update, isColor, parentProductId]
+        } catch (error) {
+            hideLoading()
+            message.error(getNestErrorMessage(error))
+        }
+    },
+        [buildProductPayload, create, isColor, navigate, productId, update]
     )
+
+    const onFinishFailedHandler: FormProps<ProductFormValuesType>["onFinishFailed"] = useCallback(() => {
+        message.warning("Проверьте обязательные поля перед сохранением")
+    }, [])
 
     // ---------- Memoized Left/Right blocks ----------
     const leftBlock = useMemo(() => <LeftBlock />, [])
-    const rightBlock = useMemo(() => <RightBlock imageUrls={images} setImageUrl={setImages} />, [images])
+    const rightBlock = useMemo(
+        () => <RightBlock imageUrls={images} setImageUrl={setImages} isSaving={isSaving} />,
+        [images, isSaving]
+    )
 
     // ---------- Render ----------
     return (
@@ -254,9 +266,10 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
                     size="large"
                     form={form}
                     onFinish={onFinishHandler}
+                    onFinishFailed={onFinishFailedHandler}
                     id="editor-product"
                     className={styles.content}
-                    disabled={isLoading}
+                    disabled={isLoading || isSaving}
                 >
                     <Element name="basic">
                         <BaseSection onSelectSizesChange={onSelectSizesHandler} />

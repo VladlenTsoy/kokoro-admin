@@ -17,9 +17,10 @@ const useStyles = createStyles(() => ({
 interface Props {
     imageUrls: ProductTemporaryImageType[];
     setImageUrl: Dispatch<SetStateAction<ProductTemporaryImageType[]>>;
+    isSaving?: boolean
 }
 
-const RightBlock: React.FC<Props> = ({imageUrls, setImageUrl}) => {
+const RightBlock: React.FC<Props> = ({imageUrls, setImageUrl, isSaving}) => {
     const {styles} = useStyles()
 
     return (
@@ -37,8 +38,10 @@ const RightBlock: React.FC<Props> = ({imageUrls, setImageUrl}) => {
                         block
                         form="editor-product"
                         icon={<SaveFilled />}
+                        loading={isSaving}
+                        disabled={isSaving}
                     >
-                        Сохранить
+                        {isSaving ? "Сохраняем..." : "Сохранить"}
                     </Button>
                 </Space>
             </Card>
