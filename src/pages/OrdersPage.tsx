@@ -85,6 +85,19 @@ const deliveryStatusColor: Record<OrderDeliveryStatus, string> = {
     cancelled: "red"
 }
 
+type StatusIntent = "accept" | "ready" | "delivered" | "cancelled"
+
+const statusIntentKeywords: Record<StatusIntent, string[]> = {
+    accept: ["accept", "confirm", "прин", "подтверж", "сбор", "prepar"],
+    ready: ["ready", "готов"],
+    delivered: ["deliver", "complete", "done", "выдан", "достав", "заверш"],
+    cancelled: ["cancel", "отмен"]
+}
+
+const isProblemOrder = (order: AdminOrder) =>
+    getOrderBadges(order).some((badge) => badge.color === "red" || badge.color === "volcano") ||
+    (order.paymentStatus === "paid" && order.deliveryStatus === "pending")
+
 const getOrderAgeMinutes = (createdAt?: string) => {
     if (!createdAt) return 0
     return Math.max(dayjs().diff(dayjs(createdAt), "minute"), 0)
@@ -131,6 +144,7 @@ const getHistoryStatusTitle = (item: OrderHistoryItem, side: "from" | "to") => {
 
 const OrdersPage = () => {
     const [filters, setFilters] = useState<GetAdminOrdersParams>(todayFilters)
+    const [problemOnly, setProblemOnly] = useState(false)
     const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
     const [actionOrderId, setActionOrderId] = useState<number | null>(null)
 
@@ -155,6 +169,17 @@ const OrdersPage = () => {
     const [createOrderComment, {isLoading: isCreatingComment}] = useCreateOrderCommentMutation()
     const canUpdateOrders = useCan("orders.update")
     const canDeleteOrders = useCan("orders.delete")
+    const currentItems = useMemo(() => {
+        const items = data?.items || []
+        return problemOnly ? items.filter(isProblemOrder) : items
+    }, [data?.items, problemOnly])
+
+    const findStatusByIntent = (intent: StatusIntent) => {
+        const keywords = statusIntentKeywords[intent]
+        return [...(statuses || [])]
+            .sort((a, b) => Number(a.position || 0) - Number(b.position || 0))
+            .find((status) => keywords.some((keyword) => status.title.toLowerCase().includes(keyword)))
+    }
 
     const openOrder = (id: number) => setSelectedOrderId(id)
     const currentActionOrderId = actionOrderId ?? selectedOrderId
@@ -168,6 +193,27 @@ const OrdersPage = () => {
     const openCancelModal = (id: number) => {
         setActionOrderId(id)
         setCancelModalOpen(true)
+    }
+
+    const openQuickStatusModal = (order: AdminOrder, intent: StatusIntent) => {
+        const status = findStatusByIntent(intent)
+        setActionOrderId(order.id)
+        statusForm.setFieldsValue({
+            statusId: status?.id,
+            comment: `Операционное действие: ${getNextActionLabel(order)}`,
+            visibleForClient: true
+        })
+        setStatusModalOpen(true)
+        if (!status) {
+            message.warning("Не нашла подходящий статус. Выберите статус вручную.")
+        }
+    }
+
+    const openNextActionModal = (order: AdminOrder) => {
+        if (order.deliveryStatus === "pending") return openQuickStatusModal(order, "accept")
+        if (order.deliveryStatus === "preparing") return openQuickStatusModal(order, "ready")
+        if (order.deliveryStatus === "ready" || order.deliveryStatus === "delivering") return openQuickStatusModal(order, "delivered")
+        openStatusModal(order.id)
     }
 
     const closeStatusModal = () => {
@@ -191,6 +237,7 @@ const OrdersPage = () => {
     const setTodayFilters = () => setFilters(todayFilters())
     const setAllFilters = () => setFilters({page: 1, pageSize: 20})
     const setDeliveryFilter = (deliveryStatus?: OrderDeliveryStatus) => {
+        setProblemOnly(false)
         setFilters((prev) => ({...prev, deliveryStatus, page: 1}))
     }
 
@@ -344,7 +391,8 @@ const OrdersPage = () => {
                 render: (_, order) => (
                     <Space>
                         <Button onClick={() => openOrder(order.id)}>Открыть</Button>
-                        {canUpdateOrders && <Button type="primary" onClick={() => openStatusModal(order.id)}>Статус</Button>}
+                        {canUpdateOrders && <Button type="primary" onClick={() => openNextActionModal(order)}>{getNextActionLabel(order)}</Button>}
+                        {canUpdateOrders && <Button onClick={() => openStatusModal(order.id)}>Статус</Button>}
                         {canDeleteOrders && <Button danger onClick={() => openCancelModal(order.id)}>Отмена</Button>}
                     </Space>
                 )
@@ -379,13 +427,13 @@ const OrdersPage = () => {
                     <Card><Statistic title="Выручка сегодня" value={formatMoney(summary?.revenueToday ?? 0)} /></Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card><Statistic title="В работе" value={data?.items?.filter((order) => order.deliveryStatus === "preparing").length ?? 0} /></Card>
+                    <Card><Statistic title="В работе" value={currentItems.filter((order) => order.deliveryStatus === "preparing").length} /></Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card><Statistic title="Готовы" value={data?.items?.filter((order) => order.deliveryStatus === "ready").length ?? 0} /></Card>
+                    <Card><Statistic title="Готовы" value={currentItems.filter((order) => order.deliveryStatus === "ready").length} /></Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card><Statistic title="Проблемные" value={data?.items?.filter((order) => getOrderBadges(order).some((badge) => badge.color === "red" || badge.color === "volcano")).length ?? 0} /></Card>
+                    <Card><Statistic title="Проблемные" value={currentItems.filter(isProblemOrder).length} /></Card>
                 </Col>
             </Row>
 
@@ -398,6 +446,7 @@ const OrdersPage = () => {
                         <Button onClick={() => setDeliveryFilter("ready")}>Готовы</Button>
                         <Button onClick={() => setDeliveryFilter("delivered")}>Завершённые</Button>
                         <Button danger onClick={() => setDeliveryFilter("cancelled")}>Отменённые</Button>
+                        <Button danger={problemOnly} type={problemOnly ? "primary" : "default"} onClick={() => setProblemOnly((prev) => !prev)}>Проблемные</Button>
                         <Button onClick={setAllFilters}>Все</Button>
                     </Space>
                     <Space wrap>
@@ -449,7 +498,7 @@ const OrdersPage = () => {
                 <Table<AdminOrder>
                     rowKey="id"
                     loading={isLoading}
-                    dataSource={data?.items || []}
+                    dataSource={currentItems}
                     columns={orderColumns}
                     scroll={{x: 1600}}
                     pagination={{
@@ -466,7 +515,7 @@ const OrdersPage = () => {
                 open={Boolean(selectedOrderId)}
                 onClose={() => setSelectedOrderId(null)}
                 width={1100}
-                extra={selectedOrder && canUpdateOrders ? <Button type="primary" onClick={() => openStatusModal(selectedOrder.id)}>{getNextActionLabel(selectedOrder)}</Button> : null}
+                extra={selectedOrder && canUpdateOrders ? <Button type="primary" onClick={() => openNextActionModal(selectedOrder)}>{getNextActionLabel(selectedOrder)}</Button> : null}
             >
                 {isOrderLoading && <Typography.Text type="secondary">Загрузка...</Typography.Text>}
                 {!isOrderLoading && selectedOrder && (
@@ -538,7 +587,8 @@ const OrdersPage = () => {
                                         <Typography.Text strong>{getNextActionLabel(selectedOrder)}</Typography.Text>
                                         <div style={{marginTop: 12}}>
                                             <Space wrap>
-                                                {canUpdateOrders && <Button type="primary" onClick={() => openStatusModal(selectedOrder.id)}>Сменить статус</Button>}
+                                                {canUpdateOrders && <Button type="primary" onClick={() => openNextActionModal(selectedOrder)}>{getNextActionLabel(selectedOrder)}</Button>}
+                                                {canUpdateOrders && <Button onClick={() => openStatusModal(selectedOrder.id)}>Другой статус</Button>}
                                                 {selectedPhone && <Tooltip title="Скопировать телефон"><Button onClick={() => copyPhone(selectedPhone)}>Телефон</Button></Tooltip>}
                                                 {canDeleteOrders && <Button danger onClick={() => openCancelModal(selectedOrder.id)}>Отменить</Button>}
                                             </Space>
@@ -606,7 +656,7 @@ const OrdersPage = () => {
                 confirmLoading={isCancelling}
             >
                 <Form form={cancelForm} layout="vertical">
-                    <Form.Item name="reason" label="Причина отмены">
+                    <Form.Item name="reason" label="Причина отмены" rules={[{required: true, message: "Укажите причину отмены"}]}>
                         <Input.TextArea rows={3} />
                     </Form.Item>
                 </Form>
