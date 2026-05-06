@@ -119,10 +119,25 @@ export interface AdminOrdersResponse {
     pageSize: number
 }
 
+export interface OrdersSummaryActivityItem {
+    id: number
+    orderId?: number
+    orderNumber?: string
+    event?: string
+    changedBy?: string
+    changedAt?: string
+    fromStatus?: string
+    toStatus?: string
+}
+
 export interface OrdersSummaryResponse {
     ordersToday: number
     newOrders: number
+    inProgressToday?: number
+    readyToday?: number
+    problemToday?: number
     revenueToday: number
+    recentActivity?: OrdersSummaryActivityItem[]
 }
 
 export interface OrderHistoryItem {
@@ -163,6 +178,7 @@ export interface GetAdminOrdersParams {
     sourceId?: number
     paymentStatus?: OrderPaymentStatus
     deliveryStatus?: OrderDeliveryStatus
+    problemOnly?: boolean
     from?: string
     to?: string
     page?: number

@@ -45,6 +45,7 @@ import {getNestErrorMessage} from "../utils/getNestErrorMessage.ts"
 import {useGetOrderStatusesQuery} from "../features/order-status/orderStatusApi.ts"
 import {formatMoney} from "../utils/formatters.ts"
 import {useCan} from "../features/auth/permissions.ts"
+import {useSearchParams} from "react-router-dom"
 
 const todayFilters = (): GetAdminOrdersParams => ({
     page: 1,
@@ -52,6 +53,8 @@ const todayFilters = (): GetAdminOrdersParams => ({
     from: dayjs().format("YYYY-MM-DD"),
     to: dayjs().format("YYYY-MM-DD")
 })
+
+const deliveryStatusValues: OrderDeliveryStatus[] = ["pending", "preparing", "ready", "delivering", "delivered", "cancelled"]
 
 const paymentStatusOptions: Array<{label: string; value: OrderPaymentStatus}> = [
     {label: "pending", value: "pending"},
@@ -93,10 +96,6 @@ const statusIntentKeywords: Record<StatusIntent, string[]> = {
     delivered: ["deliver", "complete", "done", "выдан", "достав", "заверш"],
     cancelled: ["cancel", "отмен"]
 }
-
-const isProblemOrder = (order: AdminOrder) =>
-    getOrderBadges(order).some((badge) => badge.color === "red" || badge.color === "volcano") ||
-    (order.paymentStatus === "paid" && order.deliveryStatus === "pending")
 
 const getOrderAgeMinutes = (createdAt?: string) => {
     if (!createdAt) return 0
@@ -143,8 +142,15 @@ const getHistoryStatusTitle = (item: OrderHistoryItem, side: "from" | "to") => {
 }
 
 const OrdersPage = () => {
-    const [filters, setFilters] = useState<GetAdminOrdersParams>(todayFilters)
-    const [problemOnly, setProblemOnly] = useState(false)
+    const [searchParams] = useSearchParams()
+    const initialDeliveryStatus = searchParams.get("deliveryStatus")
+    const [filters, setFilters] = useState<GetAdminOrdersParams>(() => ({
+        ...todayFilters(),
+        deliveryStatus: deliveryStatusValues.includes(initialDeliveryStatus as OrderDeliveryStatus)
+            ? initialDeliveryStatus as OrderDeliveryStatus
+            : undefined
+    }))
+    const [problemOnly, setProblemOnly] = useState(searchParams.get("problemOnly") === "1")
     const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
     const [actionOrderId, setActionOrderId] = useState<number | null>(null)
 
@@ -157,7 +163,7 @@ const OrdersPage = () => {
 
     const {data: statuses} = useGetOrderStatusesQuery()
     const {data: summary} = useGetOrdersSummaryQuery(undefined, {refetchOnMountOrArgChange: true})
-    const {data, isLoading} = useGetOrdersQuery(filters, {refetchOnMountOrArgChange: true})
+    const {data, isLoading} = useGetOrdersQuery({...filters, problemOnly}, {refetchOnMountOrArgChange: true})
     const {data: selectedOrder, isFetching: isOrderLoading} = useGetOrderByIdQuery(selectedOrderId ?? 0, {
         skip: !selectedOrderId
     })
@@ -169,10 +175,7 @@ const OrdersPage = () => {
     const [createOrderComment, {isLoading: isCreatingComment}] = useCreateOrderCommentMutation()
     const canUpdateOrders = useCan("orders.update")
     const canDeleteOrders = useCan("orders.delete")
-    const currentItems = useMemo(() => {
-        const items = data?.items || []
-        return problemOnly ? items.filter(isProblemOrder) : items
-    }, [data?.items, problemOnly])
+    const currentItems = data?.items || []
 
     const findStatusByIntent = (intent: StatusIntent) => {
         const keywords = statusIntentKeywords[intent]
@@ -234,8 +237,14 @@ const OrdersPage = () => {
         commentForm.resetFields()
     }
 
-    const setTodayFilters = () => setFilters(todayFilters())
-    const setAllFilters = () => setFilters({page: 1, pageSize: 20})
+    const setTodayFilters = () => {
+        setProblemOnly(false)
+        setFilters(todayFilters())
+    }
+    const setAllFilters = () => {
+        setProblemOnly(false)
+        setFilters({page: 1, pageSize: 20})
+    }
     const setDeliveryFilter = (deliveryStatus?: OrderDeliveryStatus) => {
         setProblemOnly(false)
         setFilters((prev) => ({...prev, deliveryStatus, page: 1}))
@@ -427,13 +436,13 @@ const OrdersPage = () => {
                     <Card><Statistic title="Выручка сегодня" value={formatMoney(summary?.revenueToday ?? 0)} /></Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card><Statistic title="В работе" value={currentItems.filter((order) => order.deliveryStatus === "preparing").length} /></Card>
+                    <Card><Statistic title="В работе" value={summary?.inProgressToday ?? 0} /></Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card><Statistic title="Готовы" value={currentItems.filter((order) => order.deliveryStatus === "ready").length} /></Card>
+                    <Card><Statistic title="Готовы" value={summary?.readyToday ?? 0} /></Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card><Statistic title="Проблемные" value={currentItems.filter(isProblemOrder).length} /></Card>
+                    <Card><Statistic title="Проблемные" value={summary?.problemToday ?? 0} /></Card>
                 </Col>
             </Row>
 
@@ -446,7 +455,10 @@ const OrdersPage = () => {
                         <Button onClick={() => setDeliveryFilter("ready")}>Готовы</Button>
                         <Button onClick={() => setDeliveryFilter("delivered")}>Завершённые</Button>
                         <Button danger onClick={() => setDeliveryFilter("cancelled")}>Отменённые</Button>
-                        <Button danger={problemOnly} type={problemOnly ? "primary" : "default"} onClick={() => setProblemOnly((prev) => !prev)}>Проблемные</Button>
+                        <Button danger={problemOnly} type={problemOnly ? "primary" : "default"} onClick={() => {
+                            setProblemOnly((prev) => !prev)
+                            setFilters((prev) => ({...prev, page: 1}))
+                        }}>Проблемные</Button>
                         <Button onClick={setAllFilters}>Все</Button>
                     </Space>
                     <Space wrap>

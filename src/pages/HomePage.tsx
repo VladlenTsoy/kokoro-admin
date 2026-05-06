@@ -1,106 +1,130 @@
-import {Button, Card, Col, Progress, Row, Space, Statistic, Table, Tag, Typography} from "antd"
+import {Button, Card, Col, Empty, Row, Space, Statistic, Table, Tag, Typography} from "antd"
 import type {ColumnsType} from "antd/es/table"
 import PageHeading from "../components/PageHeading.tsx"
 import {useGetOrdersSummaryQuery} from "../features/orders/orderApi.ts"
+import type {OrdersSummaryActivityItem} from "../features/orders/OrderTypes.ts"
 import {useNavigate} from "react-router-dom"
 import {formatMoney} from "../utils/formatters.ts"
-
-interface FeedItem {
-    id: number
-    event: string
-    actor: string
-    date: string
-    status: "ok" | "warning" | "pending"
-}
-
-const feed: FeedItem[] = [
-    {id: 1, event: "Обновлён статус заказа #8412", actor: "Система", date: "Сегодня, 13:14", status: "ok"},
-    {id: 2, event: "Добавлен сотрудник Amanova", actor: "Super Admin", date: "Сегодня, 12:48", status: "pending"},
-    {id: 3, event: "Изменена роль MANAGER", actor: "Super Admin", date: "Сегодня, 10:10", status: "warning"}
-]
+import dayjs from "dayjs"
 
 const HomePage = () => {
     const navigate = useNavigate()
-    const {data: summary, isLoading} = useGetOrdersSummaryQuery()
-    const columns: ColumnsType<FeedItem> = [
-        {title: "Событие", dataIndex: "event"},
-        {title: "Кто", dataIndex: "actor", width: 160},
-        {title: "Когда", dataIndex: "date", width: 180},
+    const {data: summary, isLoading} = useGetOrdersSummaryQuery(undefined, {refetchOnMountOrArgChange: true})
+    const problemCount = summary?.problemToday ?? 0
+    const hasProblems = problemCount > 0
+
+    const openOrders = (params?: string) => navigate(params ? `/orders?${params}` : "/orders")
+
+    const columns: ColumnsType<OrdersSummaryActivityItem> = [
         {
-            title: "Статус",
-            dataIndex: "status",
-            width: 130,
-            render: (status: FeedItem["status"]) => {
-                if (status === "ok") return <Tag color="green">ОК</Tag>
-                if (status === "warning") return <Tag color="orange">Важно</Tag>
-                return <Tag color="blue">В работе</Tag>
-            }
+            title: "Событие",
+            dataIndex: "event",
+            render: (_, item) => (
+                <Space orientation="vertical" size={0}>
+                    <Typography.Text strong>{item.orderNumber || (item.orderId ? `#${item.orderId}` : "Заказ")}</Typography.Text>
+                    <Typography.Text type="secondary">{item.event || "Статус заказа изменён"}</Typography.Text>
+                </Space>
+            )
+        },
+        {
+            title: "Переход",
+            key: "transition",
+            width: 240,
+            render: (_, item) => (
+                <Space wrap size={[4, 4]}>
+                    {item.fromStatus && <Tag>{item.fromStatus}</Tag>}
+                    {item.toStatus && <Tag color="blue">{item.toStatus}</Tag>}
+                </Space>
+            )
+        },
+        {title: "Кто", dataIndex: "changedBy", width: 180, render: (value?: string) => value || "Система"},
+        {
+            title: "Когда",
+            dataIndex: "changedAt",
+            width: 160,
+            render: (value?: string) => (value ? dayjs(value).format("DD.MM HH:mm") : "—")
         }
     ]
 
     return (
         <Space orientation="vertical" size={18} style={{width: "100%"}}>
             <PageHeading
-                title="Панель управления"
-                subtitle="Срез по операционным метрикам и последним изменениям."
+                title="Today Operations"
+                subtitle="Что требует внимания магазина сегодня: заказы, выручка и проблемные состояния без лишней аналитики."
                 extra={(
-                    <Button type="primary" onClick={() => navigate("/orders?statusId=1")}>
-                        Новые заказы
-                    </Button>
+                    <Space wrap>
+                        <Button danger={hasProblems} type={hasProblems ? "primary" : "default"} onClick={() => openOrders("problemOnly=1")}>
+                            Проблемные заказы
+                        </Button>
+                        <Button type="primary" onClick={() => openOrders("deliveryStatus=pending")}>
+                            Новые заказы
+                        </Button>
+                    </Space>
                 )}
             />
 
             <Row gutter={[16, 16]}>
-                <Col xs={24} md={12} xl={6}>
-                    <Card>
+                <Col xs={24} md={12} xl={4}>
+                    <Card hoverable onClick={() => openOrders()}>
                         <Statistic title="Заказы сегодня" value={summary?.ordersToday ?? 0} loading={isLoading} />
                     </Card>
                 </Col>
-                <Col xs={24} md={12} xl={6}>
-                    <Card>
-                        <Statistic title="Новые заказы" value={summary?.newOrders ?? 0} loading={isLoading} />
+                <Col xs={24} md={12} xl={4}>
+                    <Card hoverable onClick={() => openOrders("deliveryStatus=pending")}>
+                        <Statistic title="Новые" value={summary?.newOrders ?? 0} loading={isLoading} />
                     </Card>
                 </Col>
-                <Col xs={24} md={12} xl={6}>
+                <Col xs={24} md={12} xl={4}>
+                    <Card hoverable onClick={() => openOrders("deliveryStatus=preparing")}>
+                        <Statistic title="В работе" value={summary?.inProgressToday ?? 0} loading={isLoading} />
+                    </Card>
+                </Col>
+                <Col xs={24} md={12} xl={4}>
+                    <Card hoverable onClick={() => openOrders("deliveryStatus=ready")}>
+                        <Statistic title="Готовы" value={summary?.readyToday ?? 0} loading={isLoading} />
+                    </Card>
+                </Col>
+                <Col xs={24} md={12} xl={4}>
+                    <Card hoverable onClick={() => openOrders("problemOnly=1")}>
+                        <Statistic title="Проблемные" value={problemCount} loading={isLoading} valueStyle={{color: hasProblems ? "#cf1322" : undefined}} />
+                    </Card>
+                </Col>
+                <Col xs={24} md={12} xl={4}>
                     <Card>
                         <Statistic title="Выручка сегодня" value={formatMoney(summary?.revenueToday ?? 0)} loading={isLoading} />
-                    </Card>
-                </Col>
-                <Col xs={24} md={12} xl={6}>
-                    <Card>
-                        <Statistic title="Ошибок API (24ч)" value={2} />
                     </Card>
                 </Col>
             </Row>
 
             <Row gutter={[16, 16]}>
-                <Col xs={24} xl={10}>
-                    <Card>
-                        <Typography.Title level={5} style={{marginTop: 0}}>
-                            Выполнение KPI
-                        </Typography.Title>
-                        <Space orientation="vertical" style={{width: "100%"}} size={14}>
-                            <div>
-                                <Typography.Text>Обработка заказов</Typography.Text>
-                                <Progress percent={84} strokeColor="#79D6FF" />
-                            </div>
-                            <div>
-                                <Typography.Text>Ответ клиенту до 15 мин</Typography.Text>
-                                <Progress percent={71} strokeColor="#C5FF3E" />
-                            </div>
-                            <div>
-                                <Typography.Text>Актуальность карточек</Typography.Text>
-                                <Progress percent={92} strokeColor="#8E94FF" />
-                            </div>
+                <Col xs={24} xl={8}>
+                    <Card title="Операционный фокус">
+                        <Space orientation="vertical" size={12} style={{width: "100%"}}>
+                            <Typography.Text>
+                                {hasProblems
+                                    ? "Сначала разберите проблемные заказы: просроченные новые, оплаченные без обработки, failed payment или paid + cancelled."
+                                    : "Критичных проблем по заказам сегодня не видно. Держите фокус на новых и готовых заказах."}
+                            </Typography.Text>
+                            <Button danger={hasProblems} type={hasProblems ? "primary" : "default"} onClick={() => openOrders("problemOnly=1")}>
+                                Открыть очередь проблем
+                            </Button>
+                            <Button onClick={() => openOrders("deliveryStatus=ready")}>Проверить готовые к выдаче</Button>
                         </Space>
                     </Card>
                 </Col>
-                <Col xs={24} xl={14}>
-                    <Card>
-                        <Typography.Title level={5} style={{marginTop: 0}}>
-                            Лента активности
-                        </Typography.Title>
-                        <Table<FeedItem> rowKey="id" columns={columns} dataSource={feed} pagination={false} />
+                <Col xs={24} xl={16}>
+                    <Card title="Последние события по заказам">
+                        {(summary?.recentActivity?.length ?? 0) > 0 ? (
+                            <Table<OrdersSummaryActivityItem>
+                                rowKey="id"
+                                columns={columns}
+                                dataSource={summary?.recentActivity || []}
+                                pagination={false}
+                                size="middle"
+                            />
+                        ) : (
+                            <Empty description="Пока нет событий по заказам" />
+                        )}
                     </Card>
                 </Col>
             </Row>
