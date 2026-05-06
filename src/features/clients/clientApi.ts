@@ -1,6 +1,13 @@
 import {createApi} from "@reduxjs/toolkit/query/react"
 import {addFileUploaderApi} from "../../utils/appApiConfig.ts"
-import type {AdminClient, AdminClientDetails, AdminClientsResponse} from "./clientTypes.ts"
+import type {
+    AdminClient,
+    AdminClientAddress,
+    AdminClientBonusTransaction,
+    AdminClientDetails,
+    AdminClientOrdersResponse,
+    AdminClientsResponse
+} from "./clientTypes.ts"
 
 const toQueryString = (params: Record<string, string | number | undefined>) => {
     const query = new URLSearchParams()
@@ -43,15 +50,15 @@ export const clientApi = createApi({
             query: (id) => ({url: `/clients/${id}/unblock`, method: "POST"}),
             invalidatesTags: (_result, _error, id) => [{type: "Client", id}, "Client"]
         }),
-        getClientOrders: builder.query<unknown[], number>({
-            query: (id) => ({url: `/clients/${id}/orders`}),
+        getClientOrders: builder.query<AdminClientOrdersResponse, number>({
+            query: (id) => ({url: `/clients/${id}/orders?pageSize=5`}),
             providesTags: (_result, _error, id) => [{type: "Client", id}]
         }),
-        getClientAddresses: builder.query<unknown[], number>({
+        getClientAddresses: builder.query<AdminClientAddress[], number>({
             query: (id) => ({url: `/clients/${id}/addresses`}),
             providesTags: (_result, _error, id) => [{type: "Client", id}]
         }),
-        getClientBonusTransactions: builder.query<unknown[], number>({
+        getClientBonusTransactions: builder.query<AdminClientBonusTransaction[], number>({
             query: (id) => ({url: `/clients/${id}/bonus-transactions`}),
             providesTags: (_result, _error, id) => [{type: "Client", id}]
         }),

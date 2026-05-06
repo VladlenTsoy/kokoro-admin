@@ -1,11 +1,14 @@
-import {Button, Card, Descriptions, Drawer, Form, Input, Modal, Space, Table, Tag, Typography, message} from "antd"
+import {Button, Card, Descriptions, Drawer, Form, Input, Modal, Space, Table, Tabs, Tag, Typography, message} from "antd"
 import type {ColumnsType} from "antd/es/table"
 import {useState} from "react"
 import PageHeading from "../components/PageHeading.tsx"
-import type {AdminClient} from "../features/clients/clientTypes.ts"
+import type {AdminClient, AdminClientBonusTransaction, AdminClientOrder} from "../features/clients/clientTypes.ts"
 import {
     useBlockClientMutation,
+    useGetClientAddressesQuery,
+    useGetClientBonusTransactionsQuery,
     useGetClientByIdQuery,
+    useGetClientOrdersQuery,
     useGetClientsQuery,
     useUnblockClientMutation,
     useUpdateClientMutation
@@ -13,6 +16,7 @@ import {
 import {getNestErrorMessage} from "../utils/getNestErrorMessage.ts"
 import {formatMoney} from "../utils/formatters.ts"
 import {useCan} from "../features/auth/permissions.ts"
+import dayjs from "dayjs"
 
 const ClientsPage = () => {
     const [filters, setFilters] = useState<{search?: string; page: number; pageSize: number}>({
@@ -31,6 +35,15 @@ const ClientsPage = () => {
         pageSize: filters.pageSize
     })
     const {data: clientDetails, isFetching: isClientLoading} = useGetClientByIdQuery(selectedClientId ?? 0, {
+        skip: !selectedClientId
+    })
+    const {data: clientOrders, isFetching: isClientOrdersLoading} = useGetClientOrdersQuery(selectedClientId ?? 0, {
+        skip: !selectedClientId
+    })
+    const {data: clientAddresses, isFetching: isClientAddressesLoading} = useGetClientAddressesQuery(selectedClientId ?? 0, {
+        skip: !selectedClientId
+    })
+    const {data: clientBonusTransactions, isFetching: isClientBonusLoading} = useGetClientBonusTransactionsQuery(selectedClientId ?? 0, {
         skip: !selectedClientId
     })
     const [blockClient] = useBlockClientMutation()
@@ -76,6 +89,26 @@ const ClientsPage = () => {
             message.error(getNestErrorMessage(error))
         }
     }
+
+    const orderColumns: ColumnsType<AdminClientOrder> = [
+        {title: "Заказ", key: "order", render: (_, order) => order.orderNumber || `#${order.id}`},
+        {title: "Дата", dataIndex: "createdAt", width: 120, render: (value?: string) => (value ? dayjs(value).format("DD.MM") : "—")},
+        {title: "Сумма", dataIndex: "total", width: 120, render: (value?: number) => formatMoney(value || 0)},
+        {title: "Статус", key: "status", width: 180, render: (_, order) => (
+            <Space wrap size={[4, 4]}>
+                {order.status?.title && <Tag color="blue">{order.status.title}</Tag>}
+                {order.paymentStatus && <Tag>{order.paymentStatus}</Tag>}
+                {order.deliveryStatus && <Tag>{order.deliveryStatus}</Tag>}
+            </Space>
+        )}
+    ]
+
+    const bonusColumns: ColumnsType<AdminClientBonusTransaction> = [
+        {title: "Дата", dataIndex: "createdAt", width: 130, render: (value?: string) => (value ? dayjs(value).format("DD.MM HH:mm") : "—")},
+        {title: "Тип", dataIndex: "type", width: 120, render: (value?: string) => <Tag>{value || "—"}</Tag>},
+        {title: "Сумма", dataIndex: "amount", width: 120},
+        {title: "Комментарий", dataIndex: "comment", render: (value?: string) => value || "—"}
+    ]
 
     const columns: ColumnsType<AdminClient> = [
         {title: "ID", dataIndex: "id", width: 80},
@@ -156,15 +189,72 @@ const ClientsPage = () => {
                 {!isClientLoading && clientDetails && (
                     <Space orientation="vertical" size={16} style={{width: "100%"}}>
                         <Descriptions bordered size="small" column={2}>
-                            <Descriptions.Item label="Имя">{clientDetails.name}</Descriptions.Item>
-                            <Descriptions.Item label="Телефон">{clientDetails.phone}</Descriptions.Item>
+                            <Descriptions.Item label="Имя">{clientDetails.name || "—"}</Descriptions.Item>
+                            <Descriptions.Item label="Телефон">
+                                <Typography.Text copyable={Boolean(clientDetails.phone)}>{clientDetails.phone || "—"}</Typography.Text>
+                            </Descriptions.Item>
                             <Descriptions.Item label="Статус">
                                 {clientDetails.isActive ? <Tag color="green">Активен</Tag> : <Tag color="red">Заблокирован</Tag>}
                             </Descriptions.Item>
                             <Descriptions.Item label="Бонусы">{clientDetails.bonusBalance ?? "—"}</Descriptions.Item>
-                            <Descriptions.Item label="Заказы">{clientDetails.ordersCount ?? "—"}</Descriptions.Item>
-                            <Descriptions.Item label="Средний чек">{clientDetails.averageCheck ?? "—"}</Descriptions.Item>
+                            <Descriptions.Item label="Заказы">{clientDetails.stats?.ordersCount ?? clientDetails.ordersCount ?? "—"}</Descriptions.Item>
+                            <Descriptions.Item label="Сумма покупок">{formatMoney(clientDetails.stats?.totalSpent ?? clientDetails.totalSpent ?? 0)}</Descriptions.Item>
+                            <Descriptions.Item label="Средний чек">{formatMoney(clientDetails.stats?.averageOrderValue ?? clientDetails.averageCheck ?? 0)}</Descriptions.Item>
+                            <Descriptions.Item label="Последний заказ">
+                                {clientDetails.stats?.lastOrderAt || clientDetails.lastOrderAt
+                                    ? dayjs(clientDetails.stats?.lastOrderAt || clientDetails.lastOrderAt).format("DD.MM.YYYY HH:mm")
+                                    : "—"}
+                            </Descriptions.Item>
                         </Descriptions>
+
+                        <Tabs
+                            items={[
+                                {
+                                    key: "orders",
+                                    label: `Заказы (${clientOrders?.total ?? 0})`,
+                                    children: (
+                                        <Table<AdminClientOrder>
+                                            rowKey="id"
+                                            loading={isClientOrdersLoading}
+                                            columns={orderColumns}
+                                            dataSource={clientOrders?.items || []}
+                                            pagination={false}
+                                            size="small"
+                                        />
+                                    )
+                                },
+                                {
+                                    key: "addresses",
+                                    label: `Адреса (${clientAddresses?.length ?? 0})`,
+                                    children: (
+                                        <Table
+                                            rowKey="id"
+                                            loading={isClientAddressesLoading}
+                                            dataSource={clientAddresses || []}
+                                            pagination={false}
+                                            size="small"
+                                            columns={[
+                                                {title: "Адрес", dataIndex: "address", render: (value?: string) => value || "—"}
+                                            ]}
+                                        />
+                                    )
+                                },
+                                {
+                                    key: "bonuses",
+                                    label: `Бонусы (${clientBonusTransactions?.length ?? 0})`,
+                                    children: (
+                                        <Table<AdminClientBonusTransaction>
+                                            rowKey="id"
+                                            loading={isClientBonusLoading}
+                                            columns={bonusColumns}
+                                            dataSource={clientBonusTransactions || []}
+                                            pagination={false}
+                                            size="small"
+                                        />
+                                    )
+                                }
+                            ]}
+                        />
                     </Space>
                 )}
             </Drawer>

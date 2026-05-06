@@ -18,10 +18,47 @@ export interface AdminClientsResponse {
     pageSize: number
 }
 
+export interface AdminClientAddress {
+    id: number
+    address: string
+    location?: {lat: number; lng: number}
+}
+
+export interface AdminClientOrder {
+    id: number
+    orderNumber?: string
+    total?: number
+    paymentStatus?: string
+    deliveryStatus?: string
+    createdAt?: string
+    status?: {title?: string}
+    paymentMethod?: {title?: string}
+    deliveryType?: {title?: string}
+    clientAddress?: {address?: string}
+}
+
+export interface AdminClientBonusTransaction {
+    id: number
+    type?: string
+    amount?: number
+    comment?: string
+    createdAt?: string
+    order?: {id: number; orderNumber?: string}
+}
+
 export interface AdminClientDetails extends AdminClient {
-    addresses?: Array<{
-        id: number
-        address: string
-        location?: {lat: number; lng: number}
-    }>
+    stats?: {
+        ordersCount: number
+        totalSpent: number
+        averageOrderValue: number
+        lastOrderAt?: string | null
+    }
+    addresses?: AdminClientAddress[]
+}
+
+export interface AdminClientOrdersResponse {
+    items: AdminClientOrder[]
+    total: number
+    page: number
+    pageSize: number
 }
