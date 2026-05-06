@@ -88,6 +88,7 @@ export interface AdminOrder {
     client: OrderClient | null
     clientAddress: OrderClientAddress | null
     items: OrderItem[]
+    itemsCount?: number
     orderNumber?: string
     updatedAt?: string
     deliveryStatus?: OrderDeliveryStatus | null
@@ -126,12 +127,21 @@ export interface OrdersSummaryResponse {
 
 export interface OrderHistoryItem {
     id: number
-    createdAt: string
+    createdAt?: string
+    changedAt?: string
     fromStatusId?: number | null
     toStatusId?: number | null
+    fromStatus?: OrderStatus | null
+    toStatus?: OrderStatus | null
     comment?: string | null
     visibleForClient?: boolean
     createdByEmployeeId?: number | null
+    changedBy?: string | null
+    employee?: {
+        id: number
+        firstName: string
+        lastName: string
+    } | null
 }
 
 export interface OrderCommentItem {

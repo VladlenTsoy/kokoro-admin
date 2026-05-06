@@ -1,5 +1,5 @@
 import {createApi} from "@reduxjs/toolkit/query/react"
-import {addFileUploaderApi, publicApiUrl} from "../../utils/appApiConfig.ts"
+import {addFileUploaderApi} from "../../utils/appApiConfig.ts"
 import type {
     AdminOrder,
     AdminOrdersResponse,
@@ -57,10 +57,7 @@ export const orderApi = createApi({
             providesTags: ["Order"]
         }),
         getOrderById: builder.query<AdminOrder | null, number>({
-            query: (id) => ({
-                // legacy detail endpoint
-                url: `${publicApiUrl}/orders/${id}`
-            }),
+            query: (id) => ({url: `/orders/${id}`}),
             providesTags: (_result, _error, id) => [{type: "Order", id}]
         }),
         updateOrder: builder.mutation<AdminOrder, {id: number; body: {
