@@ -31,11 +31,13 @@ export const PromoCodesPage = lazy(() => import("../pages/settings/PromoCodesPag
 export const OrderStatusesPage = lazy(() => import("../pages/settings/OrderStatusesPage.tsx"))
 export const OrderNotificationsPage = lazy(() => import("../pages/settings/OrderNotificationsPage.tsx"))
 export const PaymentsPage = lazy(() => import("../pages/settings/PaymentsPage.tsx"))
+export const SettingsOverviewPage = lazy(() => import("../pages/settings/SettingsOverviewPage.tsx"))
 export const EmployeesPage = lazy(() => import("../pages/admin/EmployeesPage.tsx"))
 export const RolesPage = lazy(() => import("../pages/admin/RolesPage.tsx"))
 export const ForbiddenPage = lazy(() => import("../pages/errors/ForbiddenPage.tsx"))
 
 const SETTINGS_INDEX_ITEMS: Array<{to: string; permission: PermissionCode}> = [
+    {to: "overview", permission: "settings.read"},
     {to: "product-categories", permission: "catalog.read"},
     {to: "countries", permission: "settings.read"},
     {to: "promo-codes", permission: "marketing.read"},
@@ -83,6 +85,7 @@ export const AppRouter = () => {
                             <Route path="/settings" element={<SettingsLayout />}>
                                 <Route index element={<SettingsIndexRedirect />} />
                                 <Route element={<PermissionGuard permission="settings.read" />}>
+                                    <Route path="overview" element={<SettingsOverviewPage />} />
                                     <Route path="countries" element={<CountriesPage />} />
                                     <Route path="sales-points" element={<SalesPointPage />} />
                                     <Route path="product-storages" element={<ProductStoragePage />} />

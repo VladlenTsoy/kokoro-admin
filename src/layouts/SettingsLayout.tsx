@@ -22,6 +22,11 @@ interface SettingsMenuGroup {
 
 const BASE_SETTINGS_GROUPS: SettingsMenuGroup[] = [
     {
+        key: "launch",
+        label: "Запуск",
+        children: [{key: "overview", label: "Checklist запуска", permission: "settings.read"}]
+    },
+    {
         key: "product",
         label: "Продукт",
         children: [
