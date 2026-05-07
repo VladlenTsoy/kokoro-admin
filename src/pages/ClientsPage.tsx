@@ -1,4 +1,5 @@
-import {Button, Card, Descriptions, Drawer, Form, Input, Modal, Space, Table, Tabs, Tag, Typography, message} from "antd"
+import {Button, Card, Col, Descriptions, Drawer, Form, Input, Modal, Row, Space, Statistic, Table, Tabs, Tag, Typography, message} from "antd"
+import {CrownOutlined, PhoneOutlined, ShoppingOutlined, TeamOutlined} from "@ant-design/icons"
 import type {ColumnsType} from "antd/es/table"
 import {useState} from "react"
 import PageHeading from "../components/PageHeading.tsx"
@@ -51,6 +52,10 @@ const ClientsPage = () => {
     const [updateClient, {isLoading: isUpdating}] = useUpdateClientMutation()
     const canUpdateClients = useCan("clients.update")
     const canDeleteClients = useCan("clients.delete")
+    const clients = data?.items || []
+    const activeClientsOnPage = clients.filter((client) => client.isActive).length
+    const buyersOnPage = clients.filter((client) => (client.ordersCount ?? 0) > 0).length
+    const totalSpentOnPage = clients.reduce((sum, client) => sum + Number(client.totalSpent || 0), 0)
 
     const handleBlockToggle = async (client: AdminClient) => {
         try {
@@ -153,23 +158,44 @@ const ClientsPage = () => {
 
     return (
         <Space orientation="vertical" size={18} style={{width: "100%"}}>
-            <PageHeading title="Клиенты" subtitle="Список клиентов, статусы и профиль." />
-
-            <Card>
-                <Input.Search
-                    placeholder="Поиск по имени или телефону"
-                    allowClear
-                    onSearch={(search) => setFilters((prev) => ({...prev, search, page: 1}))}
-                    style={{maxWidth: 360}}
+            <Card className="admin-hero-card clients-hero">
+                <PageHeading
+                    title="Клиенты"
+                    subtitle="CRM-вид: быстро найти человека, увидеть ценность клиента и открыть историю без ощущения сырой таблицы."
                 />
             </Card>
 
-            <Card>
+            <Row gutter={[16, 16]}>
+                <Col xs={24} md={12} xl={6}>
+                    <Card className="metric-card metric-card--lime"><Statistic prefix={<TeamOutlined />} title="Всего клиентов" value={data?.total ?? 0} loading={isLoading} /></Card>
+                </Col>
+                <Col xs={24} md={12} xl={6}>
+                    <Card className="metric-card metric-card--cyan"><Statistic prefix={<PhoneOutlined />} title="Активные на странице" value={activeClientsOnPage} loading={isLoading} /></Card>
+                </Col>
+                <Col xs={24} md={12} xl={6}>
+                    <Card className="metric-card metric-card--blue"><Statistic prefix={<ShoppingOutlined />} title="С покупками" value={buyersOnPage} loading={isLoading} /></Card>
+                </Col>
+                <Col xs={24} md={12} xl={6}>
+                    <Card className="metric-card metric-card--money"><Statistic prefix={<CrownOutlined />} title="Оборот страницы" value={formatMoney(totalSpentOnPage)} loading={isLoading} /></Card>
+                </Col>
+            </Row>
+
+            <Card className="filter-card">
+                <Input.Search
+                    placeholder="Поиск по имени или телефону"
+                    allowClear
+                    enterButton="Найти"
+                    onSearch={(search) => setFilters((prev) => ({...prev, search, page: 1}))}
+                    style={{maxWidth: 440}}
+                />
+            </Card>
+
+            <Card className="admin-table-card clients-table-card">
                 <Table<AdminClient>
                     rowKey="id"
                     loading={isLoading}
                     columns={columns}
-                    dataSource={data?.items || []}
+                    dataSource={clients}
                     pagination={{
                         current: data?.page || filters.page,
                         pageSize: data?.pageSize || filters.pageSize,
@@ -180,6 +206,7 @@ const ClientsPage = () => {
             </Card>
 
             <Drawer
+                className="profile-drawer"
                 title={clientDetails ? `Клиент #${clientDetails.id}` : "Карточка клиента"}
                 width={760}
                 open={Boolean(selectedClientId)}
@@ -188,7 +215,7 @@ const ClientsPage = () => {
                 {isClientLoading && <Typography.Text type="secondary">Загрузка...</Typography.Text>}
                 {!isClientLoading && clientDetails && (
                     <Space orientation="vertical" size={16} style={{width: "100%"}}>
-                        <Descriptions bordered size="small" column={2}>
+                        <Descriptions className="profile-summary" bordered size="small" column={2}>
                             <Descriptions.Item label="Имя">{clientDetails.name || "—"}</Descriptions.Item>
                             <Descriptions.Item label="Телефон">
                                 <Typography.Text copyable={Boolean(clientDetails.phone)}>{clientDetails.phone || "—"}</Typography.Text>
@@ -208,6 +235,7 @@ const ClientsPage = () => {
                         </Descriptions>
 
                         <Tabs
+                            className="profile-tabs"
                             items={[
                                 {
                                     key: "orders",

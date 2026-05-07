@@ -1,4 +1,5 @@
 import {
+    Badge,
     Button,
     Card,
     Checkbox,
@@ -21,6 +22,7 @@ import {
     message
 } from "antd"
 import type {ColumnsType} from "antd/es/table"
+import {AlertOutlined, CheckCircleOutlined, ClockCircleOutlined, FireOutlined, ShoppingOutlined, ThunderboltOutlined} from "@ant-design/icons"
 import {useMemo, useState} from "react"
 import dayjs from "dayjs"
 import PageHeading from "../components/PageHeading.tsx"
@@ -423,30 +425,40 @@ const OrdersPage = () => {
 
     return (
         <Space orientation="vertical" size={18} style={{width: "100%"}}>
-            <PageHeading title="Today Order Desk" subtitle="Операционный центр заказов локальной retail-точки." />
+            <Card className="admin-hero-card orders-hero">
+                <PageHeading
+                    title="Today Order Desk"
+                    subtitle="Операционный центр заказов: быстрые фильтры, красные риски и следующий шаг без чтения всей таблицы."
+                />
+                <Space wrap className="hero-badges">
+                    <Badge status="processing" text="Сегодня по умолчанию" />
+                    <Badge status={(summary?.problemToday ?? 0) > 0 ? "error" : "success"} text={`${summary?.problemToday ?? 0} проблемных`} />
+                    <Badge status="warning" text="SLA: новые 10+ мин подсвечиваются" />
+                </Space>
+            </Card>
 
             <Row gutter={[16, 16]}>
                 <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card><Statistic title="Заказы сегодня" value={summary?.ordersToday ?? 0} /></Card>
+                    <Card className="metric-card metric-card--lime"><Statistic prefix={<ShoppingOutlined />} title="Заказы сегодня" value={summary?.ordersToday ?? 0} /></Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card><Statistic title="Новые" value={summary?.newOrders ?? 0} /></Card>
+                    <Card className="metric-card metric-card--orange"><Statistic prefix={<ClockCircleOutlined />} title="Новые" value={summary?.newOrders ?? 0} /></Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card><Statistic title="Выручка сегодня" value={formatMoney(summary?.revenueToday ?? 0)} /></Card>
+                    <Card className="metric-card metric-card--money"><Statistic prefix={<FireOutlined />} title="Выручка сегодня" value={formatMoney(summary?.revenueToday ?? 0)} /></Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card><Statistic title="В работе" value={summary?.inProgressToday ?? 0} /></Card>
+                    <Card className="metric-card metric-card--blue"><Statistic prefix={<ThunderboltOutlined />} title="В работе" value={summary?.inProgressToday ?? 0} /></Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card><Statistic title="Готовы" value={summary?.readyToday ?? 0} /></Card>
+                    <Card className="metric-card metric-card--cyan"><Statistic prefix={<CheckCircleOutlined />} title="Готовы" value={summary?.readyToday ?? 0} /></Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card><Statistic title="Проблемные" value={summary?.problemToday ?? 0} /></Card>
+                    <Card className={(summary?.problemToday ?? 0) > 0 ? "metric-card metric-card--danger" : "metric-card"}><Statistic prefix={<AlertOutlined />} title="Проблемные" value={summary?.problemToday ?? 0} /></Card>
                 </Col>
             </Row>
 
-            <Card>
+            <Card className="filter-card">
                 <Space orientation="vertical" size={14} style={{width: "100%"}}>
                     <Space wrap>
                         <Button type={filters.from && filters.to ? "primary" : "default"} onClick={setTodayFilters}>Сегодня</Button>
@@ -506,13 +518,14 @@ const OrdersPage = () => {
                 </Space>
             </Card>
 
-            <Card>
+            <Card className="admin-table-card orders-table-card">
                 <Table<AdminOrder>
                     rowKey="id"
                     loading={isLoading}
                     dataSource={currentItems}
                     columns={orderColumns}
                     scroll={{x: 1600}}
+                    rowClassName={(order) => getOrderBadges(order).some((badge) => badge.color === "red" || badge.color === "volcano") ? "table-row-alert" : ""}
                     pagination={{
                         current: data?.page || filters.page || 1,
                         pageSize: data?.pageSize || filters.pageSize || 20,
@@ -532,7 +545,7 @@ const OrdersPage = () => {
                 {isOrderLoading && <Typography.Text type="secondary">Загрузка...</Typography.Text>}
                 {!isOrderLoading && selectedOrder && (
                     <Space orientation="vertical" size={16} style={{width: "100%"}}>
-                        <Card>
+                        <Card className="drawer-command-card">
                             <Row gutter={[16, 16]} align="middle">
                                 <Col xs={24} md={8}>
                                     <Typography.Title level={4} style={{margin: 0}}>{selectedOrder.orderNumber || `#${selectedOrder.id}`}</Typography.Title>
@@ -557,13 +570,13 @@ const OrdersPage = () => {
                         <Row gutter={[16, 16]}>
                             <Col xs={24} lg={15}>
                                 <Space orientation="vertical" size={16} style={{width: "100%"}}>
-                                    <Card title="Workflow заказа">
+                                    <Card className="workflow-card" title="Workflow заказа">
                                         <Space wrap>
                                             {["Новый", "Принят", "Собирается", "Готов", "Выдан/доставлен", "Закрыт"].map((step) => <Tag key={step}>{step}</Tag>)}
                                         </Space>
                                     </Card>
 
-                                    <Card title="Товары">
+                                    <Card className="admin-table-card" title="Товары">
                                         <Table<OrderItem>
                                             rowKey="id"
                                             columns={itemColumns}
@@ -574,6 +587,7 @@ const OrdersPage = () => {
                                     </Card>
 
                                     <Card
+                                        className="timeline-card"
                                         title="История событий"
                                         extra={canUpdateOrders ? <Button onClick={() => setCommentModalOpen(true)}>Добавить комментарий</Button> : null}
                                     >
@@ -595,7 +609,7 @@ const OrdersPage = () => {
 
                             <Col xs={24} lg={9}>
                                 <Space orientation="vertical" size={16} style={{width: "100%"}}>
-                                    <Card title="Следующее действие">
+                                    <Card className="next-action-card" title="Следующее действие">
                                         <Typography.Text strong>{getNextActionLabel(selectedOrder)}</Typography.Text>
                                         <div style={{marginTop: 12}}>
                                             <Space wrap>
