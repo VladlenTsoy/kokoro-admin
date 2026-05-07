@@ -7,6 +7,8 @@ import type {ProductVariantTagType} from "../product-variant-tags/ProductVariant
 export interface ProductSizeType {
     id: number
     qty: number
+    reservedQty?: number
+    soldQty?: number
     cost_price: number
     min_qty: number
     size: {

@@ -19,6 +19,7 @@ export const useProductColumns = (): ColumnsType<ProductType> => {
         title: "ID",
         dataIndex: "id",
         key: "id",
+        sorter: true,
         width: 70
     },
     {
@@ -31,7 +32,8 @@ export const useProductColumns = (): ColumnsType<ProductType> => {
     {
         title: "Название",
         dataIndex: "title",
-        key: "title"
+        key: "title",
+        sorter: true
     },
     {
         title: "Цвет",
@@ -64,6 +66,7 @@ export const useProductColumns = (): ColumnsType<ProductType> => {
         title: "Цена",
         dataIndex: "price",
         key: "price",
+        sorter: true,
         render: (value: number) => formatMoney(value)
     },
     {

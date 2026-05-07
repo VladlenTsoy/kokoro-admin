@@ -17,7 +17,9 @@ export const productApi = createApi({
             storageIds?: number[],
             sizeIds?: number[],
             search?: string,
-            statusId?: string
+            statusId?: string,
+            sortField?: string,
+            sortOrder?: string
         }>({
             query: ({
                 page,
@@ -28,7 +30,9 @@ export const productApi = createApi({
                 storageIds,
                 sizeIds,
                 search,
-                statusId
+                statusId,
+                sortField,
+                sortOrder
             }) => ({
                 url: `/product-variant/all`,
                 method: "POST",
@@ -41,7 +45,9 @@ export const productApi = createApi({
                     storageIds: storageIds,
                     sizeIds: sizeIds,
                     search: search,
-                    statusId: statusId === "all" ? undefined : statusId
+                    statusId: statusId === "all" ? undefined : statusId,
+                    sortField,
+                    sortOrder
                 }
             }),
             providesTags: ["Product"]

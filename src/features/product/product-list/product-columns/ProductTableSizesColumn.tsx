@@ -26,6 +26,10 @@ const useStyles = createStyles(() => ({
     qty: {
         fontWeight: 500
     },
+    meta: {
+        fontSize: 11,
+        color: "#8C8C8C"
+    },
     danger: {
         color: "#F04438!important"
     },
@@ -43,19 +47,26 @@ const ProductTableSizesColumn: React.FC<Props> = ({sizes}) => {
 
     return (
         <div className={styles.container}>
-            {sizes.map(size => (
-                <div
-                    key={size.id}
-                    className={cn(styles.size, {
-                        [styles.danger]: size.qty <= 0,
-                        [styles.warning]: size.qty <= size.min_qty
-                    })}
-                >
-                    <b className={styles.title}>{size.size.title}</b>
-                    <span>-</span>
-                    <span className={styles.qty}>{size.qty}</span>
-                </div>
-            ))}
+            {sizes.map(size => {
+                const reservedQty = Number(size.reservedQty || 0)
+                const availableQty = Math.max(Number(size.qty || 0) - reservedQty, 0)
+
+                return (
+                    <div
+                        key={size.id}
+                        className={cn(styles.size, {
+                            [styles.danger]: availableQty <= 0,
+                            [styles.warning]: availableQty <= size.min_qty
+                        })}
+                        title={`На складе: ${size.qty}; резерв: ${reservedQty}; продано: ${size.soldQty || 0}`}
+                    >
+                        <b className={styles.title}>{size.size.title}</b>
+                        <span>-</span>
+                        <span className={styles.qty}>{availableQty}</span>
+                        {reservedQty > 0 && <span className={styles.meta}>рез. {reservedQty}</span>}
+                    </div>
+                )
+            })}
         </div>
     )
 }

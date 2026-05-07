@@ -13,9 +13,11 @@ type UpdateKey =
     | "collectionIds"
     | "salesPointIds"
     | "storageIds"
+    | "sorter"
     | "clear"
 type PaginationValue = {current?: number, pageSize?: number}
-type UpdateValue = PaginationValue | string | number | number[] | undefined
+type SorterValue = {field?: string, order?: "ascend" | "descend"}
+type UpdateValue = PaginationValue | SorterValue | string | number | number[] | undefined
 type ArrayFilterKey = Extract<UpdateKey, "categoryIds" | "sizeIds" | "collectionIds" | "salesPointIds" | "storageIds">
 
 const ARRAY_FILTER_KEYS: ArrayFilterKey[] = [
@@ -51,8 +53,10 @@ function readParamsFromLocation(locationSearch: string, locationPathname: string
     const sizeIds = safeParseArrayParam(query.get("sizeIds"))
     const current = query.get("current") ? Number(query.get("current")) : PAGE_CURRENT
     const pageSize = query.get("pageSize") ? Number(query.get("pageSize")) : PAGE_SIZE
+    const sortField = query.get("sortField") || "created_at"
+    const sortOrder = query.get("sortOrder") === "ascend" ? "ascend" : "descend"
 
-    return {status, search, categoryIds, collectionIds, salesPointIds, storageIds, sizeIds, current, pageSize, query}
+    return {status, search, categoryIds, collectionIds, salesPointIds, storageIds, sizeIds, current, pageSize, sortField, sortOrder, query}
 }
 
 function isArrayFilterKey(key: UpdateKey): key is ArrayFilterKey {
@@ -86,7 +90,7 @@ export const useGetParams = () => {
 
     // derive initial params from location
     const initial = useMemo(() => {
-        const {status, search, categoryIds, collectionIds, salesPointIds, storageIds, sizeIds, current, pageSize} = readParamsFromLocation(
+        const {status, search, categoryIds, collectionIds, salesPointIds, storageIds, sizeIds, current, pageSize, sortField, sortOrder} = readParamsFromLocation(
             location.search,
             location.pathname
         )
@@ -98,7 +102,7 @@ export const useGetParams = () => {
             salesPointIds,
             storageIds,
             sizeIds,
-            sorter: {field: "created_at", order: "descend"},
+            sorter: {field: sortField, order: sortOrder as "ascend" | "descend"},
             pagination: {current, pageSize}
         }
         return base
@@ -146,6 +150,21 @@ export const useGetParams = () => {
                     break
                 }
 
+                case "sorter": {
+                    const sorter = typeof val === "object" && val !== null && !Array.isArray(val)
+                        ? val as SorterValue
+                        : undefined
+                    if (sorter?.field && sorter?.order) {
+                        query.set("sortField", sorter.field)
+                        query.set("sortOrder", sorter.order)
+                    } else {
+                        query.delete("sortField")
+                        query.delete("sortOrder")
+                    }
+                    query.set("current", String(1))
+                    break
+                }
+
                 case "pagination": {
                     const pagination = typeof val === "object" && val !== null && !Array.isArray(val)
                         ? val as PaginationValue
@@ -162,6 +181,8 @@ export const useGetParams = () => {
                     query.delete("collectionIds")
                     query.delete("salesPointIds")
                     query.delete("storageIds")
+                    query.delete("sortField")
+                    query.delete("sortOrder")
                     query.set("current", String(1))
                     break
                 }
@@ -186,7 +207,9 @@ export const useGetParams = () => {
             storageIds,
             sizeIds,
             current,
-            pageSize
+            pageSize,
+            sortField,
+            sortOrder
         } = readParamsFromLocation(
             location.search,
             location.pathname
@@ -200,7 +223,7 @@ export const useGetParams = () => {
             salesPointIds,
             storageIds,
             sizeIds,
-            sorter: {field: "created_at", order: "descend"},
+            sorter: {field: sortField, order: sortOrder as "ascend" | "descend"},
             pagination: {
                 current: current || PAGE_CURRENT,
                 pageSize: pageSize || PAGE_SIZE
