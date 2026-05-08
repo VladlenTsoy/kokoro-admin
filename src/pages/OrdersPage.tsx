@@ -23,7 +23,7 @@ import {
 } from "antd"
 import type {ColumnsType} from "antd/es/table"
 import {AlertOutlined, CheckCircleOutlined, ClockCircleOutlined, FireOutlined, ShoppingOutlined, ThunderboltOutlined} from "@ant-design/icons"
-import {useMemo, useState} from "react"
+import {useEffect, useMemo, useRef, useState} from "react"
 import dayjs from "dayjs"
 import PageHeading from "../components/PageHeading.tsx"
 import {
@@ -57,6 +57,8 @@ const todayFilters = (): GetAdminOrdersParams => ({
 })
 
 const deliveryStatusValues: OrderDeliveryStatus[] = ["pending", "preparing", "ready", "delivering", "delivered", "cancelled"]
+const LIVE_ALERT_POLLING_INTERVAL_MS = 30_000
+const LIVE_ALERT_STORAGE_KEY = "kokoro.orders.liveAlertsEnabled"
 
 const paymentStatusOptions: Array<{label: string; value: OrderPaymentStatus}> = [
     {label: "pending", value: "pending"},
@@ -138,6 +140,32 @@ const getOrderBadges = (order: AdminOrder) => {
 }
 
 const getHistoryDate = (item: OrderHistoryItem) => item.changedAt || item.createdAt
+
+const canUseBrowserNotifications = () => typeof window !== "undefined" && "Notification" in window
+
+const playLiveAlertSound = () => {
+    const AudioContextConstructor = window.AudioContext || (window as typeof window & {webkitAudioContext?: typeof AudioContext}).webkitAudioContext
+    if (!AudioContextConstructor) return
+
+    const audioContext = new AudioContextConstructor()
+    const oscillator = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+
+    oscillator.type = "sine"
+    oscillator.frequency.setValueAtTime(880, audioContext.currentTime)
+    gain.gain.setValueAtTime(0.001, audioContext.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.08, audioContext.currentTime + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.35)
+    oscillator.connect(gain)
+    gain.connect(audioContext.destination)
+    oscillator.start()
+    oscillator.stop(audioContext.currentTime + 0.35)
+}
+
+const showBrowserOrderNotification = (title: string, body: string) => {
+    if (!canUseBrowserNotifications() || Notification.permission !== "granted") return
+    new Notification(title, {body, tag: "kokoro-live-orders"})
+}
 const getHistoryStatusTitle = (item: OrderHistoryItem, side: "from" | "to") => {
     if (side === "from") return item.fromStatus?.title || item.fromStatusId || "—"
     return item.toStatus?.title || item.toStatusId || "—"
@@ -155,6 +183,10 @@ const OrdersPage = () => {
     const [problemOnly, setProblemOnly] = useState(searchParams.get("problemOnly") === "1")
     const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
     const [actionOrderId, setActionOrderId] = useState<number | null>(null)
+    const [liveAlertsEnabled, setLiveAlertsEnabled] = useState(() => localStorage.getItem(LIVE_ALERT_STORAGE_KEY) !== "0")
+    const lastSummaryRef = useRef<{newOrders: number; problemToday: number} | null>(null)
+    const seenOrderIdsRef = useRef<Set<number>>(new Set())
+    const hasPrimedLiveAlertsRef = useRef(false)
 
     const [isStatusModalOpen, setStatusModalOpen] = useState(false)
     const [isCancelModalOpen, setCancelModalOpen] = useState(false)
@@ -164,8 +196,16 @@ const OrdersPage = () => {
     const [commentForm] = Form.useForm<{message: string; visibleForClient?: boolean}>()
 
     const {data: statuses} = useGetOrderStatusesQuery()
-    const {data: summary} = useGetOrdersSummaryQuery(undefined, {refetchOnMountOrArgChange: true})
-    const {data, isLoading} = useGetOrdersQuery({...filters, problemOnly}, {refetchOnMountOrArgChange: true})
+    const {data: summary} = useGetOrdersSummaryQuery(undefined, {
+        pollingInterval: LIVE_ALERT_POLLING_INTERVAL_MS,
+        refetchOnFocus: true,
+        refetchOnMountOrArgChange: true
+    })
+    const {data, isLoading, isFetching} = useGetOrdersQuery({...filters, problemOnly}, {
+        pollingInterval: LIVE_ALERT_POLLING_INTERVAL_MS,
+        refetchOnFocus: true,
+        refetchOnMountOrArgChange: true
+    })
     const {data: selectedOrder, isFetching: isOrderLoading} = useGetOrderByIdQuery(selectedOrderId ?? 0, {
         skip: !selectedOrderId
     })
@@ -177,7 +217,69 @@ const OrdersPage = () => {
     const [createOrderComment, {isLoading: isCreatingComment}] = useCreateOrderCommentMutation()
     const canUpdateOrders = useCan("orders.update")
     const canDeleteOrders = useCan("orders.delete")
-    const currentItems = data?.items || []
+    const currentItems = useMemo(() => data?.items || [], [data?.items])
+
+    useEffect(() => {
+        localStorage.setItem(LIVE_ALERT_STORAGE_KEY, liveAlertsEnabled ? "1" : "0")
+    }, [liveAlertsEnabled])
+
+    useEffect(() => {
+        if (!summary) return
+
+        const currentSummary = {
+            newOrders: summary.newOrders ?? 0,
+            problemToday: summary.problemToday ?? 0
+        }
+        const previousSummary = lastSummaryRef.current
+        lastSummaryRef.current = currentSummary
+
+        if (!previousSummary) return
+
+        const hasMoreNewOrders = currentSummary.newOrders > previousSummary.newOrders
+        const hasMoreProblemOrders = currentSummary.problemToday > previousSummary.problemToday
+
+        if (!liveAlertsEnabled || (!hasMoreNewOrders && !hasMoreProblemOrders)) return
+
+        const title = hasMoreNewOrders ? "Новый заказ Kokoro" : "Проблемный заказ Kokoro"
+        const body = hasMoreNewOrders
+            ? "Появился новый заказ. Проверьте Today Order Desk."
+            : "Количество проблемных заказов выросло. Проверьте Today Order Desk."
+
+        playLiveAlertSound()
+        showBrowserOrderNotification(title, body)
+        message.info(body)
+    }, [liveAlertsEnabled, summary])
+
+    useEffect(() => {
+        if (!currentItems.length) return
+
+        const currentIds = new Set(currentItems.map((order) => order.id))
+        const previousIds = seenOrderIdsRef.current
+
+        if (!hasPrimedLiveAlertsRef.current) {
+            seenOrderIdsRef.current = currentIds
+            hasPrimedLiveAlertsRef.current = true
+            return
+        }
+
+        const newPendingOrder = currentItems.find((order) => !previousIds.has(order.id) && order.deliveryStatus === "pending")
+        seenOrderIdsRef.current = currentIds
+
+        if (!liveAlertsEnabled || !newPendingOrder) return
+
+        const orderLabel = newPendingOrder.orderNumber || `#${newPendingOrder.id}`
+        const body = `Новый заказ ${orderLabel}. Клиентские данные скрыты.`
+        playLiveAlertSound()
+        showBrowserOrderNotification("Новый заказ Kokoro", body)
+        message.info(body)
+    }, [currentItems, liveAlertsEnabled])
+
+    const handleLiveAlertsChange = async (enabled: boolean) => {
+        if (enabled && canUseBrowserNotifications() && Notification.permission === "default") {
+            await Notification.requestPermission()
+        }
+        setLiveAlertsEnabled(enabled)
+    }
 
     const findStatusByIntent = (intent: StatusIntent) => {
         const keywords = statusIntentKeywords[intent]
@@ -311,8 +413,7 @@ const OrdersPage = () => {
         }
     }
 
-    const orderColumns: ColumnsType<AdminOrder> = useMemo(
-        () => [
+    const orderColumns: ColumnsType<AdminOrder> = [
             {
                 title: "Заказ",
                 key: "orderNumber",
@@ -408,9 +509,7 @@ const OrdersPage = () => {
                     </Space>
                 )
             }
-        ],
-        [canDeleteOrders, canUpdateOrders]
-    )
+    ]
 
     const itemColumns: ColumnsType<OrderItem> = [
         {title: "ID", dataIndex: "id", width: 70},
@@ -434,6 +533,19 @@ const OrdersPage = () => {
                     <Badge status="processing" text="Сегодня по умолчанию" />
                     <Badge status={(summary?.problemToday ?? 0) > 0 ? "error" : "success"} text={`${summary?.problemToday ?? 0} проблемных`} />
                     <Badge status="warning" text="SLA: новые 10+ мин подсвечиваются" />
+                    <Badge status={isFetching ? "processing" : "success"} text="Live refresh: 30 сек" />
+                </Space>
+            </Card>
+
+            <Card className="filter-card">
+                <Space wrap align="center">
+                    <Badge status={liveAlertsEnabled ? "processing" : "default"} text="Live Ops Alert" />
+                    <Checkbox checked={liveAlertsEnabled} onChange={(event) => handleLiveAlertsChange(event.target.checked)}>
+                        Звук и desktop-уведомления включены
+                    </Checkbox>
+                    <Typography.Text type="secondary">
+                        Заказы и summary обновляются автоматически каждые 30 секунд. Уведомления не содержат ФИО или телефон клиента.
+                    </Typography.Text>
                 </Space>
             </Card>
 
