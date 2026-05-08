@@ -4,6 +4,7 @@ import ProductTableImagesColumn from "./ProductTableImagesColumn.tsx"
 import {Button, Space} from "antd"
 import ProductTableSizesColumn from "./ProductTableSizesColumn.tsx"
 import ProductTableStatusColumn from "./ProductTableStatusColumn.tsx"
+import ProductTableAvailabilityColumn from "./ProductTableAvailabilityColumn.tsx"
 import {EditOutlined} from "@ant-design/icons"
 import {Link} from "react-router-dom"
 import ProductTableDeleteAction from "./ProductTableDeleteAction.tsx"
@@ -74,6 +75,11 @@ export const useProductColumns = (): ColumnsType<ProductType> => {
         dataIndex: ["status"],
         key: "status",
         render: (value: ProductType["status"]) => <ProductTableStatusColumn status={value} />
+    },
+    {
+        title: "Доступность",
+        key: "availability",
+        render: (_, record) => <ProductTableAvailabilityColumn product={record} />
     },
     {
         title: "Коллекции",
