@@ -74,6 +74,13 @@ export interface OrderItem {
     size: OrderItemSize | null
 }
 
+export interface OrderSlaSnapshot {
+    lastStatusChangedAt?: string
+    ageMinutes: number
+    thresholdMinutes: number | null
+    state: "new" | "waiting" | "stuck" | null
+}
+
 export interface AdminOrder {
     id: number
     total: number
@@ -110,6 +117,7 @@ export interface AdminOrder {
     cancelReason?: string | null
     histories?: OrderHistoryItem[]
     comments?: OrderCommentItem[]
+    sla?: OrderSlaSnapshot
 }
 
 export interface AdminOrdersResponse {
@@ -179,6 +187,7 @@ export interface GetAdminOrdersParams {
     paymentStatus?: OrderPaymentStatus
     deliveryStatus?: OrderDeliveryStatus
     problemOnly?: boolean
+    attentionOnly?: boolean
     from?: string
     to?: string
     page?: number

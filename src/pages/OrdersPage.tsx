@@ -41,7 +41,8 @@ import type {
     OrderDeliveryStatus,
     OrderHistoryItem,
     OrderItem,
-    OrderPaymentStatus
+    OrderPaymentStatus,
+    OrderSlaSnapshot
 } from "../features/orders/OrderTypes.ts"
 import {getNestErrorMessage} from "../utils/getNestErrorMessage.ts"
 import {useGetOrderStatusesQuery} from "../features/order-status/orderStatusApi.ts"
@@ -59,6 +60,13 @@ const todayFilters = (): GetAdminOrdersParams => ({
 const deliveryStatusValues: OrderDeliveryStatus[] = ["pending", "preparing", "ready", "delivering", "delivered", "cancelled"]
 const LIVE_ALERT_POLLING_INTERVAL_MS = 30_000
 const LIVE_ALERT_STORAGE_KEY = "kokoro.orders.liveAlertsEnabled"
+
+const slaThresholdMinutes: Partial<Record<OrderDeliveryStatus, number>> = {
+    pending: 15,
+    preparing: 30,
+    ready: 60,
+    delivering: 60
+}
 
 const paymentStatusOptions: Array<{label: string; value: OrderPaymentStatus}> = [
     {label: "pending", value: "pending"},
@@ -123,14 +131,30 @@ const getNextActionLabel = (order: AdminOrder) => {
     return "Проверить"
 }
 
+const getFallbackSlaSnapshot = (order: AdminOrder): OrderSlaSnapshot => {
+    const thresholdMinutes = order.deliveryStatus ? slaThresholdMinutes[order.deliveryStatus] ?? null : null
+    const lastStatusChangedAt = order.updatedAt || order.createdAt
+    const ageMinutes = getOrderAgeMinutes(lastStatusChangedAt)
+
+    if (!thresholdMinutes) return {lastStatusChangedAt, ageMinutes, thresholdMinutes, state: null}
+    if (ageMinutes >= thresholdMinutes * 2) return {lastStatusChangedAt, ageMinutes, thresholdMinutes, state: "stuck"}
+    if (ageMinutes >= thresholdMinutes) return {lastStatusChangedAt, ageMinutes, thresholdMinutes, state: "waiting"}
+    return {lastStatusChangedAt, ageMinutes, thresholdMinutes, state: "new"}
+}
+
+const getOrderSlaSnapshot = (order: AdminOrder) => order.sla || getFallbackSlaSnapshot(order)
+
 const getOrderBadges = (order: AdminOrder) => {
     const badges: Array<{label: string; color: string}> = []
     const age = getOrderAgeMinutes(order.createdAt)
+    const sla = getOrderSlaSnapshot(order)
 
     if (order.deliveryStatus === "pending") badges.push({label: "Новый", color: "orange"})
     if (order.paymentStatus === "paid") badges.push({label: "Оплачен", color: "green"})
     if (order.paymentStatus === "pending") badges.push({label: "Ждёт оплату", color: "gold"})
     if (order.deliveryStatus === "pending" && age >= 10) badges.push({label: "Ждёт 10+ мин", color: "red"})
+    if (sla.state === "waiting") badges.push({label: `SLA ждёт ${sla.ageMinutes} мин`, color: "red"})
+    if (sla.state === "stuck") badges.push({label: `Завис ${sla.ageMinutes} мин`, color: "volcano"})
     if (order.deliveryStatus === "ready") badges.push({label: "Готов", color: "cyan"})
     if (order.deliveryStatus === "cancelled" && order.paymentStatus === "paid") {
         badges.push({label: "Paid + Cancelled", color: "volcano"})
@@ -181,6 +205,7 @@ const OrdersPage = () => {
             : undefined
     }))
     const [problemOnly, setProblemOnly] = useState(searchParams.get("problemOnly") === "1")
+    const [attentionOnly, setAttentionOnly] = useState(searchParams.get("attentionOnly") === "1")
     const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
     const [actionOrderId, setActionOrderId] = useState<number | null>(null)
     const [liveAlertsEnabled, setLiveAlertsEnabled] = useState(() => localStorage.getItem(LIVE_ALERT_STORAGE_KEY) !== "0")
@@ -201,7 +226,7 @@ const OrdersPage = () => {
         refetchOnFocus: true,
         refetchOnMountOrArgChange: true
     })
-    const {data, isLoading, isFetching} = useGetOrdersQuery({...filters, problemOnly}, {
+    const {data, isLoading, isFetching} = useGetOrdersQuery({...filters, problemOnly, attentionOnly}, {
         pollingInterval: LIVE_ALERT_POLLING_INTERVAL_MS,
         refetchOnFocus: true,
         refetchOnMountOrArgChange: true
@@ -343,14 +368,17 @@ const OrdersPage = () => {
 
     const setTodayFilters = () => {
         setProblemOnly(false)
+        setAttentionOnly(false)
         setFilters(todayFilters())
     }
     const setAllFilters = () => {
         setProblemOnly(false)
+        setAttentionOnly(false)
         setFilters({page: 1, pageSize: 20})
     }
     const setDeliveryFilter = (deliveryStatus?: OrderDeliveryStatus) => {
         setProblemOnly(false)
+        setAttentionOnly(false)
         setFilters((prev) => ({...prev, deliveryStatus, page: 1}))
     }
 
@@ -426,14 +454,19 @@ const OrdersPage = () => {
                 )
             },
             {
-                title: "Возраст",
-                key: "age",
-                width: 120,
-                render: (_, order) => (
-                    <Tag color={getOrderAgeMinutes(order.createdAt) >= 10 && order.deliveryStatus === "pending" ? "red" : "default"}>
-                        {formatOrderAge(order.createdAt)}
-                    </Tag>
-                )
+                title: "SLA",
+                key: "sla",
+                width: 145,
+                render: (_, order) => {
+                    const sla = getOrderSlaSnapshot(order)
+                    const color = sla.state === "stuck" ? "volcano" : sla.state === "waiting" ? "red" : "default"
+                    const label = sla.thresholdMinutes ? `${sla.ageMinutes}/${sla.thresholdMinutes} мин` : formatOrderAge(order.createdAt)
+                    return (
+                        <Tooltip title={sla.lastStatusChangedAt ? `С последнего статуса: ${dayjs(sla.lastStatusChangedAt).format("DD.MM.YYYY HH:mm")}` : "С момента создания"}>
+                            <Tag color={color}>{label}</Tag>
+                        </Tooltip>
+                    )
+                }
             },
             {
                 title: "Клиент",
@@ -580,9 +613,15 @@ const OrdersPage = () => {
                         <Button onClick={() => setDeliveryFilter("delivered")}>Завершённые</Button>
                         <Button danger onClick={() => setDeliveryFilter("cancelled")}>Отменённые</Button>
                         <Button danger={problemOnly} type={problemOnly ? "primary" : "default"} onClick={() => {
+                            setAttentionOnly(false)
                             setProblemOnly((prev) => !prev)
                             setFilters((prev) => ({...prev, page: 1}))
                         }}>Проблемные</Button>
+                        <Button danger={attentionOnly} type={attentionOnly ? "primary" : "default"} onClick={() => {
+                            setProblemOnly(false)
+                            setAttentionOnly((prev) => !prev)
+                            setFilters((prev) => ({...prev, page: 1}))
+                        }}>Требуют внимания</Button>
                         <Button onClick={setAllFilters}>Все</Button>
                     </Space>
                     <Space wrap>
