@@ -25,6 +25,7 @@ import {clientApi} from "./clients/clientApi.ts"
 import {promoApi} from "./promo/promoApi.ts"
 import {orderStatusApi} from "./order-status/orderStatusApi.ts"
 import {orderNotificationApi} from "./order-notifications/orderNotificationApi.ts"
+import {searchZeroResultApi} from "./search-zero-results/searchZeroResultApi.ts"
 
 const persistConfig = {
     key: "root",
@@ -55,6 +56,7 @@ const persistedCombineReducers = persistCombineReducers(persistConfig, {
     [promoApi.reducerPath]: promoApi.reducer,
     [orderStatusApi.reducerPath]: orderStatusApi.reducer,
     [orderNotificationApi.reducerPath]: orderNotificationApi.reducer,
+    [searchZeroResultApi.reducerPath]: searchZeroResultApi.reducer,
 })
 
 export const store = configureStore({
@@ -83,6 +85,7 @@ export const store = configureStore({
             .concat(promoApi.middleware)
             .concat(orderStatusApi.middleware)
             .concat(orderNotificationApi.middleware)
+            .concat(searchZeroResultApi.middleware)
 })
 
 export const persistor = persistStore(store)

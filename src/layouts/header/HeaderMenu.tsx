@@ -1,6 +1,7 @@
 import {Segmented} from "antd"
 import {
     HomeOutlined,
+    SearchOutlined,
     ShoppingOutlined,
     SkinOutlined,
     TeamOutlined
@@ -86,6 +87,7 @@ const HeaderMenu = () => {
             {label: "Главная", value: "/", icon: <HomeOutlined />, permission: "dashboard.read"},
             {label: "Заказы", value: "/orders", icon: <ShoppingOutlined />, permission: "orders.read"},
             {label: "Одежда", value: "/products", icon: <SkinOutlined />, permission: "catalog.read"},
+            {label: "Поиск", value: "/search-zero-results", icon: <SearchOutlined />, permission: "catalog.read"},
             {label: "Клиенты", value: "/clients", icon: <TeamOutlined />, permission: "clients.read"}
         ]
 

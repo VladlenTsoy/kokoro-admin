@@ -14,6 +14,7 @@ export const HomePage = lazy(() => import("../pages/HomePage.tsx"))
 export const OrdersPage = lazy(() => import("../pages/OrdersPage.tsx"))
 export const ProductsPage = lazy(() => import("../pages/ProductsPage.tsx"))
 export const ClientsPage = lazy(() => import("../pages/ClientsPage.tsx"))
+export const SearchZeroResultsPage = lazy(() => import("../pages/SearchZeroResultsPage.tsx"))
 export const NotFound = lazy(() => import("../pages/NotFoundPage.tsx"))
 export const ColorPage = lazy(() => import("../pages/settings/ColorPage.tsx"))
 export const ProductVariantStatusPage = lazy(() => import("../pages/settings/ProductVariantStatusPage.tsx"))
@@ -81,6 +82,9 @@ export const AppRouter = () => {
                             </Route>
                             <Route element={<PermissionGuard permission="clients.read" />}>
                                 <Route path="clients" element={<ClientsPage />} />
+                            </Route>
+                            <Route element={<PermissionGuard permission="catalog.read" />}>
+                                <Route path="search-zero-results" element={<SearchZeroResultsPage />} />
                             </Route>
                             <Route path="/settings" element={<SettingsLayout />}>
                                 <Route index element={<SettingsIndexRedirect />} />
