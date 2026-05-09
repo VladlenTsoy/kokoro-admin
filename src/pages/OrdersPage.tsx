@@ -1,4 +1,5 @@
 import {
+    Alert,
     Badge,
     Button,
     Card,
@@ -9,6 +10,7 @@ import {
     Drawer,
     Form,
     Input,
+    InputNumber,
     Modal,
     Row,
     Select,
@@ -33,6 +35,7 @@ import {
     useGetOrderHistoryQuery,
     useGetOrdersQuery,
     useGetOrdersSummaryQuery,
+    useUpdateOrderMutation,
     useUpdateOrderStatusMutation
 } from "../features/orders/orderApi.ts"
 import type {
@@ -46,6 +49,8 @@ import type {
 } from "../features/orders/OrderTypes.ts"
 import {getNestErrorMessage} from "../utils/getNestErrorMessage.ts"
 import {useGetOrderStatusesQuery} from "../features/order-status/orderStatusApi.ts"
+import {useGetSourcesQuery} from "../features/source/sourceApi.ts"
+import {useGetEmployeesQuery} from "../features/admin/employeeApi.ts"
 import {formatMoney} from "../utils/formatters.ts"
 import {useCan} from "../features/auth/permissions.ts"
 import {useSearchParams} from "react-router-dom"
@@ -101,6 +106,12 @@ const deliveryStatusColor: Record<OrderDeliveryStatus, string> = {
 }
 
 type StatusIntent = "accept" | "ready" | "delivered" | "cancelled"
+
+type OrderEditFormValues = {
+    sourceId?: number | null
+    assignedEmployeeId?: number | null
+    deliveryPrice?: number
+}
 
 const statusIntentKeywords: Record<StatusIntent, string[]> = {
     accept: ["accept", "confirm", "прин", "подтверж", "сбор", "prepar"],
@@ -216,11 +227,15 @@ const OrdersPage = () => {
     const [isStatusModalOpen, setStatusModalOpen] = useState(false)
     const [isCancelModalOpen, setCancelModalOpen] = useState(false)
     const [isCommentModalOpen, setCommentModalOpen] = useState(false)
+    const [isEditModalOpen, setEditModalOpen] = useState(false)
     const [statusForm] = Form.useForm<{statusId: number; comment?: string; visibleForClient?: boolean}>()
     const [cancelForm] = Form.useForm<{reason?: string}>()
     const [commentForm] = Form.useForm<{message: string; visibleForClient?: boolean}>()
+    const [editForm] = Form.useForm<OrderEditFormValues>()
 
     const {data: statuses} = useGetOrderStatusesQuery()
+    const {data: sources} = useGetSourcesQuery()
+    const {data: employees} = useGetEmployeesQuery()
     const {data: summary} = useGetOrdersSummaryQuery(undefined, {
         pollingInterval: LIVE_ALERT_POLLING_INTERVAL_MS,
         refetchOnFocus: true,
@@ -237,12 +252,20 @@ const OrdersPage = () => {
     const {data: orderHistory} = useGetOrderHistoryQuery(selectedOrderId ?? 0, {
         skip: !selectedOrderId
     })
+    const [updateOrder, {isLoading: isUpdatingOrder}] = useUpdateOrderMutation()
     const [updateOrderStatus, {isLoading: isUpdatingStatus}] = useUpdateOrderStatusMutation()
     const [cancelOrder, {isLoading: isCancelling}] = useCancelOrderMutation()
     const [createOrderComment, {isLoading: isCreatingComment}] = useCreateOrderCommentMutation()
     const canUpdateOrders = useCan("orders.update")
     const canDeleteOrders = useCan("orders.delete")
+    const currentActionOrderId = actionOrderId ?? selectedOrderId
     const currentItems = useMemo(() => data?.items || [], [data?.items])
+    const editingOrder = useMemo(
+        () => selectedOrder?.id === currentActionOrderId
+            ? selectedOrder
+            : currentItems.find((order) => order.id === currentActionOrderId),
+        [currentActionOrderId, currentItems, selectedOrder]
+    )
 
     useEffect(() => {
         localStorage.setItem(LIVE_ALERT_STORAGE_KEY, liveAlertsEnabled ? "1" : "0")
@@ -314,12 +337,21 @@ const OrdersPage = () => {
     }
 
     const openOrder = (id: number) => setSelectedOrderId(id)
-    const currentActionOrderId = actionOrderId ?? selectedOrderId
     const selectedPhone = selectedOrder?.client?.phone || selectedOrder?.phone
 
     const openStatusModal = (id: number) => {
         setActionOrderId(id)
         setStatusModalOpen(true)
+    }
+
+    const openEditModal = (order: AdminOrder) => {
+        setActionOrderId(order.id)
+        editForm.setFieldsValue({
+            sourceId: order.source?.id ?? null,
+            assignedEmployeeId: order.assignedEmployee?.id ?? null,
+            deliveryPrice: order.deliveryPrice ?? 0
+        })
+        setEditModalOpen(true)
     }
 
     const openCancelModal = (id: number) => {
@@ -366,6 +398,12 @@ const OrdersPage = () => {
         commentForm.resetFields()
     }
 
+    const closeEditModal = () => {
+        setEditModalOpen(false)
+        setActionOrderId(null)
+        editForm.resetFields()
+    }
+
     const setTodayFilters = () => {
         setProblemOnly(false)
         setAttentionOnly(false)
@@ -389,6 +427,25 @@ const OrdersPage = () => {
             message.success("Телефон скопирован")
         } catch {
             message.error("Не удалось скопировать телефон")
+        }
+    }
+
+    const handleEditSubmit = async () => {
+        if (!currentActionOrderId) return
+        try {
+            const values = await editForm.validateFields()
+            await updateOrder({
+                id: currentActionOrderId,
+                body: {
+                    sourceId: values.sourceId ?? null,
+                    assignedEmployeeId: values.assignedEmployeeId ?? null,
+                    deliveryPrice: Number(values.deliveryPrice || 0)
+                }
+            }).unwrap()
+            message.success("Данные заказа обновлены")
+            closeEditModal()
+        } catch (error) {
+            message.error(getNestErrorMessage(error))
         }
     }
 
@@ -537,6 +594,7 @@ const OrdersPage = () => {
                     <Space>
                         <Button onClick={() => openOrder(order.id)}>Открыть</Button>
                         {canUpdateOrders && <Button type="primary" onClick={() => openNextActionModal(order)}>{getNextActionLabel(order)}</Button>}
+                        {canUpdateOrders && <Button onClick={() => openEditModal(order)}>Правки</Button>}
                         {canUpdateOrders && <Button onClick={() => openStatusModal(order.id)}>Статус</Button>}
                         {canDeleteOrders && <Button danger onClick={() => openCancelModal(order.id)}>Отмена</Button>}
                     </Space>
@@ -691,7 +749,12 @@ const OrdersPage = () => {
                 open={Boolean(selectedOrderId)}
                 onClose={() => setSelectedOrderId(null)}
                 width={1100}
-                extra={selectedOrder && canUpdateOrders ? <Button type="primary" onClick={() => openNextActionModal(selectedOrder)}>{getNextActionLabel(selectedOrder)}</Button> : null}
+                extra={selectedOrder && canUpdateOrders ? (
+                    <Space>
+                        <Button onClick={() => openEditModal(selectedOrder)}>Правки</Button>
+                        <Button type="primary" onClick={() => openNextActionModal(selectedOrder)}>{getNextActionLabel(selectedOrder)}</Button>
+                    </Space>
+                ) : null}
             >
                 {isOrderLoading && <Typography.Text type="secondary">Загрузка...</Typography.Text>}
                 {!isOrderLoading && selectedOrder && (
@@ -765,11 +828,26 @@ const OrdersPage = () => {
                                         <div style={{marginTop: 12}}>
                                             <Space wrap>
                                                 {canUpdateOrders && <Button type="primary" onClick={() => openNextActionModal(selectedOrder)}>{getNextActionLabel(selectedOrder)}</Button>}
+                                                {canUpdateOrders && <Button onClick={() => openEditModal(selectedOrder)}>Операционные правки</Button>}
                                                 {canUpdateOrders && <Button onClick={() => openStatusModal(selectedOrder.id)}>Другой статус</Button>}
                                                 {selectedPhone && <Tooltip title="Скопировать телефон"><Button onClick={() => copyPhone(selectedPhone)}>Телефон</Button></Tooltip>}
                                                 {canDeleteOrders && <Button danger onClick={() => openCancelModal(selectedOrder.id)}>Отменить</Button>}
                                             </Space>
                                         </div>
+                                    </Card>
+
+                                    <Card title="CRM/клиентские операции">
+                                        <Alert
+                                            type="info"
+                                            showIcon
+                                            message="CRM-действия пока недоступны из карточки заказа"
+                                            description="В API карточки заказа нет безопасных операций для слияния дублей, редактирования адресной книги или истории клиента. Кнопки ниже оставлены как явные placeholders, чтобы не имитировать несуществующее поведение."
+                                        />
+                                        <Space wrap style={{marginTop: 12}}>
+                                            <Button disabled>Объединить дубль клиента</Button>
+                                            <Button disabled>Редактировать адрес клиента</Button>
+                                            <Button disabled>Открыть историю клиента</Button>
+                                        </Space>
                                     </Card>
 
                                     <Descriptions title="Клиент и доставка" bordered size="small" column={1}>
@@ -804,6 +882,65 @@ const OrdersPage = () => {
                     </Space>
                 )}
             </Drawer>
+
+
+            <Modal
+                title="Операционные правки заказа"
+                open={isEditModalOpen}
+                onCancel={closeEditModal}
+                onOk={handleEditSubmit}
+                confirmLoading={isUpdatingOrder}
+                okText="Сохранить"
+            >
+                <Space orientation="vertical" size={12} style={{width: "100%"}}>
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Только безопасные поля"
+                        description="Статус, отмена и комментарии остаются в отдельных действиях, чтобы не смешивать workflow с менеджерскими корректировками."
+                    />
+                    <Form form={editForm} layout="vertical">
+                        <Form.Item label="Способ оплаты">
+                            <Select
+                                disabled
+                                placeholder="Нет API списка способов оплаты"
+                                value={editingOrder?.paymentMethod?.id}
+                                options={editingOrder?.paymentMethod ? [{label: editingOrder.paymentMethod.title, value: editingOrder.paymentMethod.id}] : []}
+                            />
+                            <Typography.Text type="secondary">Изменение способа оплаты появится после API справочника payment methods.</Typography.Text>
+                        </Form.Item>
+                        <Form.Item label="Тип доставки">
+                            <Select
+                                disabled
+                                placeholder="Нет API списка типов доставки"
+                                value={editingOrder?.deliveryType?.id}
+                                options={editingOrder?.deliveryType ? [{label: editingOrder.deliveryType.title, value: editingOrder.deliveryType.id}] : []}
+                            />
+                            <Typography.Text type="secondary">Тип доставки не меняем без справочника delivery types, чтобы не отправить неверный id.</Typography.Text>
+                        </Form.Item>
+                        <Form.Item name="deliveryPrice" label="Стоимость доставки">
+                            <InputNumber min={0} precision={0} style={{width: "100%"}} addonAfter="UZS" />
+                        </Form.Item>
+                        <Form.Item name="sourceId" label="Источник">
+                            <Select
+                                allowClear
+                                placeholder="Выберите источник"
+                                options={sources?.map((source) => ({label: source.title, value: source.id}))}
+                            />
+                        </Form.Item>
+                        <Form.Item name="assignedEmployeeId" label="Ответственный сотрудник">
+                            <Select
+                                allowClear
+                                placeholder="Назначить сотрудника"
+                                options={employees?.filter((employee) => employee.isActive).map((employee) => ({
+                                    label: `${employee.firstName} ${employee.lastName}`,
+                                    value: employee.id
+                                }))}
+                            />
+                        </Form.Item>
+                    </Form>
+                </Space>
+            </Modal>
 
             <Modal
                 title="Смена статуса"
