@@ -68,6 +68,11 @@ const BASE_SETTINGS_GROUPS: SettingsMenuGroup[] = [
         ]
     },
     {
+        key: "growth",
+        label: "Рост",
+        children: [{key: "integrations", label: "Интеграции", permission: "integrations.read"}]
+    },
+    {
         key: "admin",
         label: "Администрирование",
         children: [

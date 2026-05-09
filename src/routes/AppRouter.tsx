@@ -33,6 +33,7 @@ export const OrderStatusesPage = lazy(() => import("../pages/settings/OrderStatu
 export const OrderNotificationsPage = lazy(() => import("../pages/settings/OrderNotificationsPage.tsx"))
 export const PaymentsPage = lazy(() => import("../pages/settings/PaymentsPage.tsx"))
 export const SettingsOverviewPage = lazy(() => import("../pages/settings/SettingsOverviewPage.tsx"))
+export const IntegrationsPage = lazy(() => import("../pages/settings/IntegrationsPage.tsx"))
 export const EmployeesPage = lazy(() => import("../pages/admin/EmployeesPage.tsx"))
 export const RolesPage = lazy(() => import("../pages/admin/RolesPage.tsx"))
 export const ForbiddenPage = lazy(() => import("../pages/errors/ForbiddenPage.tsx"))
@@ -42,7 +43,8 @@ const SETTINGS_INDEX_ITEMS: Array<{to: string; permission: PermissionCode}> = [
     {to: "product-categories", permission: "catalog.read"},
     {to: "countries", permission: "settings.read"},
     {to: "promo-codes", permission: "marketing.read"},
-    {to: "employees", permission: "staff.read"}
+    {to: "employees", permission: "staff.read"},
+    {to: "integrations", permission: "integrations.read"}
 ]
 
 const SettingsIndexRedirect = () => {
@@ -109,6 +111,9 @@ export const AppRouter = () => {
                                 </Route>
                                 <Route element={<PermissionGuard permission="marketing.read" />}>
                                     <Route path="promo-codes" element={<PromoCodesPage />} />
+                                </Route>
+                                <Route element={<PermissionGuard permission="integrations.read" />}>
+                                    <Route path="integrations" element={<IntegrationsPage />} />
                                 </Route>
                                 <Route element={<PermissionGuard permission="staff.read" />}>
                                     <Route path="employees" element={<EmployeesPage />} />

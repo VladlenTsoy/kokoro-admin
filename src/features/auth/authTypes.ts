@@ -5,6 +5,7 @@ export type PermissionModuleCode =
     | "catalog"
     | "marketing"
     | "settings"
+    | "integrations"
     | "staff"
     | "files"
 
