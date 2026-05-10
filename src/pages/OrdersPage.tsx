@@ -8,6 +8,7 @@ import {
     DatePicker,
     Descriptions,
     Drawer,
+    Empty,
     Form,
     Input,
     InputNumber,
@@ -260,6 +261,10 @@ const OrdersPage = () => {
     const canDeleteOrders = useCan("orders.delete")
     const currentActionOrderId = actionOrderId ?? selectedOrderId
     const currentItems = useMemo(() => data?.items || [], [data?.items])
+    const hasActiveOrderFilters = Boolean(
+        filters.search?.trim() || filters.statusId || filters.paymentStatus || filters.deliveryStatus ||
+        problemOnly || attentionOnly || !filters.from || !filters.to
+    )
     const editingOrder = useMemo(
         () => selectedOrder?.id === currentActionOrderId
             ? selectedOrder
@@ -740,6 +745,19 @@ const OrdersPage = () => {
                         pageSize: data?.pageSize || filters.pageSize || 20,
                         total: data?.total || 0,
                         onChange: (page, pageSize) => setFilters((prev) => ({...prev, page, pageSize}))
+                    }}
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description={hasActiveOrderFilters ? "Заказы по текущим фильтрам не найдены" : "Заказов за сегодня пока нет"}
+                            >
+                                <Space wrap>
+                                    <Button type="primary" onClick={setTodayFilters}>Вернуться к сегодня</Button>
+                                    {hasActiveOrderFilters && <Button onClick={setAllFilters}>Показать все заказы</Button>}
+                                </Space>
+                            </Empty>
+                        )
                     }}
                 />
             </Card>
