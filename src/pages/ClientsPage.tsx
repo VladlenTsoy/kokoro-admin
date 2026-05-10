@@ -19,6 +19,27 @@ import {formatMoney} from "../utils/formatters.ts"
 import {useCan} from "../features/auth/permissions.ts"
 import dayjs from "dayjs"
 
+const paymentStatusLabels: Record<string, {label: string; color: string}> = {
+    pending: {label: "Ждёт оплату", color: "gold"},
+    paid: {label: "Оплачен", color: "green"},
+    failed: {label: "Ошибка оплаты", color: "red"},
+    refunded: {label: "Возврат", color: "purple"}
+}
+
+const deliveryStatusLabels: Record<string, {label: string; color: string}> = {
+    pending: {label: "Новый", color: "orange"},
+    preparing: {label: "Сборка", color: "blue"},
+    ready: {label: "Готов к выдаче", color: "cyan"},
+    delivering: {label: "В доставке", color: "geekblue"},
+    delivered: {label: "Доставлен", color: "green"},
+    cancelled: {label: "Отменён", color: "red"}
+}
+
+const getStatusView = (value: string | undefined, labels: Record<string, {label: string; color: string}>) => {
+    if (!value) return null
+    return labels[value] || {label: value, color: "default"}
+}
+
 const ClientsPage = () => {
     const [filters, setFilters] = useState<{search?: string; page: number; pageSize: number}>({
         search: "",
@@ -99,13 +120,18 @@ const ClientsPage = () => {
         {title: "Заказ", key: "order", render: (_, order) => order.orderNumber || `#${order.id}`},
         {title: "Дата", dataIndex: "createdAt", width: 120, render: (value?: string) => (value ? dayjs(value).format("DD.MM") : "—")},
         {title: "Сумма", dataIndex: "total", width: 120, render: (value?: number) => formatMoney(value || 0)},
-        {title: "Статус", key: "status", width: 180, render: (_, order) => (
-            <Space wrap size={[4, 4]}>
-                {order.status?.title && <Tag color="blue">{order.status.title}</Tag>}
-                {order.paymentStatus && <Tag>{order.paymentStatus}</Tag>}
-                {order.deliveryStatus && <Tag>{order.deliveryStatus}</Tag>}
-            </Space>
-        )}
+        {title: "Статусы заказа", key: "status", width: 220, render: (_, order) => {
+            const paymentStatus = getStatusView(order.paymentStatus, paymentStatusLabels)
+            const deliveryStatus = getStatusView(order.deliveryStatus, deliveryStatusLabels)
+
+            return (
+                <Space wrap size={[4, 4]}>
+                    {order.status?.title && <Tag color="blue">{order.status.title}</Tag>}
+                    {paymentStatus && <Tag color={paymentStatus.color}>{paymentStatus.label}</Tag>}
+                    {deliveryStatus && <Tag color={deliveryStatus.color}>{deliveryStatus.label}</Tag>}
+                </Space>
+            )
+        }}
     ]
 
     const bonusColumns: ColumnsType<AdminClientBonusTransaction> = [
