@@ -64,6 +64,7 @@ const todayFilters = (): GetAdminOrdersParams => ({
 
 const deliveryStatusValues: OrderDeliveryStatus[] = ["pending", "preparing", "ready", "delivering", "delivered", "cancelled"]
 const LIVE_ALERT_POLLING_INTERVAL_MS = 30_000
+const STALE_REFRESH_WARNING_MS = LIVE_ALERT_POLLING_INTERVAL_MS * 3
 const LIVE_ALERT_STORAGE_KEY = "kokoro.orders.liveAlertsEnabled"
 
 const slaThresholdMinutes: Partial<Record<OrderDeliveryStatus, number>> = {
@@ -221,6 +222,7 @@ const OrdersPage = () => {
     const [actionOrderId, setActionOrderId] = useState<number | null>(null)
     const [liveAlertsEnabled, setLiveAlertsEnabled] = useState(() => localStorage.getItem(LIVE_ALERT_STORAGE_KEY) !== "0")
     const [lastSuccessfulRefreshAt, setLastSuccessfulRefreshAt] = useState<string | null>(null)
+    const [refreshClock, setRefreshClock] = useState(() => dayjs())
     const lastSummaryRef = useRef<{newOrders: number; problemToday: number} | null>(null)
     const seenOrderIdsRef = useRef<Set<number>>(new Set())
     const hasPrimedLiveAlertsRef = useRef(false)
@@ -273,10 +275,18 @@ const OrdersPage = () => {
     }, [liveAlertsEnabled])
 
     useEffect(() => {
+        const timer = window.setInterval(() => setRefreshClock(dayjs()), 15_000)
+        return () => window.clearInterval(timer)
+    }, [])
+
+    useEffect(() => {
         if (!isFetching && (data || summary)) {
             setLastSuccessfulRefreshAt(dayjs().toISOString())
         }
     }, [data, isFetching, summary])
+
+    const lastRefreshAgeSeconds = lastSuccessfulRefreshAt ? refreshClock.diff(dayjs(lastSuccessfulRefreshAt), "second") : null
+    const isRefreshStale = lastRefreshAgeSeconds !== null && lastRefreshAgeSeconds * 1000 > STALE_REFRESH_WARNING_MS
 
     useEffect(() => {
         if (!summary) return
@@ -640,17 +650,27 @@ const OrdersPage = () => {
             </Card>
 
             <Card className="filter-card">
-                <Space wrap align="center">
-                    <Badge status={liveAlertsEnabled ? "processing" : "default"} text="Live Ops Alert" />
-                    <Checkbox checked={liveAlertsEnabled} onChange={(event) => handleLiveAlertsChange(event.target.checked)}>
-                        Звук и desktop-уведомления включены
-                    </Checkbox>
-                    <Typography.Text type="secondary">
-                        Заказы и summary обновляются автоматически каждые 30 секунд. Последнее успешное обновление: {lastSuccessfulRefreshAt ? dayjs(lastSuccessfulRefreshAt).format("DD.MM HH:mm:ss") : "ещё не было"}.
-                    </Typography.Text>
-                    <Typography.Text type="secondary">
-                        Уведомления не содержат ФИО или телефон клиента.
-                    </Typography.Text>
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
+                    <Space wrap align="center">
+                        <Badge status={liveAlertsEnabled ? "processing" : "default"} text="Live Ops Alert" />
+                        <Checkbox checked={liveAlertsEnabled} onChange={(event) => handleLiveAlertsChange(event.target.checked)}>
+                            Звук и desktop-уведомления включены
+                        </Checkbox>
+                        <Typography.Text type="secondary">
+                            Заказы и summary обновляются автоматически каждые 30 секунд. Последнее успешное обновление: {lastSuccessfulRefreshAt ? dayjs(lastSuccessfulRefreshAt).format("DD.MM HH:mm:ss") : "ещё не было"}.
+                        </Typography.Text>
+                        <Typography.Text type="secondary">
+                            Уведомления не содержат ФИО или телефон клиента.
+                        </Typography.Text>
+                    </Space>
+                    {isRefreshStale && (
+                        <Alert
+                            showIcon
+                            type="warning"
+                            message="Данные давно не обновлялись"
+                            description={`Последнее успешное обновление было ${lastRefreshAgeSeconds} сек. назад. Проверьте интернет/API перед тем, как принимать решения по очереди заказов.`}
+                        />
+                    )}
                 </Space>
             </Card>
 
