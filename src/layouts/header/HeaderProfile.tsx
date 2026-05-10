@@ -30,14 +30,22 @@ const HeaderProfile = () => {
         }
     }
 
+    const closePasswordModal = () => {
+        setIsPasswordModalOpen(false)
+        form.resetFields()
+    }
+
     const handleChangePassword = async () => {
         try {
             const values = await form.validateFields()
             await changePassword(values).unwrap()
-            message.success("Пароль успешно изменён")
-            setIsPasswordModalOpen(false)
-            form.resetFields()
+            message.success("Пароль изменён. Используйте новый пароль при следующем входе.")
+            closePasswordModal()
         } catch (error) {
+            if (typeof error === "object" && error !== null && "errorFields" in error) {
+                return
+            }
+
             message.error(getNestErrorMessage(error))
         }
     }
@@ -76,12 +84,17 @@ const HeaderProfile = () => {
             <Modal
                 title="Смена пароля"
                 open={isPasswordModalOpen}
-                onCancel={() => setIsPasswordModalOpen(false)}
+                onCancel={closePasswordModal}
                 onOk={handleChangePassword}
+                okText="Сохранить пароль"
+                cancelText="Отмена"
                 confirmLoading={isChangingPassword}
+                okButtonProps={{disabled: isChangingPassword}}
+                destroyOnHidden
             >
                 <Typography.Paragraph type="secondary">
-                    Пароль должен быть длиной от 8 до 100 символов.
+                    Пароль должен быть длиной от 8 до 100 символов. После сохранения продолжайте работу в текущей
+                    сессии, а при следующем входе используйте новый пароль.
                 </Typography.Paragraph>
                 <Form form={form} layout="vertical">
                     <Form.Item
@@ -89,7 +102,7 @@ const HeaderProfile = () => {
                         name="currentPassword"
                         rules={[{required: true, message: "Введите текущий пароль"}]}
                     >
-                        <Input.Password />
+                        <Input.Password autoComplete="current-password" placeholder="Введите действующий пароль" />
                     </Form.Item>
                     <Form.Item
                         label="Новый пароль"
@@ -100,7 +113,7 @@ const HeaderProfile = () => {
                             {max: 100, message: "Максимум 100 символов"}
                         ]}
                     >
-                        <Input.Password />
+                        <Input.Password autoComplete="new-password" placeholder="8–100 символов" />
                     </Form.Item>
                 </Form>
             </Modal>
