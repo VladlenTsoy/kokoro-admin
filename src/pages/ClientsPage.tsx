@@ -19,6 +19,30 @@ import {formatMoney} from "../utils/formatters.ts"
 import {useCan} from "../features/auth/permissions.ts"
 import dayjs from "dayjs"
 
+const bonusTypeMeta: Record<string, {label: string; color: string}> = {
+    accrual: {label: "Начисление", color: "green"},
+    earned: {label: "Начисление", color: "green"},
+    add: {label: "Начисление", color: "green"},
+    credit: {label: "Начисление", color: "green"},
+    write_off: {label: "Списание", color: "orange"},
+    writeoff: {label: "Списание", color: "orange"},
+    spend: {label: "Списание", color: "orange"},
+    debit: {label: "Списание", color: "orange"},
+    refund: {label: "Возврат", color: "blue"},
+    correction: {label: "Корректировка", color: "purple"}
+}
+
+const getBonusTypeMeta = (type?: string) => {
+    if (!type) return {label: "Без типа", color: "default"}
+    return bonusTypeMeta[type.toLowerCase()] || {label: type, color: "default"}
+}
+
+const formatBonusAmount = (amount?: number) => {
+    const value = Number(amount || 0)
+    if (value > 0) return `+${value}`
+    return String(value)
+}
+
 const ClientsPage = () => {
     const [filters, setFilters] = useState<{search?: string; page: number; pageSize: number}>({
         search: "",
@@ -110,9 +134,26 @@ const ClientsPage = () => {
 
     const bonusColumns: ColumnsType<AdminClientBonusTransaction> = [
         {title: "Дата", dataIndex: "createdAt", width: 130, render: (value?: string) => (value ? dayjs(value).format("DD.MM HH:mm") : "—")},
-        {title: "Тип", dataIndex: "type", width: 120, render: (value?: string) => <Tag>{value || "—"}</Tag>},
-        {title: "Сумма", dataIndex: "amount", width: 120},
-        {title: "Комментарий", dataIndex: "comment", render: (value?: string) => value || "—"}
+        {
+            title: "Операция",
+            dataIndex: "type",
+            width: 150,
+            render: (value?: string) => {
+                const meta = getBonusTypeMeta(value)
+                return <Tag color={meta.color}>{meta.label}</Tag>
+            }
+        },
+        {
+            title: "Бонусы",
+            dataIndex: "amount",
+            width: 120,
+            render: (value?: number) => {
+                const amount = Number(value || 0)
+                return <Typography.Text type={amount < 0 ? "danger" : amount > 0 ? "success" : "secondary"}>{formatBonusAmount(value)}</Typography.Text>
+            }
+        },
+        {title: "Связанный заказ", key: "order", width: 150, render: (_, transaction) => transaction.order?.orderNumber || (transaction.order?.id ? `#${transaction.order.id}` : "—")},
+        {title: "Комментарий", dataIndex: "comment", render: (value?: string) => value || "Нет комментария"}
     ]
 
     const columns: ColumnsType<AdminClient> = [
@@ -278,6 +319,8 @@ const ClientsPage = () => {
                                             dataSource={clientBonusTransactions || []}
                                             pagination={false}
                                             size="small"
+                                            scroll={{x: 640}}
+                                            locale={{emptyText: "Бонусных операций пока нет — если клиент спрашивает баланс, используйте текущий остаток в карточке."}}
                                         />
                                     )
                                 }
