@@ -258,6 +258,14 @@ const OrdersPage = () => {
     const [createOrderComment, {isLoading: isCreatingComment}] = useCreateOrderCommentMutation()
     const canUpdateOrders = useCan("orders.update")
     const canDeleteOrders = useCan("orders.delete")
+    const notificationPermission = canUseBrowserNotifications() ? Notification.permission : null
+    const liveAlertsHint = !canUseBrowserNotifications()
+        ? "Браузер не поддерживает desktop-уведомления; звуковой сигнал останется доступен."
+        : notificationPermission === "denied"
+            ? "Desktop-уведомления запрещены в браузере. Разрешите их в настройках сайта, чтобы получать алерты вне вкладки."
+            : liveAlertsEnabled
+                ? "Алерты активны: новые и проблемные заказы будут сопровождаться звуком и, при разрешении браузера, desktop-уведомлением."
+                : "Алерты выключены для этого браузера. Включите их перед сменой, чтобы не пропустить новые и проблемные заказы."
     const currentActionOrderId = actionOrderId ?? selectedOrderId
     const currentItems = useMemo(() => data?.items || [], [data?.items])
     const editingOrder = useMemo(
@@ -629,13 +637,15 @@ const OrdersPage = () => {
             </Card>
 
             <Card className="filter-card">
-                <Space wrap align="center">
-                    <Badge status={liveAlertsEnabled ? "processing" : "default"} text="Live Ops Alert" />
-                    <Checkbox checked={liveAlertsEnabled} onChange={(event) => handleLiveAlertsChange(event.target.checked)}>
-                        Звук и desktop-уведомления включены
-                    </Checkbox>
-                    <Typography.Text type="secondary">
-                        Заказы и summary обновляются автоматически каждые 30 секунд. Уведомления не содержат ФИО или телефон клиента.
+                <Space orientation="vertical" size={6} style={{width: "100%"}}>
+                    <Space wrap align="center">
+                        <Badge status={liveAlertsEnabled ? "processing" : "default"} text={liveAlertsEnabled ? "Live Ops Alert включён" : "Live Ops Alert выключен"} />
+                        <Checkbox checked={liveAlertsEnabled} onChange={(event) => handleLiveAlertsChange(event.target.checked)}>
+                            {liveAlertsEnabled ? "Звук и desktop-уведомления включены" : "Включить звук и desktop-уведомления"}
+                        </Checkbox>
+                    </Space>
+                    <Typography.Text type={notificationPermission === "denied" ? "danger" : "secondary"}>
+                        {liveAlertsHint} Заказы и summary обновляются автоматически каждые 30 секунд; уведомления не содержат ФИО или телефон клиента.
                     </Typography.Text>
                 </Space>
             </Card>
