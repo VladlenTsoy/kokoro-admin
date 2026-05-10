@@ -1,5 +1,5 @@
 import React, {useState} from "react"
-import {Table, Button, Modal, Form, Input, Space, Popconfirm, Tag} from "antd"
+import {Table, Button, Modal, Form, Input, Space, Popconfirm, Tag, Empty, Typography} from "antd"
 import {
     useGetSizesQuery,
     useCreateSizeMutation,
@@ -33,7 +33,12 @@ const SizePage: React.FC = () => {
 
     const columns = [
         {title: "ID", dataIndex: "id", key: "id", width: 80},
-        {title: "Название", dataIndex: "title", key: "title"},
+        {
+            title: "Название",
+            dataIndex: "title",
+            key: "title",
+            render: (title: string) => <Typography.Text strong>{title}</Typography.Text>
+        },
         {
             title: "Статус",
             dataIndex: "deleted_at",
@@ -56,7 +61,13 @@ const SizePage: React.FC = () => {
                     >
                         Редактировать
                     </Button>
-                    <Popconfirm title="Удалить?" onConfirm={() => deleteSize(record.id)}>
+                    <Popconfirm
+                        title="Удалить размер?"
+                        description="Проверьте, что размер не используется в активных карточках товаров."
+                        okText="Удалить"
+                        cancelText="Отмена"
+                        onConfirm={() => deleteSize(record.id)}
+                    >
                         <Button type="link" danger>
                             Удалить
                         </Button>
@@ -83,6 +94,15 @@ const SizePage: React.FC = () => {
                     loading={isLoading}
                     dataSource={sizes}
                     columns={columns}
+                    scroll={{x: 640}}
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="Размеры ещё не добавлены. Добавьте первый размер, чтобы менеджеры могли корректно собирать варианты товаров."
+                            />
+                        )
+                    }}
                 />
             </SettingsTableSection>
 
@@ -91,6 +111,8 @@ const SizePage: React.FC = () => {
                 title={editingSize ? "Редактировать размер" : "Добавить размер"}
                 onCancel={() => setIsModalOpen(false)}
                 onOk={handleSave}
+                okText={editingSize ? "Сохранить" : "Добавить"}
+                cancelText="Отмена"
             >
                 <Form form={form} layout="vertical">
                     <Form.Item
@@ -98,7 +120,7 @@ const SizePage: React.FC = () => {
                         name="title"
                         rules={[{required: true, message: "Введите название"}]}
                     >
-                        <Input />
+                        <Input placeholder="Например: XS, M или One size" />
                     </Form.Item>
                 </Form>
             </Modal>

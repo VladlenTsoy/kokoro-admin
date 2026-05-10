@@ -1,5 +1,5 @@
 import React, {useState} from "react"
-import {Table, Button, Modal, Form, Input, Space, Popconfirm, Tag} from "antd"
+import {Table, Button, Modal, Form, Input, Space, Popconfirm, Tag, Empty, Typography} from "antd"
 import {
     useGetColorsQuery,
     useCreateColorMutation,
@@ -33,15 +33,31 @@ const ColorPage: React.FC = () => {
 
     const columns = [
         {title: "ID", dataIndex: "id", key: "id", width: 80},
-        {title: "Название", dataIndex: "title", key: "title"},
+        {
+            title: "Название",
+            dataIndex: "title",
+            key: "title",
+            render: (title: string) => <Typography.Text strong>{title}</Typography.Text>
+        },
         {
             title: "Цвет",
             dataIndex: "hex",
             key: "hex",
             render: (hex: string) => (
-                <Tag color={hex} style={{color: "#000"}}>
-                    {hex}
-                </Tag>
+                <Space size={8}>
+                    <span
+                        aria-label={`Цвет ${hex}`}
+                        style={{
+                            display: "inline-block",
+                            width: 20,
+                            height: 20,
+                            borderRadius: 6,
+                            border: "1px solid rgba(0, 0, 0, 0.16)",
+                            background: hex
+                        }}
+                    />
+                    <Typography.Text code copyable>{hex}</Typography.Text>
+                </Space>
             )
         },
         {
@@ -66,7 +82,13 @@ const ColorPage: React.FC = () => {
                     >
                         Редактировать
                     </Button>
-                    <Popconfirm title="Удалить?" onConfirm={() => deleteColor(record.id)}>
+                    <Popconfirm
+                        title="Удалить цвет?"
+                        description="Проверьте, что цвет не используется в активных карточках товаров."
+                        okText="Удалить"
+                        cancelText="Отмена"
+                        onConfirm={() => deleteColor(record.id)}
+                    >
                         <Button type="link" danger>
                             Удалить
                         </Button>
@@ -93,6 +115,15 @@ const ColorPage: React.FC = () => {
                     loading={isLoading}
                     dataSource={colors}
                     columns={columns}
+                    scroll={{x: 760}}
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="Цвета ещё не добавлены. Создайте первый цвет, чтобы менеджеры могли быстрее заполнять варианты товаров."
+                            />
+                        )
+                    }}
                 />
             </SettingsTableSection>
 
@@ -101,6 +132,8 @@ const ColorPage: React.FC = () => {
                 title={editingColor ? "Редактировать цвет" : "Добавить цвет"}
                 onCancel={() => setIsModalOpen(false)}
                 onOk={handleSave}
+                okText={editingColor ? "Сохранить" : "Добавить"}
+                cancelText="Отмена"
             >
                 <Form form={form} layout="vertical">
                     <Form.Item
@@ -108,17 +141,18 @@ const ColorPage: React.FC = () => {
                         name="title"
                         rules={[{required: true, message: "Введите название"}]}
                     >
-                        <Input />
+                        <Input placeholder="Например: Чёрный" />
                     </Form.Item>
                     <Form.Item
-                        label="HEX"
+                        label="HEX-код"
+                        extra="Используется в палитре карточки товара. Формат: #000000."
                         name="hex"
                         rules={[
                             {required: true, message: "Введите HEX"},
                             {pattern: /^#([0-9A-Fa-f]{6})$/, message: "Неверный HEX код"}
                         ]}
                     >
-                        <Input type="color" />
+                        <Input type="color" aria-label="Выберите цвет" />
                     </Form.Item>
                 </Form>
             </Modal>
