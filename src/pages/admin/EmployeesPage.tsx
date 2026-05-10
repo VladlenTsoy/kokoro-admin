@@ -1,11 +1,14 @@
 import {
+    Alert,
     Button,
     Card,
     Checkbox,
+    Empty,
     Form,
     Input,
     Modal,
     Popconfirm,
+    Segmented,
     Space,
     Statistic,
     Switch,
@@ -44,6 +47,8 @@ interface EmployeeFormValues {
 interface RolesOnlyFormValues {
     roleIds: number[]
 }
+
+type EmployeeStatusFilter = "all" | "active" | "inactive" | "withoutRoles"
 
 const PERMISSION_ACTIONS: PermissionAction[] = ["read", "create", "update", "delete", "manage"]
 
@@ -89,6 +94,8 @@ const EmployeesPage = () => {
     const [isRolesModalOpen, setIsRolesModalOpen] = useState(false)
     const [editingEmployee, setEditingEmployee] = useState<EmployeeSafe | null>(null)
     const [rolesEmployee, setRolesEmployee] = useState<EmployeeSafe | null>(null)
+    const [statusFilter, setStatusFilter] = useState<EmployeeStatusFilter>("all")
+    const [searchQuery, setSearchQuery] = useState("")
     const [form] = Form.useForm<EmployeeFormValues>()
     const [rolesForm] = Form.useForm<RolesOnlyFormValues>()
     const canManageStaff = useCan("staff.manage")
@@ -98,6 +105,36 @@ const EmployeesPage = () => {
         [employeesData]
     )
     const roles = useMemo(() => (rolesData ? [...rolesData].sort((a, b) => b.id - a.id) : []), [rolesData])
+    const filteredEmployees = useMemo(() => {
+        const normalizedQuery = searchQuery.trim().toLowerCase()
+
+        return employees.filter((employee) => {
+            const matchesStatus =
+                statusFilter === "all" ||
+                (statusFilter === "active" && employee.isActive) ||
+                (statusFilter === "inactive" && !employee.isActive) ||
+                (statusFilter === "withoutRoles" && employee.roles.length === 0)
+
+            if (!matchesStatus) {
+                return false
+            }
+
+            if (!normalizedQuery) {
+                return true
+            }
+
+            const searchableText = [
+                employee.email,
+                employee.firstName,
+                employee.lastName,
+                employee.phone ?? "",
+                ...employee.roles.map((role) => `${role.name} ${role.code}`),
+                ...employee.permissions
+            ].join(" ").toLowerCase()
+
+            return searchableText.includes(normalizedQuery)
+        })
+    }, [employees, searchQuery, statusFilter])
 
     if (
         getApiStatusCode(employeesError) === 403 ||
@@ -236,11 +273,11 @@ const EmployeesPage = () => {
             key: "roles",
             render: (_, employee) => (
                 <Space wrap>
-                    {employee.roles.map((role) => (
+                    {employee.roles.length ? employee.roles.map((role) => (
                         <Tag key={role.id} color={role.isActive ? "blue" : "default"}>
                             {role.code}
                         </Tag>
-                    ))}
+                    )) : <Tag color="warning">Без роли</Tag>}
                 </Space>
             )
         },
@@ -260,6 +297,9 @@ const EmployeesPage = () => {
                         <Button onClick={() => openRolesOnly(employee)}>Только роли</Button>
                         <Popconfirm
                             title="Удалить сотрудника?"
+                            description="Доступ в админку будет отозван. Если сотрудник временно не работает, безопаснее выключить статус активности."
+                            okText="Удалить"
+                            cancelText="Отмена"
                             onConfirm={() => handleDelete(employee.id)}
                             okButtonProps={{loading: isDeleting}}
                         >
@@ -292,15 +332,59 @@ const EmployeesPage = () => {
                 </Space>
             </Card>
 
-            <Card>
-                <Table<EmployeeSafe>
-                    rowKey="id"
-                    loading={isEmployeesLoading || isRolesLoading || isPermissionCatalogLoading}
-                    columns={columns}
-                    dataSource={employees}
-                    pagination={false}
-                    scroll={{x: 1100}}
+            {(employeesError || rolesError || permissionCatalogError) && (
+                <Alert
+                    type="warning"
+                    showIcon
+                    message="Не все данные сотрудников загрузились"
+                    description="Проверьте подключение или права доступа. Таблица может быть неполной до повторной загрузки."
                 />
+            )}
+
+            <Card>
+                <Space orientation="vertical" size={16} style={{width: "100%"}}>
+                    <Space wrap style={{width: "100%", justifyContent: "space-between"}}>
+                        <Segmented
+                            value={statusFilter}
+                            onChange={(value) => setStatusFilter(value as EmployeeStatusFilter)}
+                            options={[
+                                {label: `Все (${employees.length})`, value: "all"},
+                                {label: `Активные (${employees.filter((employee) => employee.isActive).length})`, value: "active"},
+                                {label: `Неактивные (${employees.filter((employee) => !employee.isActive).length})`, value: "inactive"},
+                                {label: `Без роли (${employees.filter((employee) => employee.roles.length === 0).length})`, value: "withoutRoles"}
+                            ]}
+                        />
+                        <Input.Search
+                            allowClear
+                            placeholder="Поиск по имени, email, телефону, роли или доступу"
+                            style={{maxWidth: 420}}
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.target.value)}
+                            onSearch={setSearchQuery}
+                        />
+                    </Space>
+                    <Typography.Text type="secondary">
+                        Показано {filteredEmployees.length} из {employees.length}. Быстрый фильтр помогает менеджеру найти активного пользователя и проверить, что сотрудник не остался без роли.
+                    </Typography.Text>
+                    <Table<EmployeeSafe>
+                        rowKey="id"
+                        loading={isEmployeesLoading || isRolesLoading || isPermissionCatalogLoading}
+                        columns={columns}
+                        dataSource={filteredEmployees}
+                        pagination={false}
+                        scroll={{x: 1100}}
+                        locale={{
+                            emptyText: (
+                                <Empty
+                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                    description={searchQuery || statusFilter !== "all"
+                                        ? "Сотрудники не найдены — измените поиск или фильтр статуса."
+                                        : "Сотрудников пока нет. Добавьте первого сотрудника и назначьте роль доступа."}
+                                />
+                            )
+                        }}
+                    />
+                </Space>
             </Card>
 
             <Modal
