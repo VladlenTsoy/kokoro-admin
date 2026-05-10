@@ -74,21 +74,31 @@ const slaThresholdMinutes: Partial<Record<OrderDeliveryStatus, number>> = {
     delivering: 60
 }
 
-const paymentStatusOptions: Array<{label: string; value: OrderPaymentStatus}> = [
-    {label: "pending", value: "pending"},
-    {label: "paid", value: "paid"},
-    {label: "failed", value: "failed"},
-    {label: "refunded", value: "refunded"}
-]
+const paymentStatusLabel: Record<OrderPaymentStatus, string> = {
+    pending: "Ждёт оплату",
+    paid: "Оплачен",
+    failed: "Ошибка оплаты",
+    refunded: "Возврат"
+}
 
-const deliveryStatusOptions: Array<{label: string; value: OrderDeliveryStatus}> = [
-    {label: "pending", value: "pending"},
-    {label: "preparing", value: "preparing"},
-    {label: "ready", value: "ready"},
-    {label: "delivering", value: "delivering"},
-    {label: "delivered", value: "delivered"},
-    {label: "cancelled", value: "cancelled"}
-]
+const deliveryStatusLabel: Record<OrderDeliveryStatus, string> = {
+    pending: "Новый",
+    preparing: "Собирается",
+    ready: "Готов",
+    delivering: "В доставке",
+    delivered: "Доставлен/выдан",
+    cancelled: "Отменён"
+}
+
+const paymentStatusOptions: Array<{label: string; value: OrderPaymentStatus}> = Object.entries(paymentStatusLabel).map(([value, label]) => ({
+    label,
+    value: value as OrderPaymentStatus
+}))
+
+const deliveryStatusOptions: Array<{label: string; value: OrderDeliveryStatus}> = Object.entries(deliveryStatusLabel).map(([value, label]) => ({
+    label,
+    value: value as OrderDeliveryStatus
+}))
 
 const paymentStatusColor: Record<OrderPaymentStatus, string> = {
     pending: "orange",
@@ -169,7 +179,7 @@ const getOrderBadges = (order: AdminOrder) => {
     if (sla.state === "stuck") badges.push({label: `Завис ${sla.ageMinutes} мин`, color: "volcano"})
     if (order.deliveryStatus === "ready") badges.push({label: "Готов", color: "cyan"})
     if (order.deliveryStatus === "cancelled" && order.paymentStatus === "paid") {
-        badges.push({label: "Paid + Cancelled", color: "volcano"})
+        badges.push({label: "Оплачен + отменён", color: "volcano"})
     }
 
     return badges
@@ -569,8 +579,8 @@ const OrdersPage = () => {
                 render: (_, order) => (
                     <Space wrap size={[0, 4]}>
                         {order.status?.title && <Tag color="blue">{order.status.title}</Tag>}
-                        {order.paymentStatus && <Tag color={paymentStatusColor[order.paymentStatus]}>{order.paymentStatus}</Tag>}
-                        {order.deliveryStatus && <Tag color={deliveryStatusColor[order.deliveryStatus]}>{order.deliveryStatus}</Tag>}
+                        {order.paymentStatus && <Tag color={paymentStatusColor[order.paymentStatus]}>{paymentStatusLabel[order.paymentStatus]}</Tag>}
+                        {order.deliveryStatus && <Tag color={deliveryStatusColor[order.deliveryStatus]}>{deliveryStatusLabel[order.deliveryStatus]}</Tag>}
                     </Space>
                 )
             },
@@ -813,8 +823,8 @@ const OrdersPage = () => {
                                 <Col xs={24} md={10}>
                                     <Space wrap>
                                         {selectedOrder.status?.title && <Tag color="blue">{selectedOrder.status.title}</Tag>}
-                                        {selectedOrder.paymentStatus && <Tag color={paymentStatusColor[selectedOrder.paymentStatus]}>{selectedOrder.paymentStatus}</Tag>}
-                                        {selectedOrder.deliveryStatus && <Tag color={deliveryStatusColor[selectedOrder.deliveryStatus]}>{selectedOrder.deliveryStatus}</Tag>}
+                                        {selectedOrder.paymentStatus && <Tag color={paymentStatusColor[selectedOrder.paymentStatus]}>{paymentStatusLabel[selectedOrder.paymentStatus]}</Tag>}
+                                        {selectedOrder.deliveryStatus && <Tag color={deliveryStatusColor[selectedOrder.deliveryStatus]}>{deliveryStatusLabel[selectedOrder.deliveryStatus]}</Tag>}
                                         <Tag>{formatOrderAge(selectedOrder.createdAt)}</Tag>
                                         {getOrderBadges(selectedOrder).map((badge) => <Tag key={badge.label} color={badge.color}>{badge.label}</Tag>)}
                                     </Space>
