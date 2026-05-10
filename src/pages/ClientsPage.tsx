@@ -1,4 +1,4 @@
-import {Button, Card, Col, Descriptions, Drawer, Form, Input, Modal, Row, Space, Statistic, Table, Tabs, Tag, Typography, message} from "antd"
+import {Button, Card, Col, Descriptions, Drawer, Form, Input, Modal, Radio, Row, Space, Statistic, Table, Tabs, Tag, Typography, message} from "antd"
 import {CrownOutlined, PhoneOutlined, ShoppingOutlined, TeamOutlined} from "@ant-design/icons"
 import type {ColumnsType} from "antd/es/table"
 import {useState} from "react"
@@ -19,9 +19,24 @@ import {formatMoney} from "../utils/formatters.ts"
 import {useCan} from "../features/auth/permissions.ts"
 import dayjs from "dayjs"
 
+type ClientStatusFilter = "all" | "active" | "blocked"
+
+const statusFilterToIsActive: Record<ClientStatusFilter, "true" | "false" | undefined> = {
+    all: undefined,
+    active: "true",
+    blocked: "false"
+}
+
+const statusFilterLabels: Record<ClientStatusFilter, string> = {
+    all: "Все",
+    active: "Активные",
+    blocked: "Заблокированные"
+}
+
 const ClientsPage = () => {
-    const [filters, setFilters] = useState<{search?: string; page: number; pageSize: number}>({
+    const [filters, setFilters] = useState<{search?: string; status: ClientStatusFilter; page: number; pageSize: number}>({
         search: "",
+        status: "all",
         page: 1,
         pageSize: 20
     })
@@ -32,6 +47,7 @@ const ClientsPage = () => {
 
     const {data, isLoading} = useGetClientsQuery({
         search: filters.search || undefined,
+        isActive: statusFilterToIsActive[filters.status],
         page: filters.page,
         pageSize: filters.pageSize
     })
@@ -181,13 +197,31 @@ const ClientsPage = () => {
             </Row>
 
             <Card className="filter-card">
-                <Input.Search
-                    placeholder="Поиск по имени или телефону"
-                    allowClear
-                    enterButton="Найти"
-                    onSearch={(search) => setFilters((prev) => ({...prev, search, page: 1}))}
-                    style={{maxWidth: 440}}
-                />
+                <Space orientation="vertical" size={12} style={{width: "100%"}}>
+                    <Space wrap size={[12, 12]} align="start">
+                        <Input.Search
+                            placeholder="Поиск по имени или телефону"
+                            allowClear
+                            enterButton="Найти"
+                            onSearch={(search) => setFilters((prev) => ({...prev, search, page: 1}))}
+                            style={{maxWidth: 440}}
+                        />
+                        <Radio.Group
+                            optionType="button"
+                            buttonStyle="solid"
+                            value={filters.status}
+                            onChange={(event) => setFilters((prev) => ({...prev, status: event.target.value, page: 1}))}
+                            options={[
+                                {label: "Все", value: "all"},
+                                {label: "Активные", value: "active"},
+                                {label: "Заблокированные", value: "blocked"}
+                            ]}
+                        />
+                    </Space>
+                    <Typography.Text type="secondary">
+                        Показаны: {statusFilterLabels[filters.status].toLowerCase()} клиенты{filters.search ? ` по запросу «${filters.search}»` : ""}. Быстрые фильтры помогают менеджеру сразу отделить рабочую базу от заблокированных контактов.
+                    </Typography.Text>
+                </Space>
             </Card>
 
             <Card className="admin-table-card clients-table-card">
