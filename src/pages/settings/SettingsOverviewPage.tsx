@@ -1,4 +1,4 @@
-import {Button, Card, Col, List, Progress, Row, Space, Tag, Typography} from "antd"
+import {Alert, Button, Card, Col, List, Progress, Row, Space, Tag, Typography} from "antd"
 import PageHeading from "../../components/PageHeading.tsx"
 import {useNavigate} from "react-router-dom"
 import {useGetSalesPointsQuery} from "../../features/settings/sales-point/salesPointApi.ts"
@@ -13,6 +13,7 @@ interface ChecklistItem {
     done: boolean
     action: string
     path: string
+    priority: "P1" | "P2"
 }
 
 const SettingsOverviewPage = () => {
@@ -32,45 +33,53 @@ const SettingsOverviewPage = () => {
             description: "Нужна, чтобы отделить retail-точки и будущие Datra-связки.",
             done: (salesPoints?.length || 0) > 0,
             action: "Настроить точки",
-            path: "/settings/sales-points"
+            path: "/settings/sales-points",
+            priority: "P1"
         },
         {
             title: "Склад / остатки",
             description: "База для reservedQty, low stock и выдачи товара без пересорта.",
             done: (storages?.length || 0) > 0,
             action: "Настроить склады",
-            path: "/settings/product-storages"
+            path: "/settings/product-storages",
+            priority: "P1"
         },
         {
             title: "География доставки",
             description: "Страны и города нужны для checkout и адресов клиента.",
             done: countriesWithCities > 0,
             action: "Настроить города",
-            path: "/settings/countries"
+            path: "/settings/countries",
+            priority: "P1"
         },
         {
             title: "Lifecycle заказа",
             description: "Минимум: новый → в работе → готов → доставлен/отменён.",
             done: (statuses?.length || 0) >= 4,
             action: "Настроить статусы",
-            path: "/settings/order-statuses"
+            path: "/settings/order-statuses",
+            priority: "P1"
         },
         {
             title: "Уведомления по статусам",
             description: "Правила уведомлений должны быть явными, чтобы менеджер понимал, что уйдёт клиенту.",
             done: (notifications?.length || 0) > 0,
             action: "Настроить уведомления",
-            path: "/settings/notifications"
+            path: "/settings/notifications",
+            priority: "P2"
         },
         {
             title: "Payme callback",
             description: "URL должен быть передан в Payme Business; автоматический refund не включаем без отдельной проверки.",
             done: true,
             action: "Открыть платежи",
-            path: "/settings/payments"
+            path: "/settings/payments",
+            priority: "P2"
         }
     ]
 
+    const nextAction = checklist.find((item) => !item.done)
+    const sortedChecklist = [...checklist].sort((a, b) => Number(a.done) - Number(b.done) || a.priority.localeCompare(b.priority))
     const completed = checklist.filter((item) => item.done).length
     const progress = Math.round((completed / checklist.length) * 100)
 
@@ -81,6 +90,20 @@ const SettingsOverviewPage = () => {
                 subtitle="Практический checklist настроек, без enterprise-конфигуратора и без дубля Datra."
                 extra={<Tag color={progress === 100 ? "green" : "blue"}>{completed}/{checklist.length} готово</Tag>}
             />
+
+            {nextAction && (
+                <Alert
+                    type="warning"
+                    showIcon
+                    message={`Следующий блокер запуска: ${nextAction.title}`}
+                    description={nextAction.description}
+                    action={(
+                        <Button size="small" type="primary" onClick={() => navigate(nextAction.path)}>
+                            {nextAction.action}
+                        </Button>
+                    )}
+                />
+            )}
 
             <Row gutter={[16, 16]}>
                 <Col xs={24} lg={8}>
@@ -95,13 +118,27 @@ const SettingsOverviewPage = () => {
                 <Col xs={24} lg={16}>
                     <Card title="Что проверить перед продажами">
                         <List
-                            dataSource={checklist}
+                            dataSource={sortedChecklist}
                             renderItem={(item) => (
                                 <List.Item
-                                    actions={[<Button key="open" onClick={() => navigate(item.path)}>{item.action}</Button>]}
+                                    actions={[
+                                        <Button
+                                            key="open"
+                                            type={item.done ? "default" : "primary"}
+                                            onClick={() => navigate(item.path)}
+                                        >
+                                            {item.done ? "Проверить" : item.action}
+                                        </Button>
+                                    ]}
                                 >
                                     <List.Item.Meta
-                                        title={<Space><Tag color={item.done ? "green" : "orange"}>{item.done ? "Готово" : "Нужно"}</Tag>{item.title}</Space>}
+                                        title={(
+                                            <Space wrap>
+                                                <Tag color={item.done ? "green" : "orange"}>{item.done ? "Готово" : "Нужно"}</Tag>
+                                                <Tag color={item.priority === "P1" ? "red" : "blue"}>{item.priority}</Tag>
+                                                {item.title}
+                                            </Space>
+                                        )}
                                         description={item.description}
                                     />
                                 </List.Item>
