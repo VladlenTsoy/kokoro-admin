@@ -1,6 +1,7 @@
 import React, {useState} from "react"
-import {Table, Button, Modal, Form, Input, Space, Popconfirm} from "antd"
+import {Alert, Button, Empty, Form, Input, Modal, Popconfirm, Space, Table, Tag, Typography} from "antd"
 import type {ColumnsType} from "antd/es/table"
+import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
 import type {CountryType, CityType} from "../../features/settings/country/CountryTypes.ts"
 import {
     useGetCountriesQuery,
@@ -75,17 +76,40 @@ const CountryCityPage: React.FC = () => {
     }
 
     const countryColumns: ColumnsType<CountryType> = [
-        {title: "ID", dataIndex: "id", key: "id"},
-        {title: "Название", dataIndex: "name", key: "name"},
+        {
+            title: "Страна",
+            dataIndex: "name",
+            key: "name",
+            render: (name: string, record) => (
+                <Space orientation="vertical" size={2}>
+                    <Typography.Text strong>{name}</Typography.Text>
+                    <Typography.Text type="secondary">ID {record.id}</Typography.Text>
+                </Space>
+            )
+        },
+        {
+            title: "Города",
+            key: "cities",
+            width: 160,
+            render: (_, record) => (
+                <Tag color={record.cities?.length ? "blue" : "default"}>
+                    {record.cities?.length || 0} городов
+                </Tag>
+            )
+        },
         {
             title: "Действия",
             key: "actions",
+            width: 360,
             render: (_, record) => (
-                <Space>
+                <Space wrap>
                     <Button onClick={() => openModal("country", record)}>Редактировать</Button>
                     <Popconfirm
                         title="Удалить страну?"
+                        description="Проверьте, что к стране не привязаны активные города и заказы."
                         onConfirm={() => handleDelete("country", record.id)}
+                        okText="Удалить"
+                        cancelText="Отмена"
                     >
                         <Button danger>Удалить</Button>
                     </Popconfirm>
@@ -99,19 +123,32 @@ const CountryCityPage: React.FC = () => {
 
     const expandedRowRender = (country: CountryType) => {
         const cityColumns: ColumnsType<CityType> = [
-            {title: "ID", dataIndex: "id", key: "id"},
-            {title: "Название", dataIndex: "name", key: "name"},
+            {
+                title: "Город",
+                dataIndex: "name",
+                key: "name",
+                render: (name: string, record) => (
+                    <Space orientation="vertical" size={2}>
+                        <Typography.Text>{name}</Typography.Text>
+                        <Typography.Text type="secondary">ID {record.id}</Typography.Text>
+                    </Space>
+                )
+            },
             {
                 title: "Действия",
                 key: "actions",
+                width: 260,
                 render: (_, record) => (
-                    <Space>
+                    <Space wrap>
                         <Button onClick={() => openModal("city", record, country.id)}>
                             Редактировать
                         </Button>
                         <Popconfirm
                             title="Удалить город?"
-                            onConfirm={() => deleteCity({countryId: country.id, cityId: record.id})}
+                            description="Удаляйте город только если он больше не используется в доставке."
+                            onConfirm={() => handleDelete("city", record.id, country.id)}
+                            okText="Удалить"
+                            cancelText="Отмена"
                         >
                             <Button danger>Удалить</Button>
                         </Popconfirm>
@@ -126,24 +163,48 @@ const CountryCityPage: React.FC = () => {
                 dataSource={country.cities}
                 rowKey="id"
                 pagination={false}
+                locale={{
+                    emptyText: (
+                        <Empty
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                            description="Города ещё не добавлены. Добавьте город, чтобы менеджеры могли выбрать доставку внутри страны."
+                        />
+                    )
+                }}
+                scroll={{x: 520}}
             />
         )
     }
 
     return (
-        <div>
-            <Space style={{marginBottom: 16}}>
-                <Button type="primary" onClick={() => openModal("country")}>
-                    Добавить страну
-                </Button>
-            </Space>
-
+        <SettingsTableSection
+            title="Страны и города"
+            subtitle="Справочник географии для доставки и операционных сценариев менеджеров."
+            addButtonText="Добавить страну"
+            onAdd={() => openModal("country")}
+        >
+            <Alert
+                type="info"
+                showIcon
+                message="Сначала создайте страну, затем добавьте города внутри раскрытой строки."
+                description="Перед удалением проверьте, что география больше не используется в заказах, доставке или настройках филиалов."
+                style={{margin: 16}}
+            />
             <Table
                 columns={countryColumns}
                 expandable={{expandedRowRender}}
                 dataSource={countries || []}
                 rowKey="id"
                 loading={isLoading}
+                locale={{
+                    emptyText: (
+                        <Empty
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                            description="Страны ещё не настроены. Добавьте первую страну, чтобы открыть выбор городов для доставки."
+                        />
+                    )
+                }}
+                scroll={{x: 760}}
             />
 
             <Modal
@@ -159,14 +220,17 @@ const CountryCityPage: React.FC = () => {
                 <Form form={form} layout="vertical">
                     <Form.Item
                         name="name"
-                        label="Название"
+                        label={modalType === "country" ? "Название страны" : "Название города"}
+                        extra={modalType === "country"
+                            ? "Например: Узбекистан. Города добавляются после создания страны."
+                            : "Например: Ташкент. Название будет видно менеджерам при работе с доставкой."}
                         rules={[{required: true, message: "Введите название"}]}
                     >
-                        <Input />
+                        <Input placeholder={modalType === "country" ? "Введите страну" : "Введите город"} />
                     </Form.Item>
                 </Form>
             </Modal>
-        </div>
+        </SettingsTableSection>
     )
 }
 
