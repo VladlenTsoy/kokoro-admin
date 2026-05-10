@@ -64,7 +64,10 @@ const ProductList = () => {
                 pagination={{
                     ...params.pagination,
                     total: data?.total || 0,
-                    size: "default"
+                    size: "default",
+                    showSizeChanger: true,
+                    pageSizeOptions: ["10", "20", "50", "100"],
+                    showTotal: (total, range) => `Показано ${range[0]}–${range[1]} из ${total} товаров`
                 }}
                 rowClassName="row-product"
             />
