@@ -1,4 +1,4 @@
-import {Button, Card, Col, Descriptions, Drawer, Form, Input, Modal, Row, Space, Statistic, Table, Tabs, Tag, Typography, message} from "antd"
+import {Button, Card, Col, Descriptions, Drawer, Empty, Form, Input, Modal, Row, Space, Statistic, Table, Tabs, Tag, Typography, message} from "antd"
 import {CrownOutlined, PhoneOutlined, ShoppingOutlined, TeamOutlined} from "@ant-design/icons"
 import type {ColumnsType} from "antd/es/table"
 import {useState} from "react"
@@ -53,6 +53,7 @@ const ClientsPage = () => {
     const canUpdateClients = useCan("clients.update")
     const canDeleteClients = useCan("clients.delete")
     const clients = data?.items || []
+    const isSearchActive = Boolean(filters.search?.trim())
     const activeClientsOnPage = clients.filter((client) => client.isActive).length
     const buyersOnPage = clients.filter((client) => (client.ordersCount ?? 0) > 0).length
     const totalSpentOnPage = clients.reduce((sum, client) => sum + Number(client.totalSpent || 0), 0)
@@ -181,13 +182,26 @@ const ClientsPage = () => {
             </Row>
 
             <Card className="filter-card">
-                <Input.Search
-                    placeholder="Поиск по имени или телефону"
-                    allowClear
-                    enterButton="Найти"
-                    onSearch={(search) => setFilters((prev) => ({...prev, search, page: 1}))}
-                    style={{maxWidth: 440}}
-                />
+                <Space direction="vertical" size={8} style={{width: "100%"}}>
+                    <Typography.Text strong>Быстрый поиск клиента</Typography.Text>
+                    <Space wrap size={12} style={{width: "100%"}}>
+                        <Input.Search
+                            placeholder="Имя или телефон клиента"
+                            allowClear
+                            enterButton="Найти"
+                            onSearch={(search) => setFilters((prev) => ({...prev, search, page: 1}))}
+                            style={{maxWidth: 440}}
+                        />
+                        {isSearchActive && (
+                            <Button onClick={() => setFilters((prev) => ({...prev, search: "", page: 1}))}>
+                                Сбросить поиск
+                            </Button>
+                        )}
+                    </Space>
+                    <Typography.Text type="secondary">
+                        Подсказка: начинайте с телефона, чтобы быстрее найти клиента при звонке или выдаче заказа.
+                    </Typography.Text>
+                </Space>
             </Card>
 
             <Card className="admin-table-card clients-table-card">
@@ -201,6 +215,21 @@ const ClientsPage = () => {
                         pageSize: data?.pageSize || filters.pageSize,
                         total: data?.total || 0,
                         onChange: (page, pageSize) => setFilters((prev) => ({...prev, page, pageSize}))
+                    }}
+                    scroll={{x: 1040}}
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description={isSearchActive ? "Клиент не найден" : "Клиентов пока нет"}
+                            >
+                                {isSearchActive && (
+                                    <Button type="primary" onClick={() => setFilters((prev) => ({...prev, search: "", page: 1}))}>
+                                        Показать всех клиентов
+                                    </Button>
+                                )}
+                            </Empty>
+                        )
                     }}
                 />
             </Card>
@@ -248,6 +277,8 @@ const ClientsPage = () => {
                                             dataSource={clientOrders?.items || []}
                                             pagination={false}
                                             size="small"
+                                            scroll={{x: 560}}
+                                            locale={{emptyText: "У клиента пока нет заказов"}}
                                         />
                                     )
                                 },
@@ -261,6 +292,8 @@ const ClientsPage = () => {
                                             dataSource={clientAddresses || []}
                                             pagination={false}
                                             size="small"
+                                            scroll={{x: 420}}
+                                            locale={{emptyText: "Адреса ещё не добавлены"}}
                                             columns={[
                                                 {title: "Адрес", dataIndex: "address", render: (value?: string) => value || "—"}
                                             ]}
@@ -278,6 +311,8 @@ const ClientsPage = () => {
                                             dataSource={clientBonusTransactions || []}
                                             pagination={false}
                                             size="small"
+                                            scroll={{x: 520}}
+                                            locale={{emptyText: "Бонусных операций пока нет"}}
                                         />
                                     )
                                 }
