@@ -1,5 +1,5 @@
-import {Button, Card, Col, Form, Input, Row, Space, Tag, Typography, message} from "antd"
-import {useEffect} from "react"
+import {Alert, Button, Card, Col, Form, Input, Row, Space, Tag, Typography, message} from "antd"
+import {useEffect, useState} from "react"
 import {useNavigate} from "react-router-dom"
 import {useLoginMutation} from "../features/admin/authApi.ts"
 import {useDispatch} from "../features/store.ts"
@@ -17,6 +17,7 @@ const LoginPage = () => {
     const dispatch = useDispatch()
     const navigate = useNavigate()
     const {accessToken} = useSelectedAuthData()
+    const [isCapsLockOn, setCapsLockOn] = useState(false)
 
     const [login, {isLoading: isLoginLoading}] = useLoginMutation()
 
@@ -85,8 +86,24 @@ const LoginPage = () => {
                                         {max: 100, message: "Максимум 100 символов"}
                                     ]}
                                 >
-                                    <Input.Password placeholder="StrongPassword123" size="large" />
+                                    <Input.Password
+                                        placeholder="StrongPassword123"
+                                        size="large"
+                                        onKeyDown={(event) => setCapsLockOn(event.getModifierState("CapsLock"))}
+                                        onKeyUp={(event) => setCapsLockOn(event.getModifierState("CapsLock"))}
+                                        onBlur={() => setCapsLockOn(false)}
+                                    />
                                 </Form.Item>
+
+                                {isCapsLockOn && (
+                                    <Alert
+                                        type="warning"
+                                        showIcon
+                                        style={{marginBottom: 16}}
+                                        message="Включён Caps Lock"
+                                        description="Проверьте раскладку и регистр перед входом — это частая причина неудачных попыток менеджеров."
+                                    />
+                                )}
 
                                 <Button
                                     type="primary"
