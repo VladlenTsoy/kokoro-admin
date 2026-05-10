@@ -1,4 +1,4 @@
-import {Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, DatePicker, message} from "antd"
+import {Button, Empty, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, DatePicker, Tag, Typography, message} from "antd"
 import {useState} from "react"
 import type {ColumnsType} from "antd/es/table"
 import dayjs from "dayjs"
@@ -21,6 +21,35 @@ type PromoForm = {
     startsAt?: dayjs.Dayjs
     endsAt?: dayjs.Dayjs
     isActive?: boolean
+}
+
+const discountTypeLabels: Record<PromoForm["discountType"], string> = {
+    percent: "Процент",
+    fixed: "Фиксированная сумма"
+}
+
+const formatDateTime = (value?: string | null) => value ? dayjs(value).format("DD.MM.YYYY HH:mm") : "—"
+
+const renderPromoStatus = (promo: PromoCode) => {
+    const now = dayjs()
+
+    if (!promo.isActive) {
+        return <Tag color="default">Выключен</Tag>
+    }
+
+    if (promo.startsAt && dayjs(promo.startsAt).isAfter(now)) {
+        return <Tag color="blue">Запланирован</Tag>
+    }
+
+    if (promo.endsAt && dayjs(promo.endsAt).isBefore(now)) {
+        return <Tag color="red">Истёк</Tag>
+    }
+
+    if (promo.usageLimit && promo.usedCount !== undefined && promo.usedCount >= promo.usageLimit) {
+        return <Tag color="orange">Лимит исчерпан</Tag>
+    }
+
+    return <Tag color="green">Активен</Tag>
 }
 
 const PromoCodesPage = () => {
@@ -86,13 +115,22 @@ const PromoCodesPage = () => {
 
     const columns: ColumnsType<PromoCode> = [
         {title: "ID", dataIndex: "id", width: 70},
-        {title: "Code", dataIndex: "code"},
-        {title: "Тип", dataIndex: "discountType"},
-        {title: "Значение", dataIndex: "discountValue"},
-        {title: "Мин. сумма", dataIndex: "minOrderTotal", render: (v) => v ?? "—"},
-        {title: "Лимит", dataIndex: "usageLimit", render: (v) => v ?? "—"},
-        {title: "Использовано", dataIndex: "usedCount", render: (v) => v ?? "—"},
-        {title: "Активен", dataIndex: "isActive", render: (v) => (v ? "Да" : "Нет")},
+        {
+            title: "Промокод",
+            dataIndex: "code",
+            render: (value: string) => <Typography.Text strong copyable>{value}</Typography.Text>
+        },
+        {title: "Статус", key: "status", render: (_, promo) => renderPromoStatus(promo)},
+        {title: "Тип", dataIndex: "discountType", render: (value: PromoForm["discountType"]) => discountTypeLabels[value] || value},
+        {
+            title: "Скидка",
+            key: "discount",
+            render: (_, promo) => promo.discountType === "percent" ? `${promo.discountValue}%` : promo.discountValue
+        },
+        {title: "Мин. сумма", dataIndex: "minOrderTotal", render: (v) => v ?? "Без ограничения"},
+        {title: "Использований", key: "usage", render: (_, promo) => `${promo.usedCount ?? 0} / ${promo.usageLimit ?? "∞"}`},
+        {title: "Старт", dataIndex: "startsAt", render: formatDateTime},
+        {title: "Финиш", dataIndex: "endsAt", render: formatDateTime},
         {
             title: "Действия",
             key: "actions",
@@ -100,7 +138,13 @@ const PromoCodesPage = () => {
             render: (_, promo) => (
                 <Space>
                     <Button type="link" onClick={() => openEdit(promo)}>Редактировать</Button>
-                    <Popconfirm title="Удалить промокод?" onConfirm={() => removePromo(promo.id)}>
+                    <Popconfirm
+                        title="Удалить промокод?"
+                        description="Проверьте, что код не используется в активных маркетинговых коммуникациях."
+                        okText="Удалить"
+                        cancelText="Отмена"
+                        onConfirm={() => removePromo(promo.id)}
+                    >
                         <Button type="link" danger>Удалить</Button>
                     </Popconfirm>
                 </Space>
@@ -112,11 +156,26 @@ const PromoCodesPage = () => {
         <>
             <SettingsTableSection
                 title="Промокоды"
-                subtitle="Создание и управление скидочными кодами."
+                subtitle="Создание и управление скидочными кодами: статус, период действия, лимиты и быстрое копирование кода."
                 addButtonText="Добавить промокод"
                 onAdd={openCreate}
             >
-                <Table rowKey="id" loading={isLoading} dataSource={data || []} columns={columns} pagination={false} />
+                <Table
+                    rowKey="id"
+                    loading={isLoading}
+                    dataSource={data || []}
+                    columns={columns}
+                    pagination={false}
+                    scroll={{x: 980}}
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="Промокоды ещё не созданы. Добавьте первый код и задайте лимит, период действия и статус активности."
+                            />
+                        )
+                    }}
+                />
             </SettingsTableSection>
 
             <Modal
@@ -128,20 +187,20 @@ const PromoCodesPage = () => {
                 width={640}
             >
                 <Form form={form} layout="vertical">
-                    <Form.Item name="code" label="Code" rules={[{required: true}]}>
-                        <Input />
+                    <Form.Item name="code" label="Промокод" rules={[{required: true, message: "Введите промокод"}]} tooltip="Используйте понятный код из маркетинговой коммуникации, например MAYSALE10.">
+                        <Input placeholder="MAYSALE10" />
                     </Form.Item>
-                    <Form.Item name="discountType" label="Тип скидки" rules={[{required: true}]}>
-                        <Select options={[{label: "percent", value: "percent"}, {label: "fixed", value: "fixed"}]} />
+                    <Form.Item name="discountType" label="Тип скидки" rules={[{required: true, message: "Выберите тип скидки"}]}>
+                        <Select options={[{label: "Процент", value: "percent"}, {label: "Фиксированная сумма", value: "fixed"}]} />
                     </Form.Item>
-                    <Form.Item name="discountValue" label="Значение скидки" rules={[{required: true}]}>
-                        <InputNumber style={{width: "100%"}} />
+                    <Form.Item name="discountValue" label="Значение скидки" rules={[{required: true, message: "Укажите размер скидки"}]}>
+                        <InputNumber min={0} style={{width: "100%"}} placeholder="10" />
                     </Form.Item>
-                    <Form.Item name="minOrderTotal" label="Минимальная сумма заказа">
-                        <InputNumber style={{width: "100%"}} />
+                    <Form.Item name="minOrderTotal" label="Минимальная сумма заказа" tooltip="Оставьте пустым, если промокод работает для любого заказа.">
+                        <InputNumber min={0} style={{width: "100%"}} placeholder="Без ограничения" />
                     </Form.Item>
-                    <Form.Item name="usageLimit" label="Лимит использований">
-                        <InputNumber style={{width: "100%"}} />
+                    <Form.Item name="usageLimit" label="Лимит использований" tooltip="Помогает не превысить маркетинговый бюджет.">
+                        <InputNumber min={1} style={{width: "100%"}} placeholder="Без лимита" />
                     </Form.Item>
                     <Form.Item name="startsAt" label="Начало действия">
                         <DatePicker showTime style={{width: "100%"}} />
