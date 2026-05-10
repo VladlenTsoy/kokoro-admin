@@ -1,4 +1,4 @@
-import {Button, Card, Col, Empty, Row, Space, Statistic, Table, Tag, Typography} from "antd"
+import {Alert, Button, Card, Col, Empty, Row, Space, Statistic, Table, Tag, Typography} from "antd"
 import {AlertOutlined, CheckCircleOutlined, ClockCircleOutlined, FireOutlined, ShoppingOutlined, ThunderboltOutlined} from "@ant-design/icons"
 import type {ColumnsType} from "antd/es/table"
 import PageHeading from "../components/PageHeading.tsx"
@@ -8,9 +8,29 @@ import {useNavigate} from "react-router-dom"
 import {formatMoney} from "../utils/formatters.ts"
 import dayjs from "dayjs"
 
+const statusLabelMap: Record<string, string> = {
+    pending: "Новый",
+    preparing: "В работе",
+    ready: "Готов",
+    delivering: "В доставке",
+    delivered: "Завершён",
+    cancelled: "Отменён",
+    paid: "Оплачен",
+    failed: "Ошибка оплаты",
+    refunded: "Возврат",
+    accept: "Принят",
+    confirm: "Подтверждён",
+    complete: "Завершён"
+}
+
+const getManagerStatusLabel = (status?: string) => {
+    if (!status) return "—"
+    return statusLabelMap[status.toLowerCase()] || status
+}
+
 const HomePage = () => {
     const navigate = useNavigate()
-    const {data: summary, isLoading} = useGetOrdersSummaryQuery(undefined, {refetchOnMountOrArgChange: true})
+    const {data: summary, isLoading, isError, refetch} = useGetOrdersSummaryQuery(undefined, {refetchOnMountOrArgChange: true})
     const problemCount = summary?.problemToday ?? 0
     const hasProblems = problemCount > 0
 
@@ -33,8 +53,8 @@ const HomePage = () => {
             width: 240,
             render: (_, item) => (
                 <Space wrap size={[4, 4]}>
-                    {item.fromStatus && <Tag>{item.fromStatus}</Tag>}
-                    {item.toStatus && <Tag color="blue">{item.toStatus}</Tag>}
+                    {item.fromStatus && <Tag>{getManagerStatusLabel(item.fromStatus)}</Tag>}
+                    {item.toStatus && <Tag color="blue">{getManagerStatusLabel(item.toStatus)}</Tag>}
                 </Space>
             )
         },
@@ -49,6 +69,15 @@ const HomePage = () => {
 
     return (
         <Space orientation="vertical" size={18} style={{width: "100%"}}>
+            {isError && (
+                <Alert
+                    type="warning"
+                    showIcon
+                    message="Не удалось обновить сводку смены"
+                    description="Метрики могут быть неактуальны. Откройте список заказов или повторите загрузку сводки."
+                    action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
+                />
+            )}
             <Card className="admin-hero-card dashboard-hero">
                 <PageHeading
                     title="Today Operations"
@@ -130,9 +159,14 @@ const HomePage = () => {
                                 dataSource={summary?.recentActivity || []}
                                 pagination={false}
                                 size="middle"
+                                scroll={{x: 760}}
                             />
                         ) : (
-                            <Empty description="Пока нет событий по заказам" />
+                            <Empty
+                                description={isLoading ? "Загружаем события смены…" : "Пока нет событий по заказам"}
+                            >
+                                {!isLoading && <Button onClick={() => openOrders()}>Открыть список заказов</Button>}
+                            </Empty>
                         )}
                     </Card>
                 </Col>
