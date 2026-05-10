@@ -18,8 +18,10 @@ import {getNestErrorMessage} from "../utils/getNestErrorMessage.ts"
 import {formatMoney} from "../utils/formatters.ts"
 import {useCan} from "../features/auth/permissions.ts"
 import dayjs from "dayjs"
+import {useNavigate} from "react-router-dom"
 
 const ClientsPage = () => {
+    const navigate = useNavigate()
     const [filters, setFilters] = useState<{search?: string; page: number; pageSize: number}>({
         search: "",
         page: 1,
@@ -105,7 +107,17 @@ const ClientsPage = () => {
                 {order.paymentStatus && <Tag>{order.paymentStatus}</Tag>}
                 {order.deliveryStatus && <Tag>{order.deliveryStatus}</Tag>}
             </Space>
-        )}
+        )},
+        {
+            title: "Действие",
+            key: "action",
+            width: 140,
+            render: (_, order) => (
+                <Button size="small" onClick={() => navigate(`/orders?orderId=${order.id}`)}>
+                    Открыть заказ
+                </Button>
+            )
+        }
     ]
 
     const bonusColumns: ColumnsType<AdminClientBonusTransaction> = [

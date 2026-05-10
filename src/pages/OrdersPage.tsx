@@ -55,6 +55,11 @@ import {formatMoney} from "../utils/formatters.ts"
 import {useCan} from "../features/auth/permissions.ts"
 import {useSearchParams} from "react-router-dom"
 
+const parseOrderIdParam = (value: string | null) => {
+    const id = Number(value)
+    return Number.isInteger(id) && id > 0 ? id : null
+}
+
 const todayFilters = (): GetAdminOrdersParams => ({
     page: 1,
     pageSize: 20,
@@ -207,8 +212,9 @@ const getHistoryStatusTitle = (item: OrderHistoryItem, side: "from" | "to") => {
 }
 
 const OrdersPage = () => {
-    const [searchParams] = useSearchParams()
+    const [searchParams, setSearchParams] = useSearchParams()
     const initialDeliveryStatus = searchParams.get("deliveryStatus")
+    const initialOrderId = parseOrderIdParam(searchParams.get("orderId"))
     const [filters, setFilters] = useState<GetAdminOrdersParams>(() => ({
         ...todayFilters(),
         deliveryStatus: deliveryStatusValues.includes(initialDeliveryStatus as OrderDeliveryStatus)
@@ -217,7 +223,7 @@ const OrdersPage = () => {
     }))
     const [problemOnly, setProblemOnly] = useState(searchParams.get("problemOnly") === "1")
     const [attentionOnly, setAttentionOnly] = useState(searchParams.get("attentionOnly") === "1")
-    const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
+    const [selectedOrderId, setSelectedOrderId] = useState<number | null>(initialOrderId)
     const [actionOrderId, setActionOrderId] = useState<number | null>(null)
     const [liveAlertsEnabled, setLiveAlertsEnabled] = useState(() => localStorage.getItem(LIVE_ALERT_STORAGE_KEY) !== "0")
     const lastSummaryRef = useRef<{newOrders: number; problemToday: number} | null>(null)
@@ -270,6 +276,10 @@ const OrdersPage = () => {
     useEffect(() => {
         localStorage.setItem(LIVE_ALERT_STORAGE_KEY, liveAlertsEnabled ? "1" : "0")
     }, [liveAlertsEnabled])
+
+    useEffect(() => {
+        setSelectedOrderId(parseOrderIdParam(searchParams.get("orderId")))
+    }, [searchParams])
 
     useEffect(() => {
         if (!summary) return
@@ -336,7 +346,22 @@ const OrdersPage = () => {
             .find((status) => keywords.some((keyword) => status.title.toLowerCase().includes(keyword)))
     }
 
-    const openOrder = (id: number) => setSelectedOrderId(id)
+    const openOrder = (id: number) => {
+        setSelectedOrderId(id)
+        setSearchParams((prev) => {
+            const next = new URLSearchParams(prev)
+            next.set("orderId", String(id))
+            return next
+        })
+    }
+    const closeOrder = () => {
+        setSelectedOrderId(null)
+        setSearchParams((prev) => {
+            const next = new URLSearchParams(prev)
+            next.delete("orderId")
+            return next
+        })
+    }
     const selectedPhone = selectedOrder?.client?.phone || selectedOrder?.phone
 
     const openStatusModal = (id: number) => {
@@ -747,7 +772,7 @@ const OrdersPage = () => {
             <Drawer
                 title={selectedOrder ? `Заказ ${selectedOrder.orderNumber || `#${selectedOrder.id}`}` : "Карточка заказа"}
                 open={Boolean(selectedOrderId)}
-                onClose={() => setSelectedOrderId(null)}
+                onClose={closeOrder}
                 width={1100}
                 extra={selectedOrder && canUpdateOrders ? (
                     <Space>
