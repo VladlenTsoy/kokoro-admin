@@ -96,6 +96,13 @@ const paymentStatusColor: Record<OrderPaymentStatus, string> = {
     refunded: "purple"
 }
 
+const paymentStatusLabel: Record<OrderPaymentStatus, string> = {
+    pending: "Ждёт оплату",
+    paid: "Оплачен",
+    failed: "Ошибка оплаты",
+    refunded: "Возврат"
+}
+
 const deliveryStatusColor: Record<OrderDeliveryStatus, string> = {
     pending: "orange",
     preparing: "blue",
@@ -103,6 +110,15 @@ const deliveryStatusColor: Record<OrderDeliveryStatus, string> = {
     delivering: "geekblue",
     delivered: "green",
     cancelled: "red"
+}
+
+const deliveryStatusLabel: Record<OrderDeliveryStatus, string> = {
+    pending: "Новый",
+    preparing: "Готовится",
+    ready: "Готов к выдаче",
+    delivering: "В доставке",
+    delivered: "Доставлен",
+    cancelled: "Отменён"
 }
 
 type StatusIntent = "accept" | "ready" | "delivered" | "cancelled"
@@ -834,6 +850,38 @@ const OrdersPage = () => {
                                                 {canDeleteOrders && <Button danger onClick={() => openCancelModal(selectedOrder.id)}>Отменить</Button>}
                                             </Space>
                                         </div>
+                                    </Card>
+
+                                    <Card title="Сводка для передачи">
+                                        <Space orientation="vertical" size={12} style={{width: "100%"}}>
+                                            <Typography.Text type="secondary">
+                                                Короткий чек-лист перед звонком клиенту, выдачей или передачей курьеру.
+                                            </Typography.Text>
+                                            <Descriptions bordered size="small" column={1}>
+                                                <Descriptions.Item label="Следующий шаг">{getNextActionLabel(selectedOrder)}</Descriptions.Item>
+                                                <Descriptions.Item label="Телефон">{selectedPhone || "Не указан"}</Descriptions.Item>
+                                                <Descriptions.Item label="Адрес">{selectedOrder.clientAddress?.address || "Не указан"}</Descriptions.Item>
+                                                <Descriptions.Item label="Оплата">
+                                                    {selectedOrder.paymentMethod?.title || (selectedOrder.paymentStatus ? paymentStatusLabel[selectedOrder.paymentStatus] : "Не указана")}
+                                                </Descriptions.Item>
+                                                <Descriptions.Item label="Доставка">
+                                                    {selectedOrder.deliveryType?.title || (selectedOrder.deliveryStatus ? deliveryStatusLabel[selectedOrder.deliveryStatus] : "Не указана")}
+                                                </Descriptions.Item>
+                                                <Descriptions.Item label="Ответственный">
+                                                    {selectedOrder.assignedEmployee
+                                                        ? `${selectedOrder.assignedEmployee.firstName} ${selectedOrder.assignedEmployee.lastName}`
+                                                        : "Не назначен"}
+                                                </Descriptions.Item>
+                                            </Descriptions>
+                                            {(!selectedPhone || (!selectedOrder.clientAddress?.address && selectedOrder.deliveryStatus !== "delivered")) && (
+                                                <Alert
+                                                    type="warning"
+                                                    showIcon
+                                                    message="Проверьте контактные данные перед передачей"
+                                                    description="В заказе не хватает телефона или адреса. Лучше уточнить данные до смены статуса и передачи заказа дальше."
+                                                />
+                                            )}
+                                        </Space>
                                     </Card>
 
                                     <Card title="CRM/клиентские операции">
