@@ -105,6 +105,7 @@ const HeaderMenu = () => {
                 <img className={styles.headerLogoImage} src={logoSrc} alt="KOKORO" />
             </div>
             <Segmented
+                aria-label="Основная навигация админ-панели"
                 className={styles.segmented}
                 options={options}
                 value={selectedValue}

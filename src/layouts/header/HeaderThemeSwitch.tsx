@@ -8,9 +8,12 @@ const HeaderThemeSwitch = () => {
     const mode = useSelectedTheme()
     const isDark = mode === "dark"
 
+    const switchLabel = isDark ? "Переключить на светлую тему" : "Переключить на тёмную тему"
+
     return (
-        <Tooltip title={isDark ? "Переключить на светлую тему" : "Переключить на тёмную тему"}>
+        <Tooltip title={switchLabel}>
             <Button
+                aria-label={switchLabel}
                 size="large"
                 shape="circle"
                 type="default"

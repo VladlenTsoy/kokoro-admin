@@ -16,6 +16,7 @@ const HeaderSettingsButton = () => {
     return (
         <Tooltip title="Настройки">
             <Button
+                aria-label={isSettingsPage ? "Настройки: текущий раздел" : "Открыть настройки"}
                 size="large"
                 shape="circle"
                 type={isSettingsPage ? "primary" : "default"}
