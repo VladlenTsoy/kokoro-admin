@@ -1,4 +1,4 @@
-import {Card, Space, Statistic, Table, Tag, Typography} from "antd"
+import {Card, Empty, Space, Statistic, Table, Tag, Typography} from "antd"
 import {SearchOutlined} from "@ant-design/icons"
 import type {ColumnsType} from "antd/es/table"
 import dayjs from "dayjs"
@@ -59,7 +59,16 @@ const SearchZeroResultsPage = () => {
                     loading={isLoading}
                     columns={columns}
                     dataSource={data}
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="Пока нет поисковых запросов без результата"
+                            />
+                        )
+                    }}
                     pagination={{pageSize: 20, showSizeChanger: true}}
+                    scroll={{x: 720}}
                 />
             </Card>
         </Space>
