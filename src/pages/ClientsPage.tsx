@@ -87,7 +87,13 @@ const ClientsPage = () => {
         if (!editingClientId) return
         try {
             const values = await editForm.validateFields()
-            await updateClient({id: editingClientId, body: values}).unwrap()
+            await updateClient({
+                id: editingClientId,
+                body: {
+                    name: values.name?.trim(),
+                    phone: values.phone?.trim()
+                }
+            }).unwrap()
             message.success("Клиент обновлён")
             closeEdit()
         } catch (error) {
@@ -293,13 +299,50 @@ const ClientsPage = () => {
                 onCancel={closeEdit}
                 onOk={saveEdit}
                 confirmLoading={isUpdating}
+                okText="Сохранить клиента"
+                cancelText="Отмена"
             >
+                <Typography.Paragraph type="secondary">
+                    Проверьте имя и телефон перед сохранением: эти данные используются для поиска клиента и связи по заказам.
+                </Typography.Paragraph>
                 <Form form={editForm} layout="vertical">
-                    <Form.Item name="name" label="Имя">
-                        <Input />
+                    <Form.Item
+                        name="name"
+                        label="Имя"
+                        extra="Используйте понятное имя или ФИО, чтобы менеджеры быстрее находили клиента в CRM."
+                        rules={[
+                            {max: 120, message: "Имя не должно быть длиннее 120 символов"}
+                        ]}
+                    >
+                        <Input placeholder="Например: Алия Каримова" autoComplete="name" />
                     </Form.Item>
-                    <Form.Item name="phone" label="Телефон">
-                        <Input />
+                    <Form.Item
+                        name="phone"
+                        label="Телефон"
+                        extra="Оставляйте номер в международном формате: +998..., без комментариев и лишнего текста."
+                        rules={[
+                            {
+                                validator: (_, value?: string) => {
+                                    if (!value) return Promise.resolve()
+
+                                    const trimmedValue = value.trim()
+                                    const digitsCount = trimmedValue.replace(/\D/g, "").length
+                                    const hasInvalidCharacters = /[^+\d\s()-]/.test(trimmedValue)
+
+                                    if (hasInvalidCharacters) {
+                                        return Promise.reject(new Error("Телефон может содержать только цифры, +, пробелы, скобки и дефисы"))
+                                    }
+
+                                    if (digitsCount < 7 || digitsCount > 20) {
+                                        return Promise.reject(new Error("Проверьте длину номера телефона"))
+                                    }
+
+                                    return Promise.resolve()
+                                }
+                            }
+                        ]}
+                    >
+                        <Input placeholder="+998 90 123 45 67" autoComplete="tel" inputMode="tel" />
                     </Form.Item>
                 </Form>
             </Modal>
