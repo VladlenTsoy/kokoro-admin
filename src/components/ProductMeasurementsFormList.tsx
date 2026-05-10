@@ -1,5 +1,5 @@
 import React from "react"
-import {Button, Form, Input} from "antd"
+import {Alert, Button, Empty, Form, Input, Tooltip} from "antd"
 import {MinusCircleOutlined, PlusOutlined} from "@ant-design/icons"
 import {createStyles} from "antd-style"
 
@@ -16,6 +16,7 @@ const useMeasurementsStyles = createStyles(({token, css}) => {
     `
     const table = css`
         width: 100%;
+        min-width: 640px;
         border-collapse: collapse;
 
         thead {
@@ -78,6 +79,13 @@ const useMeasurementsStyles = createStyles(({token, css}) => {
     `
     const action = css`
         padding: 0 0 1rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    `
+    const guidance = css`
+        margin: 0.75rem 0;
     `
     return {
         container,
@@ -85,7 +93,8 @@ const useMeasurementsStyles = createStyles(({token, css}) => {
         action,
         table,
         left,
-        title
+        title,
+        guidance
     }
 })
 
@@ -95,25 +104,42 @@ interface Props {
 
 const ProductMeasurementsFormList: React.FC<Props> = ({selectedSizes}) => {
     const {styles} = useMeasurementsStyles()
+    const hasSelectedSizes = selectedSizes.length > 0
 
     return (
         <div className={styles.measurements}>
             <Form.List name="measurements">
                 {(fields, {add, remove}) => (
                     <>
-                        <div className={styles.container}>
-                            <table className={styles.table}>
-                                <thead>
-                                <tr>
-                                    <th className={styles.left}>Размеры</th>
-                                    {selectedSizes.map((size) => (
-                                        <th key={`tr-size-${size.id}`}>{size.title}</th>
-                                    ))}
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {fields.map((field) => (
-                                    <tr key={`tr-size-${field.key}`}>
+                        <Alert
+                            className={styles.guidance}
+                            type={hasSelectedSizes ? "info" : "warning"}
+                            showIcon
+                            message={hasSelectedSizes ? "Заполните обмеры для выбранных размеров" : "Сначала выберите размеры товара"}
+                            description={hasSelectedSizes
+                                ? "Каждая строка — отдельный параметр: длина, ширина, высота или другой обмер. Таблицу можно прокрутить горизонтально на мобильном экране."
+                                : "После выбора размеров в основной информации здесь появятся колонки для обмеров. Это помогает менеджерам не сохранить пустую размерную сетку."
+                            }
+                        />
+                        {!hasSelectedSizes && fields.length === 0 ? (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="Нет выбранных размеров для таблицы обмеров"
+                            />
+                        ) : (
+                            <div className={styles.container}>
+                                <table className={styles.table}>
+                                    <thead>
+                                    <tr>
+                                        <th className={styles.left}>Параметр обмера</th>
+                                        {selectedSizes.map((size) => (
+                                            <th key={`tr-size-${size.id}`}>{size.title}</th>
+                                        ))}
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {fields.map((field) => (
+                                        <tr key={`tr-size-${field.key}`}>
                                         <td key={`td-title-${field.key}`}>
                                             <div className={styles.title}>
                                                 <Form.Item
@@ -132,7 +158,9 @@ const ProductMeasurementsFormList: React.FC<Props> = ({selectedSizes}) => {
                                                 >
                                                     <Input placeholder="Название" style={{minWidth: "150px"}} />
                                                 </Form.Item>
-                                                <MinusCircleOutlined onClick={() => remove(field.name)} />
+                                                <Tooltip title="Удалить параметр обмера">
+                                                    <MinusCircleOutlined onClick={() => remove(field.name)} />
+                                                </Tooltip>
                                             </div>
                                         </td>
                                         {selectedSizes.map((sizes) => (
@@ -155,10 +183,18 @@ const ProductMeasurementsFormList: React.FC<Props> = ({selectedSizes}) => {
                                 </tbody>
                             </table>
                         </div>
+                        )}
                         <div className={styles.action}>
-                            <Button type="primary" icon={<PlusOutlined />} size="large" onClick={() => add()}>
-                                Добавить
+                            <Button
+                                type="primary"
+                                icon={<PlusOutlined />}
+                                size="large"
+                                disabled={!hasSelectedSizes}
+                                onClick={() => add()}
+                            >
+                                Добавить параметр
                             </Button>
+                            {!hasSelectedSizes && <span>Добавление доступно после выбора хотя бы одного размера.</span>}
                         </div>
                     </>
                 )}
