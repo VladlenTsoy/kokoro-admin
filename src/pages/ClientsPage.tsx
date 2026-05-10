@@ -19,6 +19,42 @@ import {formatMoney} from "../utils/formatters.ts"
 import {useCan} from "../features/auth/permissions.ts"
 import dayjs from "dayjs"
 
+const paymentStatusMeta: Record<string, {label: string; color: string}> = {
+    pending: {label: "Ждёт оплату", color: "gold"},
+    paid: {label: "Оплачен", color: "green"},
+    failed: {label: "Ошибка оплаты", color: "red"},
+    refunded: {label: "Возврат", color: "purple"},
+    cancelled: {label: "Отменён", color: "red"}
+}
+
+const deliveryStatusMeta: Record<string, {label: string; color: string}> = {
+    pending: {label: "Новый", color: "orange"},
+    preparing: {label: "Готовится", color: "blue"},
+    ready: {label: "Готов к выдаче", color: "cyan"},
+    delivering: {label: "В доставке", color: "geekblue"},
+    delivered: {label: "Доставлен/выдан", color: "green"},
+    cancelled: {label: "Отменён", color: "red"}
+}
+
+const clientBonusOperationMeta: Record<string, {label: string; color: string}> = {
+    accrual: {label: "Начисление", color: "green"},
+    charge: {label: "Списание", color: "orange"},
+    refund: {label: "Возврат", color: "blue"},
+    correction: {label: "Коррекция", color: "purple"},
+    expiration: {label: "Сгорание", color: "red"}
+}
+
+const getStatusMeta = (value: string | undefined, dictionary: Record<string, {label: string; color: string}>) => {
+    if (!value) return undefined
+    return dictionary[value] || {label: value, color: "default"}
+}
+
+const formatSignedBonusAmount = (value?: number) => {
+    if (value === undefined || value === null) return "—"
+    const prefix = value > 0 ? "+" : ""
+    return `${prefix}${value}`
+}
+
 const ClientsPage = () => {
     const [filters, setFilters] = useState<{search?: string; page: number; pageSize: number}>({
         search: "",
@@ -99,19 +135,36 @@ const ClientsPage = () => {
         {title: "Заказ", key: "order", render: (_, order) => order.orderNumber || `#${order.id}`},
         {title: "Дата", dataIndex: "createdAt", width: 120, render: (value?: string) => (value ? dayjs(value).format("DD.MM") : "—")},
         {title: "Сумма", dataIndex: "total", width: 120, render: (value?: number) => formatMoney(value || 0)},
-        {title: "Статус", key: "status", width: 180, render: (_, order) => (
-            <Space wrap size={[4, 4]}>
-                {order.status?.title && <Tag color="blue">{order.status.title}</Tag>}
-                {order.paymentStatus && <Tag>{order.paymentStatus}</Tag>}
-                {order.deliveryStatus && <Tag>{order.deliveryStatus}</Tag>}
-            </Space>
-        )}
+        {title: "Статус", key: "status", width: 220, render: (_, order) => {
+            const paymentStatus = getStatusMeta(order.paymentStatus, paymentStatusMeta)
+            const deliveryStatus = getStatusMeta(order.deliveryStatus, deliveryStatusMeta)
+
+            return (
+                <Space wrap size={[4, 4]}>
+                    {order.status?.title && <Tag color="blue">{order.status.title}</Tag>}
+                    {paymentStatus && <Tag color={paymentStatus.color}>{paymentStatus.label}</Tag>}
+                    {deliveryStatus && <Tag color={deliveryStatus.color}>{deliveryStatus.label}</Tag>}
+                </Space>
+            )
+        }}
     ]
 
     const bonusColumns: ColumnsType<AdminClientBonusTransaction> = [
         {title: "Дата", dataIndex: "createdAt", width: 130, render: (value?: string) => (value ? dayjs(value).format("DD.MM HH:mm") : "—")},
-        {title: "Тип", dataIndex: "type", width: 120, render: (value?: string) => <Tag>{value || "—"}</Tag>},
-        {title: "Сумма", dataIndex: "amount", width: 120},
+        {title: "Тип", dataIndex: "type", width: 140, render: (value?: string) => {
+            const operation = getStatusMeta(value, clientBonusOperationMeta)
+            return operation ? <Tag color={operation.color}>{operation.label}</Tag> : "—"
+        }},
+        {
+            title: "Сумма",
+            dataIndex: "amount",
+            width: 120,
+            render: (value?: number) => (
+                <Typography.Text type={value && value < 0 ? "danger" : value && value > 0 ? "success" : undefined}>
+                    {formatSignedBonusAmount(value)}
+                </Typography.Text>
+            )
+        },
         {title: "Комментарий", dataIndex: "comment", render: (value?: string) => value || "—"}
     ]
 
