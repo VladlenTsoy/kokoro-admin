@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef} from "react"
+import {useCallback, useEffect, useRef, useState} from "react"
 import type {ChangeEvent} from "react"
 import {Button, Input, Space} from "antd"
 import ProductHeaderStatusFilter from "./ProductHeaderStatusFilter.tsx"
@@ -48,14 +48,22 @@ const ProductHeaderList = () => {
     const {styles} = useStyles()
     const {params, updateParams} = useGetParams()
     const canCreateCatalog = useCan("catalog.create")
+    const [searchValue, setSearchValue] = useState(params.search)
 
     const timeoutRef = useRef<number | null>(null)
     const onSearchHandler = (e: ChangeEvent<HTMLInputElement>) => {
+        const nextValue = e.target.value
+        setSearchValue(nextValue)
+
         if (timeoutRef.current !== null) {
             window.clearTimeout(timeoutRef.current)
         }
-        timeoutRef.current = window.setTimeout(() => updateParams("search", e.target.value), 300)
+        timeoutRef.current = window.setTimeout(() => updateParams("search", nextValue), 300)
     }
+    useEffect(() => {
+        setSearchValue(params.search)
+    }, [params.search])
+
     useEffect(() => {
         return () => {
             if (timeoutRef.current !== null) {
@@ -95,7 +103,15 @@ const ProductHeaderList = () => {
         <div className={styles.container}>
             <ProductHeaderStatusFilter defaultSelected={Number(params.type)} />
             <Space className={styles.actions}>
-                <Input className={styles.search} placeholder="Поиск..." size="large" suffix={<SearchOutlined />} onChange={onSearchHandler} />
+                <Input
+                    allowClear
+                    className={styles.search}
+                    placeholder="Название, артикул или ID товара"
+                    size="large"
+                    suffix={<SearchOutlined />}
+                    value={searchValue}
+                    onChange={onSearchHandler}
+                />
                 <ProductHeaderFilter
                     categoryIds={params.categoryIds}
                     sizeIds={params.sizeIds}
