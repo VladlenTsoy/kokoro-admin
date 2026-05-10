@@ -1,4 +1,4 @@
-import {Button, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, message} from "antd"
+import {Alert, Button, Empty, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Typography, message} from "antd"
 import type {ColumnsType} from "antd/es/table"
 import {useState} from "react"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
@@ -13,9 +13,6 @@ import {
 import {useGetOrderStatusesQuery} from "../../features/order-status/orderStatusApi.ts"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 
-const typeOptions = ["sms", "email", "push", "telegram", "webhook"].map((value) => ({label: value, value}))
-const sendToOptions = ["client", "manager", "courier", "admin"].map((value) => ({label: value, value}))
-
 type FormValues = {
     statusId: number
     type: "sms" | "email" | "push" | "telegram" | "webhook"
@@ -23,6 +20,29 @@ type FormValues = {
     template: string
     isActive: boolean
 }
+
+const typeLabels: Record<FormValues["type"], string> = {
+    sms: "SMS",
+    email: "Email",
+    push: "Push",
+    telegram: "Telegram",
+    webhook: "Webhook"
+}
+const sendToLabels: Record<FormValues["sendTo"], string> = {
+    client: "Клиент",
+    manager: "Менеджер",
+    courier: "Курьер",
+    admin: "Админ"
+}
+
+const typeOptions = ["sms", "email", "push", "telegram", "webhook"].map((value) => ({
+    label: typeLabels[value as FormValues["type"]],
+    value
+}))
+const sendToOptions = ["client", "manager", "courier", "admin"].map((value) => ({
+    label: sendToLabels[value as FormValues["sendTo"]],
+    value
+}))
 
 const OrderNotificationsPage = () => {
     const {data: statuses} = useGetOrderStatusesQuery()
@@ -77,20 +97,58 @@ const OrderNotificationsPage = () => {
     }
 
     const configColumns: ColumnsType<OrderStatusNotification> = [
-        {title: "ID", dataIndex: "id", width: 70},
-        {title: "Статус", dataIndex: "statusId", render: (id: number) => statusMap.get(id) || id},
-        {title: "Тип", dataIndex: "type"},
-        {title: "Кому", dataIndex: "sendTo"},
-        {title: "Активен", dataIndex: "isActive", render: (v) => (v ? "Да" : "Нет")},
-        {title: "Template", dataIndex: "template", render: (v) => (v.length > 45 ? `${v.slice(0, 45)}...` : v)},
+        {
+            title: "Правило",
+            key: "rule",
+            width: 260,
+            render: (_, item) => (
+                <Space orientation="vertical" size={2}>
+                    <Typography.Text strong>{statusMap.get(item.statusId) || `Статус #${item.statusId}`}</Typography.Text>
+                    <Typography.Text type="secondary">ID {item.id}</Typography.Text>
+                </Space>
+            )
+        },
+        {
+            title: "Канал",
+            dataIndex: "type",
+            width: 120,
+            render: (type: FormValues["type"]) => <Tag color="blue">{typeLabels[type] || type}</Tag>
+        },
+        {
+            title: "Получатель",
+            dataIndex: "sendTo",
+            width: 140,
+            render: (sendTo: FormValues["sendTo"]) => sendToLabels[sendTo] || sendTo
+        },
+        {
+            title: "Статус",
+            dataIndex: "isActive",
+            width: 120,
+            render: (isActive) => <Tag color={isActive ? "green" : "default"}>{isActive ? "Активно" : "Пауза"}</Tag>
+        },
+        {
+            title: "Шаблон",
+            dataIndex: "template",
+            render: (template: string) => (
+                <Typography.Text type="secondary">
+                    {template.length > 64 ? `${template.slice(0, 64)}...` : template}
+                </Typography.Text>
+            )
+        },
         {
             title: "Действия",
             key: "actions",
-            width: 220,
+            width: 240,
             render: (_, item) => (
-                <Space>
+                <Space wrap>
                     <Button type="link" onClick={() => openEdit(item)}>Редактировать</Button>
-                    <Popconfirm title="Удалить конфиг?" onConfirm={() => removeConfig(item.id)}>
+                    <Popconfirm
+                        title="Удалить правило уведомления?"
+                        description="После удаления новые заказы не будут получать это уведомление."
+                        onConfirm={() => removeConfig(item.id)}
+                        okText="Удалить"
+                        cancelText="Отмена"
+                    >
                         <Button type="link" danger>Удалить</Button>
                     </Popconfirm>
                 </Space>
@@ -100,10 +158,11 @@ const OrderNotificationsPage = () => {
 
     const logsColumns: ColumnsType<OrderStatusNotificationLog> = [
         {title: "ID", dataIndex: "id", width: 70},
-        {title: "Order", dataIndex: "orderId", width: 90},
+        {title: "Заказ", dataIndex: "orderId", width: 100, render: (orderId) => `#${orderId}`},
         {
-            title: "Статус",
+            title: "Статус отправки",
             dataIndex: "status",
+            width: 150,
             render: (status: OrderStatusNotificationLog["status"]) => {
                 const color = status === "sent" ? "green" : status === "failed" ? "red" : status === "skipped" ? "orange" : "blue"
                 return <Tag color={color}>{status}</Tag>
@@ -122,7 +181,29 @@ const OrderNotificationsPage = () => {
                 addButtonText="Добавить правило"
                 onAdd={openCreate}
             >
-                <Table rowKey="id" loading={isLoadingConfigs} dataSource={configs || []} columns={configColumns} pagination={false} />
+                <Alert
+                    type="info"
+                    showIcon
+                    message="Правило срабатывает при переходе заказа в выбранный статус."
+                    description="Перед включением проверьте канал, получателя и переменные шаблона, чтобы не отправить клиенту неверный текст."
+                    style={{margin: 16}}
+                />
+                <Table
+                    rowKey="id"
+                    loading={isLoadingConfigs}
+                    dataSource={configs || []}
+                    columns={configColumns}
+                    pagination={false}
+                    scroll={{x: 920}}
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="Правила уведомлений ещё не настроены. Добавьте первое правило для важного статуса заказа."
+                            />
+                        )
+                    }}
+                />
             </SettingsTableSection>
 
             <SettingsTableSection
@@ -131,7 +212,21 @@ const OrderNotificationsPage = () => {
                 addButtonText="Обновить"
                 onAdd={() => undefined}
             >
-                <Table rowKey="id" loading={isLoadingLogs} dataSource={logs || []} columns={logsColumns} />
+                <Table
+                    rowKey="id"
+                    loading={isLoadingLogs}
+                    dataSource={logs || []}
+                    columns={logsColumns}
+                    scroll={{x: 820}}
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="Логов отправки пока нет. После первой попытки уведомления здесь появится статус и ошибка, если она случится."
+                            />
+                        )
+                    }}
+                />
             </SettingsTableSection>
 
             <Modal
@@ -151,7 +246,12 @@ const OrderNotificationsPage = () => {
                     <Form.Item name="sendTo" label="Кому отправлять" rules={[{required: true}]}>
                         <Select options={sendToOptions} />
                     </Form.Item>
-                    <Form.Item name="template" label="Шаблон" rules={[{required: true}]}>
+                    <Form.Item
+                        name="template"
+                        label="Шаблон"
+                        extra="Используйте понятный текст и переменные заказа, например {{orderNumber}} и {{status}}."
+                        rules={[{required: true}]}
+                    >
                         <Input.TextArea rows={4} placeholder="{{orderNumber}} {{status}}" />
                     </Form.Item>
                     <Form.Item name="isActive" label="Активен" valuePropName="checked">
