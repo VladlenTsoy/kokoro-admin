@@ -111,7 +111,7 @@ const HomePage = () => {
                         <Space orientation="vertical" size={12} style={{width: "100%"}}>
                             <Typography.Text>
                                 {hasProblems
-                                    ? "Сначала разберите проблемные заказы: просроченные новые, оплаченные без обработки, failed payment или paid + cancelled."
+                                    ? "Сначала разберите проблемные заказы: просроченные новые, оплаченные без обработки, ошибки оплаты или оплаченные отмены."
                                     : "Критичных проблем по заказам сегодня не видно. Держите фокус на новых и готовых заказах."}
                             </Typography.Text>
                             <Button danger={hasProblems} type={hasProblems ? "primary" : "default"} onClick={() => openOrders("problemOnly=1")}>
