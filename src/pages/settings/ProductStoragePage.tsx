@@ -1,5 +1,5 @@
 import React, {useState} from "react"
-import {Table, Button, Popconfirm, Modal, Form, Input, InputNumber} from "antd"
+import {Table, Button, Popconfirm, Modal, Form, Input, InputNumber, Empty, Space, Tag, Typography} from "antd"
 import {
     useGetStoragesQuery,
     useCreateStorageMutation,
@@ -33,13 +33,26 @@ const ProductStoragePage: React.FC = () => {
     }
 
     const columns = [
-        {title: "ID", dataIndex: "id"},
-        {title: "Название", dataIndex: "title"},
-        {title: "ID точки продаж", dataIndex: "salesPointId"},
+        {title: "ID", dataIndex: "id", width: 80},
+        {
+            title: "Название",
+            dataIndex: "title",
+            render: (title: string) => <Typography.Text strong>{title}</Typography.Text>
+        },
+        {
+            title: "Точка продаж",
+            dataIndex: "salesPointId",
+            render: (salesPointId: number) => <Typography.Text code>ID {salesPointId}</Typography.Text>
+        },
+        {
+            title: "Статус",
+            dataIndex: "deleted_at",
+            render: (date: string | null) => date ? <Tag color="red">Удалён</Tag> : <Tag color="green">Активен</Tag>
+        },
         {
             title: "Действия",
             render: (_: unknown, record: ProductStorageType) => (
-                <>
+                <Space wrap>
                     <Button
                         type="link"
                         onClick={() => {
@@ -50,12 +63,18 @@ const ProductStoragePage: React.FC = () => {
                     >
                         Редактировать
                     </Button>
-                    <Popconfirm title="Удалить склад?" onConfirm={() => deleteStorage(record.id)}>
+                    <Popconfirm
+                        title="Удалить склад?"
+                        description="Проверьте остатки и привязку к точке продаж перед удалением."
+                        okText="Удалить"
+                        cancelText="Отмена"
+                        onConfirm={() => deleteStorage(record.id)}
+                    >
                         <Button type="link" danger>
                             Удалить
                         </Button>
                     </Popconfirm>
-                </>
+                </Space>
             )
         }
     ]
@@ -64,7 +83,7 @@ const ProductStoragePage: React.FC = () => {
         <div>
             <SettingsTableSection
                 title="Склады"
-                subtitle="Склады и привязка к точкам продаж."
+                subtitle="Склады и привязка к точкам продаж: проверьте ID точки перед изменениями, чтобы не сбить остатки и выдачу заказов."
                 addButtonText="Добавить склад"
                 onAdd={() => {
                     setEditingStorage(null)
@@ -77,6 +96,15 @@ const ProductStoragePage: React.FC = () => {
                     dataSource={data || []}
                     columns={columns}
                     rowKey="id"
+                    scroll={{x: 760}}
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="Склады ещё не добавлены. Создайте склад и привяжите его к точке продаж, чтобы менеджеры могли корректно управлять остатками."
+                            />
+                        )
+                    }}
                 />
             </SettingsTableSection>
 
@@ -85,13 +113,24 @@ const ProductStoragePage: React.FC = () => {
                 open={isModalOpen}
                 onCancel={() => setIsModalOpen(false)}
                 onOk={handleSubmit}
+                okText={editingStorage ? "Сохранить" : "Создать"}
+                cancelText="Отмена"
             >
                 <Form form={form} layout="vertical">
-                    <Form.Item name="title" label="Название" rules={[{required: true}]}>
-                        <Input />
+                    <Form.Item
+                        name="title"
+                        label="Название"
+                        rules={[{required: true, message: "Введите название склада"}]}
+                    >
+                        <Input placeholder="Например: Основной склад Ташкент" />
                     </Form.Item>
-                    <Form.Item name="salesPointId" label="ID точки продаж" rules={[{required: true}]}>
-                        <InputNumber style={{width: "100%"}} />
+                    <Form.Item
+                        name="salesPointId"
+                        label="ID точки продаж"
+                        extra="Используется для связи склада с точкой продаж. Проверьте ID перед сохранением."
+                        rules={[{required: true, message: "Введите ID точки продаж"}]}
+                    >
+                        <InputNumber min={1} precision={0} style={{width: "100%"}} placeholder="Например: 1" />
                     </Form.Item>
                 </Form>
             </Modal>
