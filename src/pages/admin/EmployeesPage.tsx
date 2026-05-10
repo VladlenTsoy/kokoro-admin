@@ -1,4 +1,5 @@
 import {
+    Alert,
     Button,
     Card,
     Checkbox,
@@ -345,16 +346,25 @@ const EmployeesPage = () => {
                     <Form.Item
                         name="phone"
                         label="Телефон"
+                        extra="Используйте рабочий номер в международном формате, чтобы менеджера было легче найти в смене."
                         rules={[
                             {required: true, message: "Введите телефон"},
                             {max: 30, message: "Максимум 30 символов"}
                         ]}
                     >
-                        <Input placeholder="+998901112233" />
+                        <Input autoComplete="tel" placeholder="+998 90 111 22 33" />
                     </Form.Item>
+                    <Alert
+                        showIcon
+                        type="info"
+                        style={{marginBottom: 16}}
+                        message={editingEmployee ? "Оставьте поле пароля пустым, если доступ менять не нужно" : "Передайте первичный пароль сотруднику по безопасному каналу"}
+                        description="Не используйте примеры из интерфейса как реальные пароли. После создания проверьте роли сотрудника и отключите доступ, если он не должен входить в админку."
+                    />
                     <Form.Item
                         name="password"
                         label={editingEmployee ? "Новый пароль (опционально)" : "Пароль"}
+                        extra={editingEmployee ? "Заполняйте только при сбросе доступа сотрудника." : "Минимум 8 символов; лучше использовать уникальную фразу или пароль из менеджера паролей."}
                         rules={
                             editingEmployee
                                 ? [
@@ -368,7 +378,7 @@ const EmployeesPage = () => {
                                 ]
                         }
                     >
-                        <Input.Password placeholder="StrongPassword123" />
+                        <Input.Password autoComplete="new-password" placeholder="Введите временный пароль" />
                     </Form.Item>
                     <Form.Item
                         name="roleIds"
