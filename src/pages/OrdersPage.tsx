@@ -220,6 +220,7 @@ const OrdersPage = () => {
     const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
     const [actionOrderId, setActionOrderId] = useState<number | null>(null)
     const [liveAlertsEnabled, setLiveAlertsEnabled] = useState(() => localStorage.getItem(LIVE_ALERT_STORAGE_KEY) !== "0")
+    const [lastSuccessfulRefreshAt, setLastSuccessfulRefreshAt] = useState<string | null>(null)
     const lastSummaryRef = useRef<{newOrders: number; problemToday: number} | null>(null)
     const seenOrderIdsRef = useRef<Set<number>>(new Set())
     const hasPrimedLiveAlertsRef = useRef(false)
@@ -270,6 +271,12 @@ const OrdersPage = () => {
     useEffect(() => {
         localStorage.setItem(LIVE_ALERT_STORAGE_KEY, liveAlertsEnabled ? "1" : "0")
     }, [liveAlertsEnabled])
+
+    useEffect(() => {
+        if (!isFetching && (data || summary)) {
+            setLastSuccessfulRefreshAt(dayjs().toISOString())
+        }
+    }, [data, isFetching, summary])
 
     useEffect(() => {
         if (!summary) return
@@ -625,6 +632,10 @@ const OrdersPage = () => {
                     <Badge status={(summary?.problemToday ?? 0) > 0 ? "error" : "success"} text={`${summary?.problemToday ?? 0} проблемных`} />
                     <Badge status="warning" text="SLA: новые 10+ мин подсвечиваются" />
                     <Badge status={isFetching ? "processing" : "success"} text="Live refresh: 30 сек" />
+                    <Badge
+                        status={lastSuccessfulRefreshAt ? "success" : "default"}
+                        text={lastSuccessfulRefreshAt ? `Обновлено ${dayjs(lastSuccessfulRefreshAt).format("HH:mm:ss")}` : "Ожидаем первое обновление"}
+                    />
                 </Space>
             </Card>
 
@@ -635,7 +646,10 @@ const OrdersPage = () => {
                         Звук и desktop-уведомления включены
                     </Checkbox>
                     <Typography.Text type="secondary">
-                        Заказы и summary обновляются автоматически каждые 30 секунд. Уведомления не содержат ФИО или телефон клиента.
+                        Заказы и summary обновляются автоматически каждые 30 секунд. Последнее успешное обновление: {lastSuccessfulRefreshAt ? dayjs(lastSuccessfulRefreshAt).format("DD.MM HH:mm:ss") : "ещё не было"}.
+                    </Typography.Text>
+                    <Typography.Text type="secondary">
+                        Уведомления не содержат ФИО или телефон клиента.
                     </Typography.Text>
                 </Space>
             </Card>
@@ -727,7 +741,18 @@ const OrdersPage = () => {
                 </Space>
             </Card>
 
-            <Card className="admin-table-card orders-table-card">
+            <Card
+                className="admin-table-card orders-table-card"
+                extra={(
+                    <Typography.Text type="secondary">
+                        {isFetching
+                            ? "Обновляем список…"
+                            : lastSuccessfulRefreshAt
+                                ? `Данные актуальны на ${dayjs(lastSuccessfulRefreshAt).format("HH:mm:ss")}`
+                                : "После загрузки здесь будет время актуальности"}
+                    </Typography.Text>
+                )}
+            >
                 <Table<AdminOrder>
                     rowKey="id"
                     loading={isLoading}
