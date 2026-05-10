@@ -1,7 +1,8 @@
-import {Button, Card, Col, Descriptions, Drawer, Form, Input, Modal, Row, Space, Statistic, Table, Tabs, Tag, Typography, message} from "antd"
+import {Button, Card, Col, Descriptions, Drawer, Empty, Form, Input, Modal, Row, Space, Statistic, Table, Tabs, Tag, Typography, message} from "antd"
 import {CrownOutlined, PhoneOutlined, ShoppingOutlined, TeamOutlined} from "@ant-design/icons"
 import type {ColumnsType} from "antd/es/table"
-import {useState} from "react"
+import {useEffect, useState} from "react"
+import {useSearchParams} from "react-router-dom"
 import PageHeading from "../components/PageHeading.tsx"
 import type {AdminClient, AdminClientBonusTransaction, AdminClientOrder} from "../features/clients/clientTypes.ts"
 import {
@@ -20,11 +21,14 @@ import {useCan} from "../features/auth/permissions.ts"
 import dayjs from "dayjs"
 
 const ClientsPage = () => {
+    const [searchParams, setSearchParams] = useSearchParams()
+    const searchFromUrl = searchParams.get("search")?.trim() ?? ""
     const [filters, setFilters] = useState<{search?: string; page: number; pageSize: number}>({
-        search: "",
+        search: searchFromUrl,
         page: 1,
         pageSize: 20
     })
+    const [searchInput, setSearchInput] = useState(searchFromUrl)
     const [selectedClientId, setSelectedClientId] = useState<number | null>(null)
     const [editingClientId, setEditingClientId] = useState<number | null>(null)
     const [isEditModalOpen, setEditModalOpen] = useState(false)
@@ -56,6 +60,26 @@ const ClientsPage = () => {
     const activeClientsOnPage = clients.filter((client) => client.isActive).length
     const buyersOnPage = clients.filter((client) => (client.ordersCount ?? 0) > 0).length
     const totalSpentOnPage = clients.reduce((sum, client) => sum + Number(client.totalSpent || 0), 0)
+
+    useEffect(() => {
+        setSearchInput(searchFromUrl)
+        setFilters((prev) => (prev.search === searchFromUrl ? prev : {...prev, search: searchFromUrl, page: 1}))
+    }, [searchFromUrl])
+
+    const applySearch = (search: string) => {
+        const nextSearch = search.trim()
+        const nextParams = new URLSearchParams(searchParams)
+
+        if (nextSearch) {
+            nextParams.set("search", nextSearch)
+        } else {
+            nextParams.delete("search")
+        }
+
+        setSearchInput(nextSearch)
+        setFilters((prev) => ({...prev, search: nextSearch, page: 1}))
+        setSearchParams(nextParams, {replace: true})
+    }
 
     const handleBlockToggle = async (client: AdminClient) => {
         try {
@@ -181,13 +205,23 @@ const ClientsPage = () => {
             </Row>
 
             <Card className="filter-card">
-                <Input.Search
-                    placeholder="Поиск по имени или телефону"
-                    allowClear
-                    enterButton="Найти"
-                    onSearch={(search) => setFilters((prev) => ({...prev, search, page: 1}))}
-                    style={{maxWidth: 440}}
-                />
+                <Space orientation="vertical" size={8} style={{width: "100%"}}>
+                    <Input.Search
+                        placeholder="Имя, телефон или часть номера клиента"
+                        allowClear
+                        enterButton="Найти клиента"
+                        value={searchInput}
+                        onChange={(event) => {
+                            setSearchInput(event.target.value)
+                            if (!event.target.value) applySearch("")
+                        }}
+                        onSearch={applySearch}
+                        style={{maxWidth: 440}}
+                    />
+                    <Typography.Text type="secondary">
+                        Поиск можно сохранить ссылкой: менеджер попадёт сразу на нужную выборку клиентов.
+                    </Typography.Text>
+                </Space>
             </Card>
 
             <Card className="admin-table-card clients-table-card">
@@ -196,6 +230,17 @@ const ClientsPage = () => {
                     loading={isLoading}
                     columns={columns}
                     dataSource={clients}
+                    scroll={{x: 960}}
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description={filters.search ? `Клиенты по запросу «${filters.search}» не найдены` : "Клиенты пока не найдены"}
+                            >
+                                {filters.search && <Button onClick={() => applySearch("")}>Сбросить поиск</Button>}
+                            </Empty>
+                        )
+                    }}
                     pagination={{
                         current: data?.page || filters.page,
                         pageSize: data?.pageSize || filters.pageSize,
