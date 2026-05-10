@@ -130,9 +130,21 @@ const HomePage = () => {
                                 dataSource={summary?.recentActivity || []}
                                 pagination={false}
                                 size="middle"
+                                scroll={{x: 760}}
                             />
                         ) : (
-                            <Empty description="Пока нет событий по заказам" />
+                            <Empty
+                                description={(
+                                    <Space orientation="vertical" size={8}>
+                                        <Typography.Text>Пока нет событий по заказам</Typography.Text>
+                                        <Typography.Text type="secondary">Проверьте новые заказы или проблемную очередь, если смена уже началась.</Typography.Text>
+                                        <Space wrap>
+                                            <Button type="primary" onClick={() => openOrders("deliveryStatus=pending")}>Открыть новые заказы</Button>
+                                            <Button danger={hasProblems} onClick={() => openOrders("problemOnly=1")}>Проблемная очередь</Button>
+                                        </Space>
+                                    </Space>
+                                )}
+                            />
                         )}
                     </Card>
                 </Col>
