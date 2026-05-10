@@ -1,6 +1,6 @@
-import {Button, Card, Col, Form, Input, Row, Space, Tag, Typography, message} from "antd"
+import {Alert, Button, Card, Col, Form, Input, Row, Space, Tag, Typography, message} from "antd"
 import {useEffect} from "react"
-import {useNavigate} from "react-router-dom"
+import {useLocation, useNavigate} from "react-router-dom"
 import {useLoginMutation} from "../features/admin/authApi.ts"
 import {useDispatch} from "../features/store.ts"
 import {setAuthData, useSelectedAuthData} from "../features/auth/authSlice.ts"
@@ -12,19 +12,34 @@ interface LoginFormValues {
     password: string
 }
 
+type LoginLocationState = {
+    returnTo?: string
+}
+
+const getSafeReturnPath = (returnTo?: string) => {
+    if (!returnTo || !returnTo.startsWith("/") || returnTo.startsWith("//") || returnTo.startsWith("/login")) {
+        return "/"
+    }
+
+    return returnTo
+}
+
 const LoginPage = () => {
     const [form] = Form.useForm<LoginFormValues>()
     const dispatch = useDispatch()
     const navigate = useNavigate()
+    const location = useLocation()
     const {accessToken} = useSelectedAuthData()
+    const returnPath = getSafeReturnPath((location.state as LoginLocationState | null)?.returnTo)
+    const hasReturnPath = returnPath !== "/"
 
     const [login, {isLoading: isLoginLoading}] = useLoginMutation()
 
     useEffect(() => {
         if (accessToken) {
-            navigate("/", {replace: true})
+            navigate(returnPath, {replace: true})
         }
-    }, [accessToken, navigate])
+    }, [accessToken, navigate, returnPath])
 
     const onSubmit = async (values: LoginFormValues) => {
         try {
@@ -32,7 +47,7 @@ const LoginPage = () => {
 
             dispatch(setAuthData(payload))
             message.success("Вы успешно вошли")
-            navigate("/", {replace: true})
+            navigate(returnPath, {replace: true})
         } catch (error) {
             message.error(getNestErrorMessage(error))
         }
@@ -64,6 +79,16 @@ const LoginPage = () => {
                             <Typography.Title level={4} style={{marginTop: 0}}>
                                 Вход в аккаунт
                             </Typography.Title>
+                            {hasReturnPath && (
+                                <Alert
+                                    type="info"
+                                    showIcon
+                                    style={{marginBottom: 16}}
+                                    message="Вернём вас на запрошенную страницу после входа"
+                                    description={returnPath}
+                                />
+                            )}
+
                             <Form<LoginFormValues> form={form} layout="vertical" onFinish={onSubmit}>
                                 <Form.Item
                                     name="email"
