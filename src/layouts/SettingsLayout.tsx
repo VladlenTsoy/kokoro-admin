@@ -1,5 +1,5 @@
 import type {MenuProps} from "antd"
-import {Card, Input, Menu, Space, Tag, Typography} from "antd"
+import {Button, Card, Empty, Input, Menu, Space, Tag, Typography} from "antd"
 import {createStyles} from "antd-style"
 import {Outlet, useLocation, useNavigate} from "react-router-dom"
 import {useSelectedAuthData} from "../features/auth/authSlice.ts"
@@ -109,6 +109,9 @@ const useStyles = createStyles(({token}) => ({
     },
     summary: {
         marginBottom: 12
+    },
+    emptyState: {
+        padding: "24px 8px 12px"
     }
 }))
 
@@ -155,6 +158,8 @@ const SettingsLayout = () => {
     }, [filteredGroups])
 
     const allChildrenCount = groups.reduce((acc, group) => acc + group.children.length, 0)
+    const hasVisibleSettings = allChildrenCount > 0
+    const hasSearchResults = filteredGroups.some((group) => group.children.length > 0)
 
     // Определяем текущий активный ключ из pathname
     const selectedKey = location.pathname.split("/")[2]
@@ -184,13 +189,23 @@ const SettingsLayout = () => {
                             allowClear
                         />
                     </div>
-                    <Menu
-                        className={styles.menu}
-                        onClick={onClickHandler}
-                        mode="inline"
-                        items={items}
-                        selectedKeys={[selectedKey]}
-                    />
+                    {hasSearchResults ? (
+                        <Menu
+                            className={styles.menu}
+                            onClick={onClickHandler}
+                            mode="inline"
+                            items={items}
+                            selectedKeys={[selectedKey]}
+                        />
+                    ) : (
+                        <Empty
+                            className={styles.emptyState}
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                            description={hasVisibleSettings ? "По такому запросу настроек не найдено" : "Для вашей роли пока нет доступных настроек"}
+                        >
+                            {query ? <Button onClick={() => setQuery("")}>Сбросить поиск</Button> : null}
+                        </Empty>
+                    )}
                 </Card>
                 <Card className={styles.contentCard}>
                     <Outlet />
