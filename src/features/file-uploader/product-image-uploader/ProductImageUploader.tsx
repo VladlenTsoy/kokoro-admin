@@ -3,11 +3,15 @@ import {createStyles} from "antd-style"
 import type {ProductTemporaryImageType} from "./ProductImageUploaderType.ts"
 import ProductImageSortableItem from "./ProductImageSortableItem.tsx"
 import ProductImageUploaderButton from "./ProductImageUploaderButton.tsx"
+import {Alert} from "antd"
 import ProductImageDragContext from "./ProductImageDragContext.tsx"
 import {getBase64} from "../../../utils/getBase64.ts"
 import {useUploadPhotoMutation} from "../fileUploaderApi.ts"
 
 const useStyles = createStyles(() => ({
+    guidance: {
+        marginBottom: 12
+    },
     grid: {
         width: "100%",
         flex: 1,
@@ -48,26 +52,23 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({imageUrls, s
                         const formData = new FormData()
                         formData.append("file", file)
                         try {
-                            const res = await uploadPhoto(formData)
+                            const data = await uploadPhoto(formData).unwrap()
 
-                            if (res?.data) {
-                                const data = res.data
-                                setImageUrl(prev =>
-                                    prev.map(img =>
-                                        img.tmp_id === timeKey
-                                            ? {
-                                                ...img,
-                                                loading: false,
-                                                name: data.name,
-                                                path: data.key,
-                                                url: data.location,
-                                                size: data.size,
-                                                position: img.position
-                                            }
-                                            : img
-                                    )
+                            setImageUrl(prev =>
+                                prev.map(img =>
+                                    img.tmp_id === timeKey
+                                        ? {
+                                            ...img,
+                                            loading: false,
+                                            name: data.name,
+                                            path: data.key,
+                                            url: data.location,
+                                            size: data.size,
+                                            position: img.position
+                                        }
+                                        : img
                                 )
-                            }
+                            )
                         } catch (error) {
                             console.error(error)
                             setImageUrl(prev =>
@@ -88,23 +89,17 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({imageUrls, s
     )
 
     const removeTemporaryPhotoHandler = useCallback(
-        async (imagePath: string) => {
-            // mark loading
+        async (image: ProductTemporaryImageType) => {
             setImageUrl((prev) =>
-                prev.map((img) =>
-                    (img.path === imagePath ? {...img, to_delete: true} : img)
-                )
+                image.path
+                    ? prev.map((img) => img.path === image.path ? {...img, to_delete: true} : img)
+                    : prev.filter((img) => img.tmp_id !== image.tmp_id)
             )
-            // find image by key or path
-            // const findImage = imageUrls.find((img) => img.path === imagePath)
-            //
-            // if (findImage && findImage.path) {
-            //     await deletePhoto({path: findImage.path}) // backend expects key
-            //     setImageUrl((prev) => prev.filter((img) => img.path !== findImage.path))
-            // }
         },
         [setImageUrl]
     )
+
+    const hasUploadErrors = imageUrls.some((item) => item.error && !item.to_delete)
 
     return <ProductImageDragContext
         setImageUrl={setImageUrl}
@@ -112,6 +107,15 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({imageUrls, s
         setActiveId={setActiveId}
         activeId={activeId}
     >
+        {hasUploadErrors && (
+            <Alert
+                className={styles.guidance}
+                type="warning"
+                showIcon
+                message="Некоторые фотографии не загрузились"
+                description="Удалите ошибочные превью и добавьте файлы ещё раз перед сохранением товара."
+            />
+        )}
         <div className={styles.grid}>
             {imageUrls
                 .filter(item => !item.to_delete)
