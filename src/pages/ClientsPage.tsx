@@ -1,4 +1,4 @@
-import {Button, Card, Col, Descriptions, Drawer, Form, Input, Modal, Row, Space, Statistic, Table, Tabs, Tag, Typography, message} from "antd"
+import {Button, Card, Col, Descriptions, Drawer, Empty, Form, Input, Modal, Row, Space, Statistic, Table, Tabs, Tag, Typography, message} from "antd"
 import {CrownOutlined, PhoneOutlined, ShoppingOutlined, TeamOutlined} from "@ant-design/icons"
 import type {ColumnsType} from "antd/es/table"
 import {useState} from "react"
@@ -56,6 +56,13 @@ const ClientsPage = () => {
     const activeClientsOnPage = clients.filter((client) => client.isActive).length
     const buyersOnPage = clients.filter((client) => (client.ordersCount ?? 0) > 0).length
     const totalSpentOnPage = clients.reduce((sum, client) => sum + Number(client.totalSpent || 0), 0)
+
+    const renderDrawerEmpty = (description: string) => (
+        <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={description}
+        />
+    )
 
     const handleBlockToggle = async (client: AdminClient) => {
         try {
@@ -208,7 +215,7 @@ const ClientsPage = () => {
             <Drawer
                 className="profile-drawer"
                 title={clientDetails ? `Клиент #${clientDetails.id}` : "Карточка клиента"}
-                width={760}
+                width="min(760px, calc(100vw - 32px))"
                 open={Boolean(selectedClientId)}
                 onClose={() => setSelectedClientId(null)}
             >
@@ -248,6 +255,8 @@ const ClientsPage = () => {
                                             dataSource={clientOrders?.items || []}
                                             pagination={false}
                                             size="small"
+                                            scroll={{x: 640}}
+                                            locale={{emptyText: renderDrawerEmpty("У клиента пока нет заказов. История появится после первой покупки.")}}
                                         />
                                     )
                                 },
@@ -261,6 +270,8 @@ const ClientsPage = () => {
                                             dataSource={clientAddresses || []}
                                             pagination={false}
                                             size="small"
+                                            scroll={{x: 420}}
+                                            locale={{emptyText: renderDrawerEmpty("Адреса клиента ещё не сохранены.")}}
                                             columns={[
                                                 {title: "Адрес", dataIndex: "address", render: (value?: string) => value || "—"}
                                             ]}
@@ -278,6 +289,8 @@ const ClientsPage = () => {
                                             dataSource={clientBonusTransactions || []}
                                             pagination={false}
                                             size="small"
+                                            scroll={{x: 560}}
+                                            locale={{emptyText: renderDrawerEmpty("Бонусных операций пока нет.")}}
                                         />
                                     )
                                 }
