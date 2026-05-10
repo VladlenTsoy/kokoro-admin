@@ -1,5 +1,6 @@
 import React, {useState} from "react"
-import {Table, Button, Modal, Form, Input, Space, Popconfirm, Tag} from "antd"
+import {Table, Button, Modal, Form, Input, Space, Popconfirm, Tag, Alert, Empty, Typography} from "antd"
+import {createStyles} from "antd-style"
 import {
     useGetColorsQuery,
     useCreateColorMutation,
@@ -9,8 +10,30 @@ import {
 import type {ColorType} from "../../features/settings/color/ColorTypes.ts"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
 
+const {Text} = Typography
+
+const useStyles = createStyles(({token}) => ({
+    colorPreview: {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: token.marginXS
+    },
+    colorSwatch: {
+        width: 24,
+        height: 24,
+        borderRadius: token.borderRadiusSM,
+        border: `1px solid ${token.colorBorder}`,
+        boxShadow: token.boxShadowTertiary
+    },
+    formHint: {
+        display: "block",
+        marginTop: token.marginXXS
+    }
+}))
+
 const ColorPage: React.FC = () => {
-    const {data: colors, isLoading} = useGetColorsQuery()
+    const {styles} = useStyles()
+    const {data: colors = [], isLoading, isError, refetch} = useGetColorsQuery()
     const [createColor] = useCreateColorMutation()
     const [updateColor] = useUpdateColorMutation()
     const [deleteColor] = useDeleteColorMutation()
@@ -39,13 +62,18 @@ const ColorPage: React.FC = () => {
             dataIndex: "hex",
             key: "hex",
             render: (hex: string) => (
-                <Tag color={hex} style={{color: "#000"}}>
-                    {hex}
-                </Tag>
+                <span className={styles.colorPreview}>
+                    <span
+                        aria-hidden="true"
+                        className={styles.colorSwatch}
+                        style={{backgroundColor: hex}}
+                    />
+                    <Text code>{hex}</Text>
+                </span>
             )
         },
         {
-            title: "Удален?",
+            title: "Статус",
             dataIndex: "deleted_at",
             key: "deleted_at",
             render: (date: string | null) =>
@@ -66,7 +94,13 @@ const ColorPage: React.FC = () => {
                     >
                         Редактировать
                     </Button>
-                    <Popconfirm title="Удалить?" onConfirm={() => deleteColor(record.id)}>
+                    <Popconfirm
+                        title="Удалить цвет?"
+                        description="Проверьте, что цвет не используется в активных товарах. Это действие может убрать вариант из выбора менеджеров."
+                        okText="Удалить"
+                        cancelText="Отмена"
+                        onConfirm={() => deleteColor(record.id)}
+                    >
                         <Button type="link" danger>
                             Удалить
                         </Button>
@@ -80,7 +114,7 @@ const ColorPage: React.FC = () => {
         <>
             <SettingsTableSection
                 title="Цвета"
-                subtitle="Управляйте палитрой и статусами доступных цветов."
+                subtitle="Управляйте палитрой каталога: название должно быть понятным менеджеру, HEX — совпадать с фактическим цветом товара."
                 addButtonText="Добавить цвет"
                 onAdd={() => {
                     setEditingColor(null)
@@ -88,11 +122,41 @@ const ColorPage: React.FC = () => {
                     setIsModalOpen(true)
                 }}
             >
+                {isError && (
+                    <Alert
+                        type="error"
+                        showIcon
+                        message="Не удалось загрузить цвета"
+                        description="Проверьте подключение или повторите загрузку, чтобы менеджеры не работали со старым справочником."
+                        action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
+                    />
+                )}
                 <Table
                     rowKey="id"
                     loading={isLoading}
                     dataSource={colors}
                     columns={columns}
+                    scroll={{x: 720}}
+                    pagination={{pageSize: 20, showSizeChanger: true}}
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="Цвета пока не добавлены"
+                            >
+                                <Button
+                                    type="primary"
+                                    onClick={() => {
+                                        setEditingColor(null)
+                                        form.resetFields()
+                                        setIsModalOpen(true)
+                                    }}
+                                >
+                                    Добавить первый цвет
+                                </Button>
+                            </Empty>
+                        )
+                    }}
                 />
             </SettingsTableSection>
 
@@ -106,13 +170,15 @@ const ColorPage: React.FC = () => {
                     <Form.Item
                         label="Название"
                         name="title"
+                        extra="Используйте короткое понятное название для менеджеров и карточек товара, например: «Молочный», «Графит»."
                         rules={[{required: true, message: "Введите название"}]}
                     >
-                        <Input />
+                        <Input placeholder="Например: Молочный" />
                     </Form.Item>
                     <Form.Item
                         label="HEX"
                         name="hex"
+                        extra="Выберите точный цвет или вставьте HEX в формате #RRGGBB."
                         rules={[
                             {required: true, message: "Введите HEX"},
                             {pattern: /^#([0-9A-Fa-f]{6})$/, message: "Неверный HEX код"}
@@ -120,6 +186,9 @@ const ColorPage: React.FC = () => {
                     >
                         <Input type="color" />
                     </Form.Item>
+                    <Text type="secondary" className={styles.formHint}>
+                        Перед сохранением проверьте, что цвет совпадает с фото товара: это снижает ошибки при комплектации заказа.
+                    </Text>
                 </Form>
             </Modal>
         </>
