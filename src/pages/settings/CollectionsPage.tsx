@@ -1,4 +1,4 @@
-import {Button, Form, Input, Modal, Popconfirm, Space, Table, message} from "antd"
+import {Alert, Button, Empty, Form, Input, Modal, Popconfirm, Space, Table, Typography, message} from "antd"
 import {useState} from "react"
 import type {ColumnsType} from "antd/es/table"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
@@ -20,7 +20,7 @@ const CollectionsPage = () => {
     const {data, isLoading} = useGetCollectionsQuery()
     const [createCollection, {isLoading: isCreating}] = useCreateCollectionMutation()
     const [updateCollection, {isLoading: isUpdating}] = useUpdateCollectionMutation()
-    const [deleteCollection] = useDeleteCollectionMutation()
+    const [deleteCollection, {isLoading: isDeleting}] = useDeleteCollectionMutation()
 
     const [isOpen, setIsOpen] = useState(false)
     const [editing, setEditing] = useState<CollectionType | null>(null)
@@ -37,19 +37,25 @@ const CollectionsPage = () => {
         setIsOpen(true)
     }
 
+    const closeModal = () => {
+        setIsOpen(false)
+        setEditing(null)
+        form.resetFields()
+    }
+
     const handleSave = async () => {
         try {
             const values = await form.validateFields()
+            const title = values.title.trim()
+
             if (editing) {
-                await updateCollection({id: editing.id, title: values.title}).unwrap()
+                await updateCollection({id: editing.id, title}).unwrap()
                 message.success("Коллекция обновлена")
             } else {
-                await createCollection({title: values.title}).unwrap()
+                await createCollection({title}).unwrap()
                 message.success("Коллекция создана")
             }
-            setIsOpen(false)
-            setEditing(null)
-            form.resetFields()
+            closeModal()
         } catch (error) {
             message.error(getNestErrorMessage(error))
         }
@@ -66,17 +72,33 @@ const CollectionsPage = () => {
 
     const columns: ColumnsType<CollectionType> = [
         {title: "ID", dataIndex: "id", width: 80},
-        {title: "Название", dataIndex: "title"},
+        {
+            title: "Коллекция",
+            dataIndex: "title",
+            render: (title: string) => (
+                <Space direction="vertical" size={2}>
+                    <Typography.Text strong>{title}</Typography.Text>
+                    <Typography.Text type="secondary">Группа для витрины и вариантов товаров</Typography.Text>
+                </Space>
+            )
+        },
         {
             title: "Действия",
             key: "actions",
             width: 220,
             render: (_, record) => (
-                <Space>
+                <Space wrap>
                     <Button type="link" onClick={() => openEdit(record)}>
                         Редактировать
                     </Button>
-                    <Popconfirm title="Удалить коллекцию?" onConfirm={() => handleDelete(record.id)}>
+                    <Popconfirm
+                        title="Удалить коллекцию?"
+                        description="Проверьте, что коллекция не используется в активных товарах и фильтрах витрины."
+                        okText="Удалить"
+                        cancelText="Отмена"
+                        okButtonProps={{danger: true, loading: isDeleting}}
+                        onConfirm={() => handleDelete(record.id)}
+                    >
                         <Button type="link" danger>
                             Удалить
                         </Button>
@@ -90,32 +112,55 @@ const CollectionsPage = () => {
         <>
             <SettingsTableSection
                 title="Коллекции"
-                subtitle="Управление коллекциями для вариантов товаров."
+                subtitle="Управление коллекциями для витрины, фильтров и вариантов товаров."
                 addButtonText="Добавить коллекцию"
                 onAdd={openCreate}
             >
-                <Table
-                    rowKey="id"
-                    loading={isLoading}
-                    dataSource={data || []}
-                    columns={columns}
-                    pagination={false}
-                />
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Коллекции влияют на навигацию покупателей"
+                        description="Используйте понятные сезонные или тематические названия, чтобы менеджеры быстрее находили нужные группы товаров."
+                    />
+                    <Table
+                        rowKey="id"
+                        loading={isLoading}
+                        dataSource={data || []}
+                        columns={columns}
+                        pagination={false}
+                        scroll={{x: 640}}
+                        locale={{
+                            emptyText: (
+                                <Empty
+                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                    description="Коллекции ещё не созданы"
+                                >
+                                    <Button type="primary" onClick={openCreate}>Создать первую коллекцию</Button>
+                                </Empty>
+                            )
+                        }}
+                    />
+                </Space>
             </SettingsTableSection>
 
             <Modal
                 open={isOpen}
                 title={editing ? "Редактировать коллекцию" : "Создать коллекцию"}
-                onCancel={() => setIsOpen(false)}
+                onCancel={closeModal}
                 onOk={handleSave}
                 confirmLoading={isCreating || isUpdating}
+                okText={editing ? "Сохранить" : "Создать"}
+                cancelText="Отмена"
             >
                 <Form form={form} layout="vertical">
                     <Form.Item
                         name="title"
                         label="Название"
+                        extra="Например: Summer 2026, Naruto Drop или Gifts under 500k."
                         rules={[
                             {required: true, message: "Введите название коллекции"},
+                            {whitespace: true, message: "Название не может быть пустым"},
                             {max: 150, message: "Максимум 150 символов"}
                         ]}
                     >
