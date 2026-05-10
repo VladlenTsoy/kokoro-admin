@@ -1,4 +1,5 @@
-import {Button, Collapse, Divider, Form, Input, Modal, Popconfirm, Space, Switch, Typography, message} from "antd"
+import {Alert, Button, Collapse, Divider, Empty, Form, Input, Modal, Popconfirm, Skeleton, Space, Switch, Typography, message} from "antd"
+import DOMPurify from "dompurify"
 import {
     useCreateProductPropertyMutation,
     useDeleteProductPropertyMutation,
@@ -20,7 +21,7 @@ interface ProductPropertyFormValues {
 }
 
 const ProductPropertyPage = () => {
-    const {data} = useGetProductPropertiesQuery({isGlobal: 1}, {refetchOnMountOrArgChange: true})
+    const {data, isLoading, isError} = useGetProductPropertiesQuery({isGlobal: 1}, {refetchOnMountOrArgChange: true})
     const [createProductProperty, {isLoading: isCreating}] = useCreateProductPropertyMutation()
     const [updateProductProperty, {isLoading: isUpdating}] = useUpdateProductPropertyMutation()
     const [deleteProductProperty, {isLoading: isDeleting}] = useDeleteProductPropertyMutation()
@@ -94,8 +95,11 @@ const ProductPropertyPage = () => {
         {canDelete && (
             <Popconfirm
                 title="Удалить свойство?"
+                description="Проверьте, что это свойство больше не нужно в карточках товаров. Действие нельзя быстро отменить."
+                okText="Удалить"
+                cancelText="Отмена"
+                okButtonProps={{loading: isDeleting, danger: true}}
                 onConfirm={() => handleDelete(property.id)}
-                okButtonProps={{loading: isDeleting}}
             >
                 <DeleteOutlined
                     onClick={(event) => {
@@ -120,15 +124,31 @@ const ProductPropertyPage = () => {
                 )}
             </div>
             <Divider size="middle" />
-            <Collapse
-                size="large"
-                items={data?.map(item => ({
-                    key: item.id,
-                    label: item.title,
-                    children: <div dangerouslySetInnerHTML={{__html: item.description}} />,
-                    extra: genExtra(item)
-                }))}
-            />
+            <Space orientation="vertical" size={12} style={{width: "100%"}}>
+                <Alert
+                    type="info"
+                    showIcon
+                    message="Описание свойства показывается менеджерам в карточке товара"
+                    description="Можно использовать простой текст или базовое форматирование. Потенциально опасный HTML очищается перед показом в админке."
+                />
+                {isLoading ? (
+                    <Skeleton active paragraph={{rows: 4}} />
+                ) : isError ? (
+                    <Alert type="error" showIcon message="Не удалось загрузить свойства" description="Обновите страницу или попробуйте позже." />
+                ) : (data?.length ?? 0) > 0 ? (
+                    <Collapse
+                        size="large"
+                        items={data?.map(item => ({
+                            key: item.id,
+                            label: item.title,
+                            children: <div dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(item.description)}} />,
+                            extra: genExtra(item)
+                        }))}
+                    />
+                ) : (
+                    <Empty description="Глобальные свойства ещё не добавлены" />
+                )}
+            </Space>
             <Modal
                 title={editingProperty ? "Редактировать свойство" : "Создать свойство"}
                 open={isModalOpen}
@@ -149,7 +169,7 @@ const ProductPropertyPage = () => {
                         label="Описание"
                         rules={[{required: true, message: "Введите описание"}]}
                     >
-                        <Input.TextArea rows={4} placeholder="Описание свойства" />
+                        <Input.TextArea rows={4} placeholder="Например: 100% хлопок, рекомендации по уходу или особенности посадки" />
                     </Form.Item>
                     <Form.Item name="is_global" label="Глобальное" valuePropName="checked">
                         <Switch />
