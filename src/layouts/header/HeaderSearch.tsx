@@ -12,6 +12,14 @@ const useStyles = createStyles(({token}) => ({
             borderRadius: token.borderRadiusLG,
             borderColor: token.colorBorder,
             background: token.colorBgContainer
+        },
+        "@media (max-width: 760px)": {
+            width: "100%",
+            maxWidth: "none"
+        },
+        "@media (max-width: 520px)": {
+            gridColumn: "1 / -1",
+            minWidth: 260
         }
     }
 }))
