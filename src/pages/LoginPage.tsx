@@ -1,5 +1,5 @@
-import {Button, Card, Col, Form, Input, Row, Space, Tag, Typography, message} from "antd"
-import {useEffect} from "react"
+import {Alert, Button, Card, Col, Form, Input, Row, Space, Tag, Typography, message} from "antd"
+import {useEffect, useState} from "react"
 import {useNavigate} from "react-router-dom"
 import {useLoginMutation} from "../features/admin/authApi.ts"
 import {useDispatch} from "../features/store.ts"
@@ -17,6 +17,7 @@ const LoginPage = () => {
     const dispatch = useDispatch()
     const navigate = useNavigate()
     const {accessToken} = useSelectedAuthData()
+    const [loginError, setLoginError] = useState<string | null>(null)
 
     const [login, {isLoading: isLoginLoading}] = useLoginMutation()
 
@@ -27,6 +28,8 @@ const LoginPage = () => {
     }, [accessToken, navigate])
 
     const onSubmit = async (values: LoginFormValues) => {
+        setLoginError(null)
+
         try {
             const payload = await login({email: values.email, password: values.password}).unwrap()
 
@@ -34,7 +37,9 @@ const LoginPage = () => {
             message.success("Вы успешно вошли")
             navigate("/", {replace: true})
         } catch (error) {
-            message.error(getNestErrorMessage(error))
+            const errorMessage = getNestErrorMessage(error)
+            setLoginError(errorMessage)
+            message.error(errorMessage)
         }
     }
 
@@ -64,7 +69,24 @@ const LoginPage = () => {
                             <Typography.Title level={4} style={{marginTop: 0}}>
                                 Вход в аккаунт
                             </Typography.Title>
-                            <Form<LoginFormValues> form={form} layout="vertical" onFinish={onSubmit}>
+                            <Form<LoginFormValues> form={form} layout="vertical" onFinish={onSubmit} disabled={isLoginLoading}>
+                                {loginError && (
+                                    <Alert
+                                        showIcon
+                                        type="error"
+                                        message="Не удалось войти"
+                                        description={
+                                            <Space direction="vertical" size={4}>
+                                                <Typography.Text>{loginError}</Typography.Text>
+                                                <Typography.Text type="secondary">
+                                                    Проверьте email и пароль. Если доступ должен быть открыт, передайте администратору этот текст ошибки без пароля.
+                                                </Typography.Text>
+                                            </Space>
+                                        }
+                                        style={{marginBottom: 16}}
+                                    />
+                                )}
+
                                 <Form.Item
                                     name="email"
                                     label="Email"
@@ -73,7 +95,7 @@ const LoginPage = () => {
                                         {type: "email", message: "Неверный формат email"}
                                     ]}
                                 >
-                                    <Input placeholder="admin@kokoro.uz" size="large" />
+                                    <Input placeholder="admin@kokoro.uz" size="large" autoComplete="username" />
                                 </Form.Item>
 
                                 <Form.Item
@@ -85,7 +107,7 @@ const LoginPage = () => {
                                         {max: 100, message: "Максимум 100 символов"}
                                     ]}
                                 >
-                                    <Input.Password placeholder="StrongPassword123" size="large" />
+                                    <Input.Password placeholder="Введите пароль" size="large" autoComplete="current-password" />
                                 </Form.Item>
 
                                 <Button
@@ -95,7 +117,7 @@ const LoginPage = () => {
                                     size="large"
                                     loading={isLoginLoading}
                                 >
-                                    Войти
+                                    {isLoginLoading ? "Проверяем доступ…" : "Войти"}
                                 </Button>
                             </Form>
                         </Card>
