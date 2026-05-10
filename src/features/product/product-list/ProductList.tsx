@@ -1,5 +1,5 @@
 import {useGetProductsQuery} from "../productApi.ts"
-import {Table} from "antd"
+import {Button, Empty, Space, Table, Typography} from "antd"
 import type {TablePaginationConfig} from "antd"
 import type {SorterResult} from "antd/es/table/interface"
 import type {ProductType} from "../ProductType.ts"
@@ -26,6 +26,39 @@ const ProductList = () => {
         sortField: params.sorter.field,
         sortOrder: params.sorter.order
     }, {refetchOnMountOrArgChange: true})
+    const activeFiltersCount = (
+        params.categoryIds.length +
+        params.collectionIds.length +
+        params.salesPointIds.length +
+        params.storageIds.length +
+        params.sizeIds.length +
+        (params.search ? 1 : 0) +
+        (params.type && params.type !== "all" ? 1 : 0)
+    )
+    const hasActiveFilters = activeFiltersCount > 0
+    const emptyText = (
+        <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={(
+                <Space direction="vertical" size={4}>
+                    <Typography.Text strong>
+                        {hasActiveFilters ? "По заданным условиям товары не найдены" : "В каталоге пока нет товаров"}
+                    </Typography.Text>
+                    <Typography.Text type="secondary">
+                        {hasActiveFilters
+                            ? "Сбросьте поиск, статус или фильтры, чтобы вернуться к полному каталогу."
+                            : "Добавьте первый товар, чтобы менеджеры могли управлять остатками, ценами и публикацией."}
+                    </Typography.Text>
+                </Space>
+            )}
+        >
+            {hasActiveFilters && (
+                <Button onClick={() => updateParams("clear", undefined)}>
+                    Сбросить фильтры
+                </Button>
+            )}
+        </Empty>
+    )
     //
     const onChangeHandler = (
         pagination: TablePaginationConfig,
@@ -66,6 +99,7 @@ const ProductList = () => {
                     total: data?.total || 0,
                     size: "default"
                 }}
+                locale={{emptyText}}
                 rowClassName="row-product"
             />
         </div>
