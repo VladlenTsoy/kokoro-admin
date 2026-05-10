@@ -1,4 +1,4 @@
-import {Alert, Button, Card, Checkbox, Drawer, Form, Input, Popconfirm, Space, Statistic, Switch, Table, Tag, Typography, message} from "antd"
+import {Alert, Button, Card, Checkbox, Drawer, Empty, Form, Input, Popconfirm, Segmented, Space, Statistic, Switch, Table, Tag, Typography, message} from "antd"
 import type {ColumnsType} from "antd/es/table"
 import {useMemo, useState} from "react"
 import {Navigate} from "react-router-dom"
@@ -21,6 +21,8 @@ interface RoleFormValues {
     isActive: boolean
     permissions: PermissionCode[]
 }
+
+type RoleStatusFilter = "all" | "active" | "inactive" | "withoutPermissions"
 
 const ACTIONS: PermissionAction[] = ["read", "create", "update", "delete", "manage"]
 const ACTION_LABELS: Record<PermissionAction, string> = {
@@ -146,10 +148,33 @@ const RolesPage = () => {
     const canManageStaff = useCan("staff.manage")
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
     const [editingRole, setEditingRole] = useState<Role | null>(null)
+    const [statusFilter, setStatusFilter] = useState<RoleStatusFilter>("all")
+    const [searchQuery, setSearchQuery] = useState("")
     const [form] = Form.useForm<RoleFormValues>()
     const selectedPermissions = Form.useWatch("permissions", form) ?? []
 
     const roles = useMemo(() => (data ? [...data].sort((a, b) => b.id - a.id) : []), [data])
+    const filteredRoles = useMemo(() => {
+        const normalizedQuery = searchQuery.trim().toLowerCase()
+
+        return roles.filter((role) => {
+            const matchesStatus =
+                statusFilter === "all" ||
+                (statusFilter === "active" && role.isActive) ||
+                (statusFilter === "inactive" && !role.isActive) ||
+                (statusFilter === "withoutPermissions" && !role.permissions.length)
+
+            if (!matchesStatus) {
+                return false
+            }
+
+            if (!normalizedQuery) {
+                return true
+            }
+
+            return [role.code, role.name, ...(role.permissions ?? [])].join(" ").toLowerCase().includes(normalizedQuery)
+        })
+    }, [roles, searchQuery, statusFilter])
 
     if (getApiStatusCode(error) === 403 || getApiStatusCode(permissionCatalogError) === 403) {
         return <Navigate to="/forbidden" replace />
@@ -247,6 +272,9 @@ const RolesPage = () => {
                         <Button onClick={() => openEdit(role)}>Редактировать</Button>
                         <Popconfirm
                             title="Удалить роль?"
+                            description="Проверьте, что роль не нужна активным сотрудникам. Для временного запрета безопаснее выключить статус роли."
+                            okText="Удалить"
+                            cancelText="Отмена"
                             onConfirm={() => handleDelete(role)}
                             okButtonProps={{loading: isDeleting}}
                         >
@@ -278,15 +306,59 @@ const RolesPage = () => {
                 </Space>
             </Card>
 
-            <Card>
-                <Table<Role>
-                    rowKey="id"
-                    loading={isLoading || isPermissionCatalogLoading}
-                    columns={columns}
-                    dataSource={roles}
-                    pagination={false}
-                    scroll={{x: 1100}}
+            {error && (
+                <Alert
+                    type="warning"
+                    showIcon
+                    message="Роли не загрузились полностью"
+                    description="Проверьте подключение или права доступа перед изменением матрицы ролей."
                 />
+            )}
+
+            <Card>
+                <Space orientation="vertical" size={16} style={{width: "100%"}}>
+                    <Space wrap style={{width: "100%", justifyContent: "space-between"}}>
+                        <Segmented
+                            value={statusFilter}
+                            onChange={(value) => setStatusFilter(value as RoleStatusFilter)}
+                            options={[
+                                {label: `Все (${roles.length})`, value: "all"},
+                                {label: `Активные (${roles.filter((role) => role.isActive).length})`, value: "active"},
+                                {label: `Неактивные (${roles.filter((role) => !role.isActive).length})`, value: "inactive"},
+                                {label: `Без доступов (${roles.filter((role) => !role.permissions.length).length})`, value: "withoutPermissions"}
+                            ]}
+                        />
+                        <Input.Search
+                            allowClear
+                            placeholder="Поиск по коду, названию или permission"
+                            style={{maxWidth: 420}}
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.target.value)}
+                            onSearch={setSearchQuery}
+                        />
+                    </Space>
+                    <Typography.Text type="secondary">
+                        Показано {filteredRoles.length} из {roles.length}. Фильтр «Без доступов» помогает быстро найти роли, которые не дают сотрудникам рабочих прав.
+                    </Typography.Text>
+                    <Table<Role>
+                        rowKey="id"
+                        loading={isLoading || isPermissionCatalogLoading}
+                        columns={columns}
+                        dataSource={filteredRoles}
+                        pagination={false}
+                        scroll={{x: 1100}}
+                        locale={{
+                            emptyText: (
+                                <Empty
+                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                    description={searchQuery || statusFilter !== "all"
+                                        ? "Роли не найдены — измените поиск или фильтр статуса."
+                                        : "Ролей пока нет. Создайте роль и назначьте минимально необходимые доступы."}
+                                />
+                            )
+                        }}
+                    />
+                </Space>
             </Card>
 
             <Drawer
