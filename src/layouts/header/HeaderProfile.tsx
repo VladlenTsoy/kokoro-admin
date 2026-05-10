@@ -15,7 +15,7 @@ const HeaderProfile = () => {
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
     const [changePassword, {isLoading: isChangingPassword}] = useChangePasswordMutation()
     const [logout, {isLoading: isLoggingOut}] = useLogoutMutation()
-    const [form] = Form.useForm<{currentPassword: string; newPassword: string}>()
+    const [form] = Form.useForm<{currentPassword: string; newPassword: string; confirmPassword: string}>()
 
     const handleLogout = async () => {
         try {
@@ -37,8 +37,8 @@ const HeaderProfile = () => {
 
     const handleChangePassword = async () => {
         try {
-            const values = await form.validateFields()
-            await changePassword(values).unwrap()
+            const {currentPassword, newPassword} = await form.validateFields()
+            await changePassword({currentPassword, newPassword}).unwrap()
             message.success("Пароль изменён. Используйте новый пароль при следующем входе.")
             closePasswordModal()
         } catch (error) {
@@ -93,8 +93,9 @@ const HeaderProfile = () => {
                 destroyOnHidden
             >
                 <Typography.Paragraph type="secondary">
-                    Пароль должен быть длиной от 8 до 100 символов. После сохранения продолжайте работу в текущей
-                    сессии, а при следующем входе используйте новый пароль.
+                    Пароль должен быть длиной от 8 до 100 символов и отличаться от текущего. Повторите новый пароль,
+                    чтобы избежать ошибки при вводе. После сохранения продолжайте работу в текущей сессии, а при
+                    следующем входе используйте новый пароль.
                 </Typography.Paragraph>
                 <Form form={form} layout="vertical">
                     <Form.Item
@@ -107,13 +108,42 @@ const HeaderProfile = () => {
                     <Form.Item
                         label="Новый пароль"
                         name="newPassword"
+                        dependencies={["currentPassword"]}
                         rules={[
                             {required: true, message: "Введите новый пароль"},
                             {min: 8, message: "Минимум 8 символов"},
-                            {max: 100, message: "Максимум 100 символов"}
+                            {max: 100, message: "Максимум 100 символов"},
+                            ({getFieldValue}) => ({
+                                validator(_, value) {
+                                    if (!value || value !== getFieldValue("currentPassword")) {
+                                        return Promise.resolve()
+                                    }
+
+                                    return Promise.reject(new Error("Новый пароль должен отличаться от текущего"))
+                                }
+                            })
                         ]}
                     >
                         <Input.Password autoComplete="new-password" placeholder="8–100 символов" />
+                    </Form.Item>
+                    <Form.Item
+                        label="Повторите новый пароль"
+                        name="confirmPassword"
+                        dependencies={["newPassword"]}
+                        rules={[
+                            {required: true, message: "Повторите новый пароль"},
+                            ({getFieldValue}) => ({
+                                validator(_, value) {
+                                    if (!value || getFieldValue("newPassword") === value) {
+                                        return Promise.resolve()
+                                    }
+
+                                    return Promise.reject(new Error("Пароли не совпадают"))
+                                }
+                            })
+                        ]}
+                    >
+                        <Input.Password autoComplete="new-password" placeholder="Введите новый пароль ещё раз" />
                     </Form.Item>
                 </Form>
             </Modal>
