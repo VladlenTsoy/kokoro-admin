@@ -1,4 +1,4 @@
-import {Button, Checkbox, Form, Input, Modal, Popconfirm, Select, Space, Table, message} from "antd"
+import {Alert, Button, Checkbox, Empty, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography, message} from "antd"
 import {useEffect, useMemo, useState} from "react"
 import type {ColumnsType} from "antd/es/table"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
@@ -95,8 +95,16 @@ const OrderStatusesPage = () => {
     const columns: ColumnsType<OrderStatusEntity> = [
         {title: "ID", dataIndex: "id", width: 70},
         {title: "Название", dataIndex: "title"},
-        {title: "Доступ", dataIndex: "access", render: (v) => v || "—"},
-        {title: "Fixed", dataIndex: "fixed", render: (v) => (v ? "Да" : "Нет")},
+        {
+            title: "Доступ",
+            dataIndex: "access",
+            render: (v) => v ? <Tag color="blue">{v}</Tag> : <Typography.Text type="secondary">без ограничения</Typography.Text>
+        },
+        {
+            title: "Системный",
+            dataIndex: "fixed",
+            render: (v) => v ? <Tag color="gold">Защищён</Tag> : <Tag>Можно менять</Tag>
+        },
         {title: "Позиция", dataIndex: "position", render: (v) => v ?? "—"},
         {
             title: "Действия",
@@ -118,11 +126,28 @@ const OrderStatusesPage = () => {
         <>
             <SettingsTableSection
                 title="Статусы заказов"
-                subtitle="CRUD статусов и настройка разрешённых переходов."
+                subtitle="Настройка статусов и разрешённых переходов: помогает менеджеру не перевести заказ в ошибочное состояние."
                 addButtonText="Добавить статус"
                 onAdd={openCreate}
             >
-                <Table rowKey="id" loading={isLoading} dataSource={statuses || []} columns={columns} pagination={false} />
+                <Table
+                    rowKey="id"
+                    loading={isLoading}
+                    dataSource={statuses || []}
+                    columns={columns}
+                    pagination={false}
+                    scroll={{x: 760}}
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="Статусы заказов пока не настроены"
+                            >
+                                <Button type="primary" onClick={openCreate}>Добавить первый статус</Button>
+                            </Empty>
+                        )
+                    }}
+                />
             </SettingsTableSection>
 
             <Modal
@@ -146,16 +171,24 @@ const OrderStatusesPage = () => {
                 onOk={saveTransitions}
                 confirmLoading={isUpdatingTransitions}
             >
-                <Form form={transitionForm} layout="vertical">
-                    <Form.Item name="toStatusIds" label="Разрешённые переходы">
-                        <Select mode="multiple" options={statusOptions} allowClear />
-                    </Form.Item>
-                    <Form.Item>
-                        <Checkbox checked disabled>
-                            Проверка переходов на backend обязательна
-                        </Checkbox>
-                    </Form.Item>
-                </Form>
+                <Space orientation="vertical" size={12} style={{width: "100%"}}>
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Выберите только безопасные следующие статусы"
+                        description="Эта настройка управляет доступными действиями менеджера в заказе. Если переход запрещён, менеджер не сможет случайно перескочить важный шаг."
+                    />
+                    <Form form={transitionForm} layout="vertical">
+                        <Form.Item name="toStatusIds" label="Разрешённые переходы" extra="Оставьте пустым, если из этого статуса не должно быть ручных переходов.">
+                            <Select mode="multiple" options={statusOptions} allowClear placeholder="Например: сборка, готов, отменён" />
+                        </Form.Item>
+                        <Form.Item>
+                            <Checkbox checked disabled>
+                                Проверка переходов на backend обязательна
+                            </Checkbox>
+                        </Form.Item>
+                    </Form>
+                </Space>
             </Modal>
         </>
     )
