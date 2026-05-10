@@ -1,4 +1,4 @@
-import {Col, Form, type FormProps, message, Row, type SelectProps} from "antd"
+import {Alert, Button, Card, Col, Form, type FormProps, message, Row, Skeleton, type SelectProps} from "antd"
 import BaseSection from "./content/BaseSection.tsx"
 import PriceSection from "./content/PriceSection.tsx"
 import QtySection from "./content/QtySection.tsx"
@@ -32,7 +32,7 @@ interface Props {
 
 const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
     const [form] = Form.useForm<ProductFormValuesType>()
-    const {data, isLoading} = useGetProductByIdQuery(productId, {
+    const {data, error, isError, isFetching, isLoading, refetch} = useGetProductByIdQuery(productId, {
         refetchOnMountOrArgChange: true,
         refetchOnReconnect: true,
         refetchOnFocus: true,
@@ -43,6 +43,9 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
     const {styles} = useStyles()
     const navigate = useNavigate()
     const isSaving = isCreating || isUpdating
+    const isEditingExistingProduct = Boolean(productId)
+    const isInitialProductLoading = isEditingExistingProduct && isLoading
+    const productLoadErrorMessage = isError ? getNestErrorMessage(error) : undefined
 
     // ---------- Состояния ----------
     const [selectedSizes, setSelectedSizes] = useState<{id: number; title: string}[]>([])
@@ -243,9 +246,15 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
         [buildProductPayload, create, isColor, navigate, productId, update]
     )
 
-    const onFinishFailedHandler: FormProps<ProductFormValuesType>["onFinishFailed"] = useCallback(() => {
+    const onFinishFailedHandler = useCallback<NonNullable<FormProps<ProductFormValuesType>["onFinishFailed"]>>(({errorFields}) => {
+        const firstErrorField = errorFields[0]?.name
+
+        if (firstErrorField) {
+            form.scrollToField(firstErrorField, {block: "center"})
+        }
+
         message.warning("Проверьте обязательные поля перед сохранением")
-    }, [])
+    }, [form])
 
     // ---------- Memoized Left/Right blocks ----------
     const leftBlock = useMemo(() => <LeftBlock />, [])
@@ -261,36 +270,54 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
                 {leftBlock}
             </Col>
             <Col xl={12} md={12} xs={24}>
-                <Form
-                    layout="vertical"
-                    size="large"
-                    form={form}
-                    onFinish={onFinishHandler}
-                    onFinishFailed={onFinishFailedHandler}
-                    id="editor-product"
-                    className={styles.content}
-                    disabled={isLoading || isSaving}
-                >
-                    <Element name="basic">
-                        <BaseSection onSelectSizesChange={onSelectSizesHandler} />
-                    </Element>
-                    <Element name="price">
-                        <PriceSection
-                            discountValue={discountValue}
-                            discountMode={discountMode}
-                            onChangeDiscountMode={onChangeDiscountModeHandler}
-                        />
-                    </Element>
-                    <Element name="qty">
-                        <QtySection selectSizes={selectedSizes} />
-                    </Element>
-                    <Element name="measurements">
-                        <MeasurementsSection selectedSizes={selectedSizes} />
-                    </Element>
-                    <Element name="status-publishing">
-                        <PublicationSection />
-                    </Element>
-                </Form>
+                {isInitialProductLoading ? (
+                    <Card>
+                        <Skeleton active paragraph={{rows: 8}} />
+                    </Card>
+                ) : isError ? (
+                    <Alert
+                        type="error"
+                        showIcon
+                        message="Не удалось загрузить товар"
+                        description={productLoadErrorMessage}
+                        action={
+                            <Button size="small" danger loading={isFetching} onClick={() => refetch()}>
+                                Повторить
+                            </Button>
+                        }
+                    />
+                ) : (
+                    <Form
+                        layout="vertical"
+                        size="large"
+                        form={form}
+                        onFinish={onFinishHandler}
+                        onFinishFailed={onFinishFailedHandler}
+                        id="editor-product"
+                        className={styles.content}
+                        disabled={isLoading || isSaving}
+                    >
+                        <Element name="basic">
+                            <BaseSection onSelectSizesChange={onSelectSizesHandler} />
+                        </Element>
+                        <Element name="price">
+                            <PriceSection
+                                discountValue={discountValue}
+                                discountMode={discountMode}
+                                onChangeDiscountMode={onChangeDiscountModeHandler}
+                            />
+                        </Element>
+                        <Element name="qty">
+                            <QtySection selectSizes={selectedSizes} />
+                        </Element>
+                        <Element name="measurements">
+                            <MeasurementsSection selectedSizes={selectedSizes} />
+                        </Element>
+                        <Element name="status-publishing">
+                            <PublicationSection />
+                        </Element>
+                    </Form>
+                )}
             </Col>
             <Col xl={6} md={6} xs={24}>
                 {rightBlock}
