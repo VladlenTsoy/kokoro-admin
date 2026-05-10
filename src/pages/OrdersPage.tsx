@@ -215,6 +215,7 @@ const OrdersPage = () => {
             ? initialDeliveryStatus as OrderDeliveryStatus
             : undefined
     }))
+    const [orderSearchInput, setOrderSearchInput] = useState(filters.search || "")
     const [problemOnly, setProblemOnly] = useState(searchParams.get("problemOnly") === "1")
     const [attentionOnly, setAttentionOnly] = useState(searchParams.get("attentionOnly") === "1")
     const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
@@ -419,6 +420,20 @@ const OrdersPage = () => {
         setAttentionOnly(false)
         setFilters((prev) => ({...prev, deliveryStatus, page: 1}))
     }
+
+    const activeFilterCount = [
+        filters.search,
+        filters.statusId,
+        filters.paymentStatus,
+        filters.deliveryStatus,
+        filters.from && filters.to,
+        problemOnly,
+        attentionOnly
+    ].filter(Boolean).length
+
+    useEffect(() => {
+        setOrderSearchInput(filters.search || "")
+    }, [filters.search])
 
     const copyPhone = async (phone?: string | null) => {
         if (!phone) return
@@ -686,13 +701,19 @@ const OrdersPage = () => {
                         <Input.Search
                             placeholder="Поиск по номеру, клиенту, телефону"
                             allowClear
-                            onSearch={(search) => setFilters((prev) => ({...prev, search, page: 1}))}
+                            value={orderSearchInput}
+                            onChange={(event) => {
+                                setOrderSearchInput(event.target.value)
+                                if (!event.target.value) setFilters((prev) => ({...prev, search: undefined, page: 1}))
+                            }}
+                            onSearch={(search) => setFilters((prev) => ({...prev, search: search || undefined, page: 1}))}
                             style={{width: 320}}
                         />
                         <Select
                             allowClear
                             placeholder="Статус заказа"
                             style={{width: 180}}
+                            value={filters.statusId}
                             options={statuses?.map((status) => ({label: status.title, value: status.id}))}
                             onChange={(statusId) => setFilters((prev) => ({...prev, statusId, page: 1}))}
                         />
@@ -700,6 +721,7 @@ const OrdersPage = () => {
                             allowClear
                             placeholder="Статус оплаты"
                             style={{width: 180}}
+                            value={filters.paymentStatus}
                             options={paymentStatusOptions}
                             onChange={(paymentStatus) => setFilters((prev) => ({...prev, paymentStatus, page: 1}))}
                         />
@@ -723,6 +745,9 @@ const OrdersPage = () => {
                             }}
                         />
                         <Button onClick={setTodayFilters}>Сброс к сегодня</Button>
+                        <Typography.Text type="secondary">
+                            Активно фильтров: {activeFilterCount}. Сброс очищает поля формы и возвращает смену к сегодняшним заказам.
+                        </Typography.Text>
                     </Space>
                 </Space>
             </Card>
