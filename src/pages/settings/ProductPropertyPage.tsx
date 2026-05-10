@@ -1,4 +1,4 @@
-import {Button, Collapse, Divider, Form, Input, Modal, Popconfirm, Space, Switch, Typography, message} from "antd"
+import {Alert, Button, Collapse, Divider, Empty, Form, Input, Modal, Popconfirm, Skeleton, Space, Switch, Tag, Typography, message} from "antd"
 import {
     useCreateProductPropertyMutation,
     useDeleteProductPropertyMutation,
@@ -9,7 +9,7 @@ import {DeleteOutlined, EditOutlined, PlusOutlined} from "@ant-design/icons"
 import type {ProductPropertyType} from "../../features/settings/product-property/ProductPropertyTypes.ts"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 import {useCan} from "../../features/auth/permissions.ts"
-import {useState} from "react"
+import {useMemo, useState} from "react"
 
 const {Title, Text} = Typography
 
@@ -20,7 +20,7 @@ interface ProductPropertyFormValues {
 }
 
 const ProductPropertyPage = () => {
-    const {data} = useGetProductPropertiesQuery({isGlobal: 1}, {refetchOnMountOrArgChange: true})
+    const {data, isLoading, isError} = useGetProductPropertiesQuery({isGlobal: 1}, {refetchOnMountOrArgChange: true})
     const [createProductProperty, {isLoading: isCreating}] = useCreateProductPropertyMutation()
     const [updateProductProperty, {isLoading: isUpdating}] = useUpdateProductPropertyMutation()
     const [deleteProductProperty, {isLoading: isDeleting}] = useDeleteProductPropertyMutation()
@@ -30,6 +30,11 @@ const ProductPropertyPage = () => {
     const canCreate = useCan("catalog.create")
     const canUpdate = useCan("catalog.update")
     const canDelete = useCan("catalog.delete")
+
+    const properties = useMemo(
+        () => [...(data ?? [])].sort((a, b) => a.title.localeCompare(b.title, "ru") || a.id - b.id),
+        [data]
+    )
 
     const closeModal = () => {
         setIsModalOpen(false)
@@ -108,10 +113,12 @@ const ProductPropertyPage = () => {
 
     return (
         <>
-            <div style={{display: "flex", alignItems: "center", justifyContent: "space-between"}}>
+            <div style={{display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap"}}>
                 <div>
                     <Title level={3} style={{marginBottom: 0}}>Свойства</Title>
-                    <Text type="secondary">Добавленное здесь свойство отображается на всех товарах.</Text>
+                    <Text type="secondary">
+                        Глобальные характеристики, которые менеджеры заполняют в карточках товаров. Проверяйте название и HTML-описание перед удалением.
+                    </Text>
                 </div>
                 {canCreate && (
                     <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
@@ -120,15 +127,55 @@ const ProductPropertyPage = () => {
                 )}
             </div>
             <Divider size="middle" />
-            <Collapse
-                size="large"
-                items={data?.map(item => ({
-                    key: item.id,
-                    label: item.title,
-                    children: <div dangerouslySetInnerHTML={{__html: item.description}} />,
-                    extra: genExtra(item)
-                }))}
-            />
+            <Space direction="vertical" size={12} style={{width: "100%"}}>
+                <Alert
+                    type="info"
+                    showIcon
+                    message="Как это влияет на каталог"
+                    description="Свойства отсортированы по названию и показываются всем товарам. Перед удалением убедитесь, что менеджеры не используют это поле в описаниях и карточках."
+                />
+                {isError && (
+                    <Alert
+                        type="error"
+                        showIcon
+                        message="Не удалось загрузить свойства"
+                        description="Обновите страницу или проверьте доступ к настройкам каталога."
+                    />
+                )}
+                {isLoading ? (
+                    <Skeleton active paragraph={{rows: 4}} />
+                ) : properties.length > 0 ? (
+                    <Collapse
+                        size="large"
+                        items={properties.map(item => ({
+                            key: item.id,
+                            label: (
+                                <Space wrap>
+                                    <Text strong>{item.title}</Text>
+                                    {item.is_global && <Tag color="blue">Глобальное</Tag>}
+                                </Space>
+                            ),
+                            children: (
+                                <Space direction="vertical" size={8} style={{width: "100%"}}>
+                                    <Text type="secondary">Описание отображается как HTML в админке товара:</Text>
+                                    <div dangerouslySetInnerHTML={{__html: item.description}} />
+                                </Space>
+                            ),
+                            extra: genExtra(item)
+                        }))}
+                    />
+                ) : (
+                    <Empty
+                        description="Глобальные свойства ещё не созданы"
+                    >
+                        {canCreate && (
+                            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                                Создать первое свойство
+                            </Button>
+                        )}
+                    </Empty>
+                )}
+            </Space>
             <Modal
                 title={editingProperty ? "Редактировать свойство" : "Создать свойство"}
                 open={isModalOpen}
@@ -147,12 +194,18 @@ const ProductPropertyPage = () => {
                     <Form.Item
                         name="description"
                         label="Описание"
+                        extra="Можно использовать короткое HTML-описание для подсказки менеджеру. Избегайте скриптов, внешних виджетов и длинных инструкций."
                         rules={[{required: true, message: "Введите описание"}]}
                     >
-                        <Input.TextArea rows={4} placeholder="Описание свойства" />
+                        <Input.TextArea rows={4} placeholder="Например: <p>Укажите материал изделия.</p>" />
                     </Form.Item>
-                    <Form.Item name="is_global" label="Глобальное" valuePropName="checked">
-                        <Switch />
+                    <Form.Item
+                        name="is_global"
+                        label="Глобальное"
+                        valuePropName="checked"
+                        extra="Глобальное свойство будет доступно во всех карточках товаров."
+                    >
+                        <Switch checkedChildren="Да" unCheckedChildren="Нет" />
                     </Form.Item>
                 </Form>
             </Modal>
