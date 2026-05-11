@@ -1,5 +1,6 @@
 import React, {useState} from "react"
-import {Table, Button, Popconfirm, Modal, Form, Input, Switch} from "antd"
+import {Alert, Button, Empty, Form, Input, InputNumber, Modal, Popconfirm, Space, Switch, Table, Tag} from "antd"
+import type {ColumnsType} from "antd/es/table"
 import {
     useCreateProductVariantStatusMutation,
     useGetProductVariantStatusesQuery,
@@ -10,7 +11,7 @@ import type {ProductVariantStatusType} from "../../features/product-variant-stat
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
 
 const ProductVariantStatusPage: React.FC = () => {
-    const {data, isLoading} = useGetProductVariantStatusesQuery()
+    const {data, isLoading, isError, refetch} = useGetProductVariantStatusesQuery()
     const [createProductVariantStatus] = useCreateProductVariantStatusMutation()
     const [updateProductVariantStatus] = useUpdateProductVariantStatusMutation()
     const [deleteProductVariantStatus] = useDeleteProductVariantStatusMutation()
@@ -32,13 +33,31 @@ const ProductVariantStatusPage: React.FC = () => {
         form.resetFields()
     }
 
-    const columns = [
-        {title: "ID", dataIndex: "id"},
-        {title: "Название", dataIndex: "title"},
+    const columns: ColumnsType<ProductVariantStatusType> = [
+        {title: "ID", dataIndex: "id", width: 90},
+        {
+            title: "Статус варианта",
+            dataIndex: "title",
+            render: (title: string, record) => (
+                <Space direction="vertical" size={2}>
+                    <strong>{title}</strong>
+                    <span style={{color: "rgba(0, 0, 0, 0.45)", fontSize: 12}}>Позиция: {record.position ?? "не задана"}</span>
+                </Space>
+            )
+        },
+        {
+            title: "По умолчанию",
+            dataIndex: "is_default",
+            width: 160,
+            render: (isDefault: boolean) => (
+                <Tag color={isDefault ? "blue" : "default"}>{isDefault ? "Да, основной" : "Нет"}</Tag>
+            )
+        },
         {
             title: "Действия",
+            width: 220,
             render: (_: unknown, record: ProductVariantStatusType) => (
-                <>
+                <Space wrap>
                     <Button
                         type="link"
                         onClick={() => {
@@ -49,12 +68,18 @@ const ProductVariantStatusPage: React.FC = () => {
                     >
                         Редактировать
                     </Button>
-                    <Popconfirm title="Удалить статус?" onConfirm={() => deleteProductVariantStatus(record.id)}>
+                    <Popconfirm
+                        title="Удалить статус варианта?"
+                        description="Перед удалением убедитесь, что этот статус не используется в активных вариантах товара и фильтрах каталога."
+                        okText="Удалить"
+                        cancelText="Отмена"
+                        onConfirm={() => deleteProductVariantStatus(record.id)}
+                    >
                         <Button type="link" danger>
                             Удалить
                         </Button>
                     </Popconfirm>
-                </>
+                </Space>
             )
         }
     ]
@@ -63,37 +88,72 @@ const ProductVariantStatusPage: React.FC = () => {
         <div>
             <SettingsTableSection
                 title="Статусы вариантов товара"
-                subtitle="Справочник статусов для жизненного цикла товарных вариантов."
-                addButtonText="Добавить статус продукта"
+                subtitle="Справочник статусов для жизненного цикла товарных вариантов: доступность, витрина, складские состояния."
+                addButtonText="Добавить статус варианта"
                 onAdd={() => {
                     setEditingProductVariantStatus(null)
                     form.resetFields()
                     setIsModalOpen(true)
                 }}
             >
-                <Table
+                {isError && (
+                    <Alert
+                        type="error"
+                        showIcon
+                        message="Не удалось загрузить статусы вариантов"
+                        description="Проверьте подключение или повторите загрузку, чтобы не менять справочник вслепую."
+                        action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
+                        style={{margin: 16}}
+                    />
+                )}
+                <Alert
+                    type="info"
+                    showIcon
+                    message="Подсказка для менеджеров каталога"
+                    description="Статус по умолчанию подставляется новым вариантам. Меняйте порядок и основной статус аккуратно: это влияет на скорость публикации и фильтрацию товаров."
+                    style={{margin: 16}}
+                />
+                <Table<ProductVariantStatusType>
                     loading={isLoading}
                     dataSource={data || []}
                     columns={columns}
                     rowKey="id"
+                    scroll={{x: 720}}
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="Статусы вариантов ещё не настроены. Добавьте первый статус, чтобы менеджеры понимали состояние SKU в каталоге."
+                            />
+                        )
+                    }}
                 />
             </SettingsTableSection>
 
             <Modal
-                title={editingProductVariantStatus ? "Изменить статус продукта" : "Создать статус продукта"}
+                title={editingProductVariantStatus ? "Изменить статус варианта" : "Создать статус варианта"}
                 open={isModalOpen}
                 onCancel={() => setIsModalOpen(false)}
                 onOk={handleSubmit}
+                okText={editingProductVariantStatus ? "Сохранить" : "Создать"}
+                cancelText="Отмена"
             >
-                <Form form={form} layout="vertical">
-                    <Form.Item name="title" label="Название" rules={[{required: true}]}>
-                        <Input />
+                <Alert
+                    type="warning"
+                    showIcon
+                    message="Статус влияет на работу каталога"
+                    description="Не удаляйте и не переименовывайте рабочие статусы без проверки активных вариантов товара и витринных фильтров."
+                    style={{marginBottom: 16}}
+                />
+                <Form form={form} layout="vertical" initialValues={{is_default: false}}>
+                    <Form.Item name="title" label="Название" rules={[{required: true, message: "Введите название статуса"}]}>
+                        <Input placeholder="Например, В наличии" />
                     </Form.Item>
-                    <Form.Item name="position" label="Позиция" rules={[{required: false}]}>
-                        <Input />
+                    <Form.Item name="position" label="Позиция" extra="Меньшее число поднимает статус выше в списках и селектах.">
+                        <InputNumber min={0} style={{width: "100%"}} placeholder="10" />
                     </Form.Item>
-                    <Form.Item name="is_default" label="По умолчанию" valuePropName="checked">
-                        <Switch />
+                    <Form.Item name="is_default" label="По умолчанию" valuePropName="checked" extra="Используйте только для статуса, который безопасно назначать новым вариантам товара.">
+                        <Switch checkedChildren="Да" unCheckedChildren="Нет" />
                     </Form.Item>
                 </Form>
             </Modal>
