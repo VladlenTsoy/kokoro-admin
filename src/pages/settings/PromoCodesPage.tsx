@@ -23,6 +23,8 @@ type PromoForm = {
     isActive?: boolean
 }
 
+type PromoStatusFilter = "all" | "active" | "scheduled" | "exhausted" | "expired" | "disabled"
+
 const discountTypeLabels: Record<PromoForm["discountType"], string> = {
     percent: "Процент",
     fixed: "Фиксированная сумма"
@@ -30,22 +32,44 @@ const discountTypeLabels: Record<PromoForm["discountType"], string> = {
 
 const formatDateTime = (value?: string | null) => value ? dayjs(value).format("DD.MM.YYYY HH:mm") : "—"
 
-const renderPromoStatus = (promo: PromoCode) => {
+const getPromoLifecycleStatus = (promo: PromoCode): Exclude<PromoStatusFilter, "all"> => {
     const now = dayjs()
 
     if (!promo.isActive) {
-        return <Tag color="default">Выключен</Tag>
+        return "disabled"
     }
 
     if (promo.startsAt && dayjs(promo.startsAt).isAfter(now)) {
-        return <Tag color="blue">Запланирован</Tag>
+        return "scheduled"
     }
 
     if (promo.endsAt && dayjs(promo.endsAt).isBefore(now)) {
-        return <Tag color="red">Истёк</Tag>
+        return "expired"
     }
 
     if (promo.usageLimit && promo.usedCount !== undefined && promo.usedCount >= promo.usageLimit) {
+        return "exhausted"
+    }
+
+    return "active"
+}
+
+const renderPromoStatus = (promo: PromoCode) => {
+    const status = getPromoLifecycleStatus(promo)
+
+    if (status === "disabled") {
+        return <Tag color="default">Выключен</Tag>
+    }
+
+    if (status === "scheduled") {
+        return <Tag color="blue">Запланирован</Tag>
+    }
+
+    if (status === "expired") {
+        return <Tag color="red">Истёк</Tag>
+    }
+
+    if (status === "exhausted") {
         return <Tag color="orange">Лимит исчерпан</Tag>
     }
 
@@ -59,6 +83,8 @@ const PromoCodesPage = () => {
     const [deletePromo, {isLoading: isDeleting}] = useDeletePromoCodeMutation()
     const [isOpen, setIsOpen] = useState(false)
     const [editing, setEditing] = useState<PromoCode | null>(null)
+    const [searchValue, setSearchValue] = useState("")
+    const [statusFilter, setStatusFilter] = useState<PromoStatusFilter>("all")
     const [form] = Form.useForm<PromoForm>()
     const promoCodes = useMemo(() => data || [], [data])
     const promoSummary = useMemo(() => {
@@ -81,6 +107,26 @@ const PromoCodesPage = () => {
             {active: 0, scheduled: 0, exhausted: 0, expired: 0, disabled: 0}
         )
     }, [promoCodes])
+    const normalizedSearch = searchValue.trim().toLowerCase()
+    const filteredPromoCodes = useMemo(() => {
+        return promoCodes.filter((promo) => {
+            const statusMatches = statusFilter === "all" || getPromoLifecycleStatus(promo) === statusFilter
+            const searchMatches = !normalizedSearch || [
+                promo.id.toString(),
+                promo.code,
+                promo.discountType,
+                discountTypeLabels[promo.discountType]
+            ].some((value) => value.toLowerCase().includes(normalizedSearch))
+
+            return statusMatches && searchMatches
+        })
+    }, [normalizedSearch, promoCodes, statusFilter])
+    const hasActiveFilters = Boolean(normalizedSearch) || statusFilter !== "all"
+
+    const resetFilters = () => {
+        setSearchValue("")
+        setStatusFilter("all")
+    }
 
     const openCreate = () => {
         setEditing(null)
@@ -189,6 +235,32 @@ const PromoCodesPage = () => {
                         message="Операционный контроль промокодов"
                         description={`Активных: ${promoSummary.active}. Запланированных: ${promoSummary.scheduled}. Исчерпали лимит: ${promoSummary.exhausted}. Истекли: ${promoSummary.expired}. Выключены: ${promoSummary.disabled}. Перед рассылкой проверьте период действия, лимит и минимальную сумму заказа.`}
                     />
+                    <Space size={12} wrap style={{width: "100%"}}>
+                        <Input.Search
+                            allowClear
+                            placeholder="Найти промокод по коду, ID или типу скидки"
+                            value={searchValue}
+                            onChange={(event) => setSearchValue(event.target.value)}
+                            style={{maxWidth: 360}}
+                        />
+                        <Select<PromoStatusFilter>
+                            value={statusFilter}
+                            onChange={setStatusFilter}
+                            style={{minWidth: 210}}
+                            options={[
+                                {label: "Все статусы", value: "all"},
+                                {label: "Активные", value: "active"},
+                                {label: "Запланированные", value: "scheduled"},
+                                {label: "Лимит исчерпан", value: "exhausted"},
+                                {label: "Истёкшие", value: "expired"},
+                                {label: "Выключенные", value: "disabled"}
+                            ]}
+                        />
+                        <Typography.Text type="secondary">
+                            Показано {filteredPromoCodes.length} из {promoCodes.length}
+                        </Typography.Text>
+                        {hasActiveFilters ? <Button onClick={resetFilters}>Сбросить фильтры</Button> : null}
+                    </Space>
                     {isError ? (
                         <Alert
                             type="error"
@@ -201,7 +273,7 @@ const PromoCodesPage = () => {
                     <Table
                         rowKey="id"
                         loading={isLoading || isFetching}
-                        dataSource={promoCodes}
+                        dataSource={filteredPromoCodes}
                         columns={columns}
                         pagination={false}
                         scroll={{x: 980}}
@@ -209,8 +281,10 @@ const PromoCodesPage = () => {
                             emptyText: (
                                 <Empty
                                     image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                    description="Промокоды ещё не созданы. Добавьте первый код и задайте лимит, период действия и статус активности."
-                                />
+                                    description={hasActiveFilters ? "По этим фильтрам промокоды не найдены. Сбросьте фильтры перед созданием нового кода, чтобы не продублировать активную акцию." : "Промокоды ещё не созданы. Добавьте первый код и задайте лимит, период действия и статус активности."}
+                                >
+                                    {hasActiveFilters ? <Button onClick={resetFilters}>Показать все промокоды</Button> : null}
+                                </Empty>
                             )
                         }}
                     />
