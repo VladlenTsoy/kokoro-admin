@@ -1,4 +1,4 @@
-import {Alert, Button, Checkbox, Empty, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, message} from "antd"
+import {Alert, Button, Card, Checkbox, Empty, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography, message} from "antd"
 import {useEffect, useMemo, useState} from "react"
 import type {ColumnsType} from "antd/es/table"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
@@ -24,6 +24,9 @@ const OrderStatusesPage = () => {
     const [isTransitionsModalOpen, setTransitionsModalOpen] = useState(false)
     const [editingStatus, setEditingStatus] = useState<OrderStatusEntity | null>(null)
     const [transitionStatus, setTransitionStatus] = useState<OrderStatusEntity | null>(null)
+    const [search, setSearch] = useState("")
+    const [typeFilter, setTypeFilter] = useState<"all" | "fixed" | "custom">("all")
+    const [deletingStatusId, setDeletingStatusId] = useState<number | null>(null)
 
     const [statusForm] = Form.useForm<{title: string}>()
     const [transitionForm] = Form.useForm<{toStatusIds: number[]}>()
@@ -37,6 +40,32 @@ const OrderStatusesPage = () => {
             transitionForm.setFieldsValue({toStatusIds: transitions.map((item) => item.id)})
         }
     }, [transitionForm, transitions, transitionStatus])
+
+    const normalizedSearch = search.trim().toLowerCase()
+    const statusSummary = useMemo(() => {
+        const items = statuses || []
+        return {
+            total: items.length,
+            fixed: items.filter((item) => item.fixed).length,
+            custom: items.filter((item) => !item.fixed).length,
+            withoutPosition: items.filter((item) => item.position === undefined || item.position === null).length
+        }
+    }, [statuses])
+
+    const filteredStatuses = useMemo(() => {
+        return (statuses || []).filter((status) => {
+            const matchesSearch = !normalizedSearch || status.title.toLowerCase().includes(normalizedSearch) || String(status.id).includes(normalizedSearch) || (status.access || "").toLowerCase().includes(normalizedSearch)
+            const matchesType = typeFilter === "all" || (typeFilter === "fixed" ? status.fixed : !status.fixed)
+            return matchesSearch && matchesType
+        })
+    }, [normalizedSearch, statuses, typeFilter])
+
+    const resetFilters = () => {
+        setSearch("")
+        setTypeFilter("all")
+    }
+
+    const hasActiveFilters = Boolean(normalizedSearch) || typeFilter !== "all"
 
     const statusOptions = useMemo(
         () => (statuses || []).filter((item) => item.id !== transitionStatus?.id).map((item) => ({label: item.title, value: item.id})),
@@ -72,11 +101,14 @@ const OrderStatusesPage = () => {
     }
 
     const removeStatus = async (id: number) => {
+        setDeletingStatusId(id)
         try {
             await deleteStatus(id).unwrap()
             message.success("Статус удалён")
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setDeletingStatusId(null)
         }
     }
 
@@ -136,7 +168,7 @@ const OrderStatusesPage = () => {
                         cancelText="Отмена"
                         onConfirm={() => removeStatus(status.id)}
                     >
-                        <Button type="link" danger>Удалить</Button>
+                        <Button type="link" danger loading={deletingStatusId === status.id}>Удалить</Button>
                     </Popconfirm>
                 </Space>
             )
@@ -168,22 +200,60 @@ const OrderStatusesPage = () => {
                         style={{margin: "0 16px 16px"}}
                     />
                 )}
-                <Table
-                    rowKey="id"
-                    loading={isLoading}
-                    dataSource={statuses || []}
-                    columns={columns}
-                    pagination={false}
-                    scroll={{x: 760}}
-                    locale={{
-                        emptyText: (
-                            <Empty
-                                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                description="Статусы заказов ещё не настроены. Добавьте первый статус, чтобы менеджеры могли вести заказ по понятному сценарию."
-                            />
-                        )
-                    }}
-                />
+                <Space direction="vertical" size={16} style={{width: "100%", padding: "0 16px 16px"}}>
+                    <Card size="small">
+                        <Space direction="vertical" size={12} style={{width: "100%"}}>
+                            <Space wrap size={[8, 8]}>
+                                <Tag color="blue">Всего: {statusSummary.total}</Tag>
+                                <Tag color="geekblue">Системных: {statusSummary.fixed}</Tag>
+                                <Tag color="green">Настраиваемых: {statusSummary.custom}</Tag>
+                                {statusSummary.withoutPosition > 0 && <Tag color="orange">Без позиции: {statusSummary.withoutPosition}</Tag>}
+                                <Tag color={filteredStatuses.length === statusSummary.total ? "default" : "purple"}>Показано: {filteredStatuses.length}</Tag>
+                            </Space>
+                            <Space wrap style={{width: "100%"}}>
+                                <Input.Search
+                                    allowClear
+                                    placeholder="Найти статус по названию, ID или access"
+                                    value={search}
+                                    onChange={(event) => setSearch(event.target.value)}
+                                    style={{minWidth: 260, maxWidth: 380}}
+                                />
+                                <Select
+                                    value={typeFilter}
+                                    onChange={setTypeFilter}
+                                    style={{width: 190}}
+                                    options={[
+                                        {label: "Все типы", value: "all"},
+                                        {label: "Системные", value: "fixed"},
+                                        {label: "Настраиваемые", value: "custom"}
+                                    ]}
+                                />
+                                {hasActiveFilters && <Button onClick={resetFilters}>Сбросить фильтры</Button>}
+                            </Space>
+                            <Typography.Text type="secondary">
+                                Перед созданием нового статуса проверьте список: дубли в lifecycle заказа усложняют фильтры, отчёты и обучение менеджеров.
+                            </Typography.Text>
+                        </Space>
+                    </Card>
+                    <Table
+                        rowKey="id"
+                        loading={isLoading}
+                        dataSource={filteredStatuses}
+                        columns={columns}
+                        pagination={false}
+                        scroll={{x: 760}}
+                        locale={{
+                            emptyText: (
+                                <Empty
+                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                    description={hasActiveFilters ? "По текущим фильтрам статусы не найдены. Сбросьте фильтры или проверьте другой ID/название." : "Статусы заказов ещё не настроены. Добавьте первый статус, чтобы менеджеры могли вести заказ по понятному сценарию."}
+                                >
+                                    {hasActiveFilters && <Button onClick={resetFilters}>Сбросить фильтры</Button>}
+                                </Empty>
+                            )
+                        }}
+                    />
+                </Space>
             </SettingsTableSection>
 
             <Modal
