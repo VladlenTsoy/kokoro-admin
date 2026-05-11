@@ -1,5 +1,5 @@
-import React, {useState} from "react"
-import {Table, Button, Popconfirm, Modal, Form, Input, InputNumber, Empty, Alert, Space, Tag, Typography} from "antd"
+import React, {useMemo, useState} from "react"
+import {Table, Button, Popconfirm, Modal, Form, Input, InputNumber, Empty, Alert, Space, Tag, Typography, message} from "antd"
 import {
     useGetStoragesQuery,
     useCreateStorageMutation,
@@ -8,11 +8,12 @@ import {
 } from "../../features/settings/product-storage/productStorageApi.ts"
 import type {ProductStorageType} from "../../features/settings/product-storage/productStorageTypes.ts"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
+import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 
 const ProductStoragePage: React.FC = () => {
-    const {data, isLoading, isError, refetch} = useGetStoragesQuery()
-    const [createStorage] = useCreateStorageMutation()
-    const [updateStorage] = useUpdateStorageMutation()
+    const {data: storages = [], isLoading, isError, refetch} = useGetStoragesQuery()
+    const [createStorage, {isLoading: isCreating}] = useCreateStorageMutation()
+    const [updateStorage, {isLoading: isUpdating}] = useUpdateStorageMutation()
     const [deleteStorage] = useDeleteStorageMutation()
 
     const [isModalOpen, setIsModalOpen] = useState(false)
@@ -20,16 +21,52 @@ const ProductStoragePage: React.FC = () => {
 
     const [form] = Form.useForm()
 
-    const handleSubmit = async () => {
-        const values = await form.validateFields()
-        if (editingStorage) {
-            await updateStorage({id: editingStorage.id, body: values})
-        } else {
-            await createStorage(values)
+    const storageSummary = useMemo(() => {
+        const active = storages.filter((storage) => !storage.deleted_at).length
+        return {
+            active,
+            archived: storages.length - active
         }
-        setIsModalOpen(false)
+    }, [storages])
+
+    const openCreate = () => {
         setEditingStorage(null)
         form.resetFields()
+        setIsModalOpen(true)
+    }
+
+    const openEdit = (record: ProductStorageType) => {
+        setEditingStorage(record)
+        form.setFieldsValue(record)
+        setIsModalOpen(true)
+    }
+
+    const handleSubmit = async () => {
+        const values = await form.validateFields()
+
+        try {
+            if (editingStorage) {
+                await updateStorage({id: editingStorage.id, body: values}).unwrap()
+                message.success("Склад обновлён")
+            } else {
+                await createStorage(values).unwrap()
+                message.success("Склад создан")
+            }
+            setIsModalOpen(false)
+            setEditingStorage(null)
+            form.resetFields()
+        } catch (error) {
+            message.error(getNestErrorMessage(error))
+        }
+    }
+
+    const handleDelete = async (id: number) => {
+        try {
+            await deleteStorage(id).unwrap()
+            message.success("Склад удалён")
+        } catch (error) {
+            message.error(getNestErrorMessage(error))
+        }
     }
 
     const columns = [
@@ -63,14 +100,7 @@ const ProductStoragePage: React.FC = () => {
             title: "Действия",
             render: (_: unknown, record: ProductStorageType) => (
                 <Space wrap>
-                    <Button
-                        type="link"
-                        onClick={() => {
-                            setEditingStorage(record)
-                            form.setFieldsValue(record)
-                            setIsModalOpen(true)
-                        }}
-                    >
+                    <Button type="link" onClick={() => openEdit(record)}>
                         Редактировать
                     </Button>
                     <Popconfirm
@@ -78,7 +108,7 @@ const ProductStoragePage: React.FC = () => {
                         description="Перед удалением убедитесь, что к складу не привязаны активные остатки или заказы."
                         okText="Удалить"
                         cancelText="Отмена"
-                        onConfirm={() => deleteStorage(record.id)}
+                        onConfirm={() => handleDelete(record.id)}
                     >
                         <Button type="link" danger>
                             Удалить
@@ -95,11 +125,7 @@ const ProductStoragePage: React.FC = () => {
                 title="Склады"
                 subtitle="Склады и привязка к точкам продаж. Проверяйте точку продаж перед изменением — это влияет на остатки и выдачу заказов."
                 addButtonText="Добавить склад"
-                onAdd={() => {
-                    setEditingStorage(null)
-                    form.resetFields()
-                    setIsModalOpen(true)
-                }}
+                onAdd={openCreate}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     {isError && (
@@ -111,9 +137,17 @@ const ProductStoragePage: React.FC = () => {
                             action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
                         />
                     )}
+                    {!isError && storages.length > 0 && (
+                        <Alert
+                            type="info"
+                            showIcon
+                            message={`Активных складов: ${storageSummary.active}`}
+                            description={`Архивных: ${storageSummary.archived}. Перед правкой склада проверьте точку продаж — от неё зависят остатки, выдача и менеджерский подбор товара.`}
+                        />
+                    )}
                     <Table
                         loading={isLoading}
-                        dataSource={data || []}
+                        dataSource={storages}
                         columns={columns}
                         rowKey="id"
                         scroll={{x: 760}}
@@ -125,11 +159,7 @@ const ProductStoragePage: React.FC = () => {
                                 >
                                     <Button
                                         type="primary"
-                                        onClick={() => {
-                                            setEditingStorage(null)
-                                            form.resetFields()
-                                            setIsModalOpen(true)
-                                        }}
+                                        onClick={openCreate}
                                     >
                                         Добавить первый склад
                                     </Button>
@@ -147,6 +177,7 @@ const ProductStoragePage: React.FC = () => {
                 onOk={handleSubmit}
                 okText={editingStorage ? "Сохранить" : "Создать склад"}
                 cancelText="Отмена"
+                confirmLoading={isCreating || isUpdating}
             >
                 <Alert
                     type="info"
