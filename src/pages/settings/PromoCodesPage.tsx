@@ -1,5 +1,5 @@
-import {Button, Empty, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, DatePicker, Tag, Typography, message} from "antd"
-import {useState} from "react"
+import {Alert, Button, Empty, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, DatePicker, Tag, Typography, message} from "antd"
+import {useMemo, useState} from "react"
 import type {ColumnsType} from "antd/es/table"
 import dayjs from "dayjs"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
@@ -53,13 +53,34 @@ const renderPromoStatus = (promo: PromoCode) => {
 }
 
 const PromoCodesPage = () => {
-    const {data, isLoading} = useGetPromoCodesQuery()
+    const {data, isLoading, isFetching, isError, refetch} = useGetPromoCodesQuery()
     const [createPromo, {isLoading: isCreating}] = useCreatePromoCodeMutation()
     const [updatePromo, {isLoading: isUpdating}] = useUpdatePromoCodeMutation()
-    const [deletePromo] = useDeletePromoCodeMutation()
+    const [deletePromo, {isLoading: isDeleting}] = useDeletePromoCodeMutation()
     const [isOpen, setIsOpen] = useState(false)
     const [editing, setEditing] = useState<PromoCode | null>(null)
     const [form] = Form.useForm<PromoForm>()
+    const promoCodes = useMemo(() => data || [], [data])
+    const promoSummary = useMemo(() => {
+        const now = dayjs()
+        return promoCodes.reduce(
+            (summary, promo) => {
+                if (!promo.isActive) {
+                    summary.disabled += 1
+                } else if (promo.startsAt && dayjs(promo.startsAt).isAfter(now)) {
+                    summary.scheduled += 1
+                } else if (promo.endsAt && dayjs(promo.endsAt).isBefore(now)) {
+                    summary.expired += 1
+                } else if (promo.usageLimit && promo.usedCount !== undefined && promo.usedCount >= promo.usageLimit) {
+                    summary.exhausted += 1
+                } else {
+                    summary.active += 1
+                }
+                return summary
+            },
+            {active: 0, scheduled: 0, exhausted: 0, expired: 0, disabled: 0}
+        )
+    }, [promoCodes])
 
     const openCreate = () => {
         setEditing(null)
@@ -143,9 +164,10 @@ const PromoCodesPage = () => {
                         description="Проверьте, что код не используется в активных маркетинговых коммуникациях."
                         okText="Удалить"
                         cancelText="Отмена"
+                        okButtonProps={{loading: isDeleting}}
                         onConfirm={() => removePromo(promo.id)}
                     >
-                        <Button type="link" danger>Удалить</Button>
+                        <Button type="link" danger loading={isDeleting}>Удалить</Button>
                     </Popconfirm>
                 </Space>
             )
@@ -160,22 +182,39 @@ const PromoCodesPage = () => {
                 addButtonText="Добавить промокод"
                 onAdd={openCreate}
             >
-                <Table
-                    rowKey="id"
-                    loading={isLoading}
-                    dataSource={data || []}
-                    columns={columns}
-                    pagination={false}
-                    scroll={{x: 980}}
-                    locale={{
-                        emptyText: (
-                            <Empty
-                                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                description="Промокоды ещё не созданы. Добавьте первый код и задайте лимит, период действия и статус активности."
-                            />
-                        )
-                    }}
-                />
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
+                    <Alert
+                        type={promoSummary.expired || promoSummary.exhausted ? "warning" : "info"}
+                        showIcon
+                        message="Операционный контроль промокодов"
+                        description={`Активных: ${promoSummary.active}. Запланированных: ${promoSummary.scheduled}. Исчерпали лимит: ${promoSummary.exhausted}. Истекли: ${promoSummary.expired}. Выключены: ${promoSummary.disabled}. Перед рассылкой проверьте период действия, лимит и минимальную сумму заказа.`}
+                    />
+                    {isError ? (
+                        <Alert
+                            type="error"
+                            showIcon
+                            message="Не удалось загрузить промокоды"
+                            description="Не меняйте маркетинговые рассылки по памяти: обновите список и проверьте актуальные статусы кодов перед запуском акции."
+                            action={<Button size="small" onClick={() => refetch()} loading={isFetching}>Повторить</Button>}
+                        />
+                    ) : null}
+                    <Table
+                        rowKey="id"
+                        loading={isLoading || isFetching}
+                        dataSource={promoCodes}
+                        columns={columns}
+                        pagination={false}
+                        scroll={{x: 980}}
+                        locale={{
+                            emptyText: (
+                                <Empty
+                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                    description="Промокоды ещё не созданы. Добавьте первый код и задайте лимит, период действия и статус активности."
+                                />
+                            )
+                        }}
+                    />
+                </Space>
             </SettingsTableSection>
 
             <Modal
