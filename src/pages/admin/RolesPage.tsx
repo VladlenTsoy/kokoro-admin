@@ -1,4 +1,4 @@
-import {Alert, Button, Card, Checkbox, Drawer, Form, Input, Popconfirm, Space, Statistic, Switch, Table, Tag, Typography, message} from "antd"
+import {Alert, Button, Card, Checkbox, Drawer, Empty, Form, Input, Popconfirm, Space, Statistic, Switch, Table, Tag, Typography, message} from "antd"
 import type {ColumnsType} from "antd/es/table"
 import {useMemo, useState} from "react"
 import {Navigate} from "react-router-dom"
@@ -24,11 +24,11 @@ interface RoleFormValues {
 
 const ACTIONS: PermissionAction[] = ["read", "create", "update", "delete", "manage"]
 const ACTION_LABELS: Record<PermissionAction, string> = {
-    read: "Read",
-    create: "Create",
-    update: "Update",
-    delete: "Delete",
-    manage: "Manage"
+    read: "Просмотр",
+    create: "Создание",
+    update: "Изменение",
+    delete: "Удаление",
+    manage: "Полный доступ"
 }
 
 function togglePermission(selectedPermissions: PermissionCode[], permission: PermissionCode) {
@@ -56,7 +56,7 @@ function summarizePermissions(permissions: PermissionCode[], catalog?: Permissio
                 return null
             }
 
-            return `${module.title}: ${moduleActions.map((action) => action.toLowerCase()).join(", ")}`
+            return `${module.title}: ${moduleActions.map((action) => ACTION_LABELS[action].toLowerCase()).join(", ")}`
         })
         .filter(Boolean)
         .join("; ") || "—"
@@ -132,7 +132,7 @@ const PermissionMatrix = ({catalog, selectedPermissions, onToggle}: PermissionMa
 }
 
 const RolesPage = () => {
-    const {data, isLoading, error} = useGetRolesQuery()
+    const {data, isLoading, error, refetch: refetchRoles} = useGetRolesQuery()
     const {
         data: permissionCatalog,
         isLoading: isPermissionCatalogLoading,
@@ -247,6 +247,9 @@ const RolesPage = () => {
                         <Button onClick={() => openEdit(role)}>Редактировать</Button>
                         <Popconfirm
                             title="Удалить роль?"
+                            description="Удаление может сломать доступ сотрудников, если роль уже используется. Для временного ограничения безопаснее отключить роль."
+                            okText="Удалить"
+                            cancelText="Отмена"
                             onConfirm={() => handleDelete(role)}
                             okButtonProps={{loading: isDeleting}}
                         >
@@ -279,14 +282,48 @@ const RolesPage = () => {
             </Card>
 
             <Card>
-                <Table<Role>
+                <Space orientation="vertical" size={16} style={{width: "100%"}}>
+                    {error ? (
+                        <Alert
+                            type="error"
+                            showIcon
+                            message="Не удалось загрузить роли"
+                            description="Проверьте доступ к админке или повторите загрузку, прежде чем менять права сотрудников."
+                            action={<Button onClick={() => refetchRoles()}>Повторить</Button>}
+                        />
+                    ) : null}
+                    {permissionCatalogError ? (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            message="Матрица доступов недоступна"
+                            description="Без каталога permissions менеджер может видеть только коды доступов. Изменения ролей лучше отложить до восстановления справочника."
+                            action={<Button onClick={() => refetchPermissionCatalog()}>Повторить</Button>}
+                        />
+                    ) : null}
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Роли влияют на доступ сотрудников к операционным разделам"
+                        description="Перед удалением или отключением роли проверьте, какие сотрудники используют её в смене. Если роль нужна для истории или временно не используется — лучше отключить её, а не удалять."
+                    />
+                    <Table<Role>
                     rowKey="id"
                     loading={isLoading || isPermissionCatalogLoading}
                     columns={columns}
                     dataSource={roles}
                     pagination={false}
                     scroll={{x: 1100}}
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="Роли ещё не настроены. Создайте первую роль и выдайте только необходимые доступы для работы смены."
+                            />
+                        )
+                    }}
                 />
+                </Space>
             </Card>
 
             <Drawer
@@ -325,9 +362,21 @@ const RolesPage = () => {
                     >
                         <Input placeholder="Менеджер" />
                     </Form.Item>
-                    <Form.Item name="isActive" label="Активна" valuePropName="checked">
-                        <Switch />
+                    <Form.Item
+                        name="isActive"
+                        label="Активна"
+                        valuePropName="checked"
+                        extra="Отключённая роль остаётся в системе, но не должна использоваться для новых назначений. Это безопаснее удаления, если роль уже была у сотрудников."
+                    >
+                        <Switch checkedChildren="Да" unCheckedChildren="Нет" />
                     </Form.Item>
+                    <Alert
+                        type="warning"
+                        showIcon
+                        style={{marginBottom: 16}}
+                        message="Выдавайте минимально необходимый доступ"
+                        description="Полный доступ в модуле автоматически покрывает просмотр, создание, изменение и удаление. Проверяйте delete/manage права отдельно перед сохранением роли."
+                    />
                     <Form.Item name="permissions" label="Матрица доступов">
                         <PermissionMatrix
                             catalog={permissionCatalog}
