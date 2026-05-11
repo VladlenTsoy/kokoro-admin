@@ -111,6 +111,7 @@ const EmployeesPage = () => {
     const [statusFilter, setStatusFilter] = useState<EmployeeStatusFilter>("all")
     const [form] = Form.useForm<EmployeeFormValues>()
     const [rolesForm] = Form.useForm<RolesOnlyFormValues>()
+    const editedEmployeeIsActive = Form.useWatch("isActive", form)
     const canManageStaff = useCan("staff.manage")
 
     const employees = useMemo(
@@ -311,7 +312,10 @@ const EmployeesPage = () => {
                         <Button onClick={() => openRolesOnly(employee)}>Только роли</Button>
                         <Popconfirm
                             title="Удалить сотрудника?"
+                            description="Перед удалением проверьте, что у сотрудника нет активной смены, заказов или незавершённой передачи клиенту. Если нужно только закрыть вход, безопаснее сначала выключить активность."
                             onConfirm={() => handleDelete(employee.id)}
+                            okText="Удалить"
+                            cancelText="Отмена"
                             okButtonProps={{loading: isDeleting}}
                         >
                             <Button danger>Удалить</Button>
@@ -516,8 +520,17 @@ const EmployeesPage = () => {
                         <Checkbox.Group options={roleOptions} />
                     </Form.Item>
                     <Form.Item name="isActive" label="Активен" valuePropName="checked">
-                        <Switch />
+                        <Switch checkedChildren="Вход открыт" unCheckedChildren="Вход закрыт" />
                     </Form.Item>
+                    {editingEmployee && editedEmployeeIsActive === false && (
+                        <Alert
+                            showIcon
+                            type="warning"
+                            style={{marginBottom: 16}}
+                            message="Вы закрываете сотруднику вход в админку"
+                            description="Перед сохранением убедитесь, что его текущие заказы, обращения клиентов и сменные задачи переданы другому менеджеру. Это UI-действие не подтверждает автоматический отзыв всех сессий или операционных обязанностей."
+                        />
+                    )}
                 </Form>
             </Modal>
 
