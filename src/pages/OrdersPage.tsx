@@ -64,6 +64,7 @@ const todayFilters = (): GetAdminOrdersParams => ({
     to: dayjs().format("YYYY-MM-DD")
 })
 
+const paymentStatusValues: OrderPaymentStatus[] = ["pending", "paid", "failed", "refunded"]
 const deliveryStatusValues: OrderDeliveryStatus[] = ["pending", "preparing", "ready", "delivering", "delivered", "cancelled"]
 const LIVE_ALERT_POLLING_INTERVAL_MS = 30_000
 const STALE_REFRESH_WARNING_MS = LIVE_ALERT_POLLING_INTERVAL_MS * 3
@@ -104,6 +105,39 @@ const statusIntentKeywords: Record<StatusIntent, string[]> = {
 const getPositiveOrderIdFromSearch = (searchParams: URLSearchParams) => {
     const orderId = Number(searchParams.get("orderId"))
     return Number.isInteger(orderId) && orderId > 0 ? orderId : null
+}
+
+const getPositiveNumberFromSearch = (searchParams: URLSearchParams, key: string) => {
+    const value = Number(searchParams.get(key))
+    return Number.isInteger(value) && value > 0 ? value : undefined
+}
+
+const getPaymentStatusFromSearch = (searchParams: URLSearchParams) => {
+    const paymentStatus = searchParams.get("paymentStatus")
+    return paymentStatusValues.includes(paymentStatus as OrderPaymentStatus) ? paymentStatus as OrderPaymentStatus : undefined
+}
+
+const getDeliveryStatusFromSearch = (searchParams: URLSearchParams) => {
+    const deliveryStatus = searchParams.get("deliveryStatus")
+    return deliveryStatusValues.includes(deliveryStatus as OrderDeliveryStatus) ? deliveryStatus as OrderDeliveryStatus : undefined
+}
+
+const getDateFromSearch = (searchParams: URLSearchParams, key: string) => {
+    const value = searchParams.get(key)
+    return value && /^\d{4}-\d{2}-\d{2}$/.test(value) && dayjs(value).format("YYYY-MM-DD") === value ? value : undefined
+}
+
+const getInitialOrderFiltersFromSearch = (searchParams: URLSearchParams): GetAdminOrdersParams => {
+    const from = getDateFromSearch(searchParams, "from")
+    const to = getDateFromSearch(searchParams, "to")
+
+    return {
+        ...todayFilters(),
+        statusId: getPositiveNumberFromSearch(searchParams, "statusId"),
+        paymentStatus: getPaymentStatusFromSearch(searchParams),
+        deliveryStatus: getDeliveryStatusFromSearch(searchParams),
+        ...(from && to ? {from, to} : {})
+    }
 }
 
 const getOrderAgeMinutes = (createdAt?: string) => {
@@ -217,13 +251,7 @@ const getHistoryStatusTitle = (item: OrderHistoryItem, side: "from" | "to") => {
 const OrdersPage = () => {
     const navigate = useNavigate()
     const [searchParams, setSearchParams] = useSearchParams()
-    const initialDeliveryStatus = searchParams.get("deliveryStatus")
-    const [filters, setFilters] = useState<GetAdminOrdersParams>(() => ({
-        ...todayFilters(),
-        deliveryStatus: deliveryStatusValues.includes(initialDeliveryStatus as OrderDeliveryStatus)
-            ? initialDeliveryStatus as OrderDeliveryStatus
-            : undefined
-    }))
+    const [filters, setFilters] = useState<GetAdminOrdersParams>(() => getInitialOrderFiltersFromSearch(searchParams))
     const [searchInput, setSearchInput] = useState("")
     const [problemOnly, setProblemOnly] = useState(searchParams.get("problemOnly") === "1")
     const [attentionOnly, setAttentionOnly] = useState(searchParams.get("attentionOnly") === "1")
@@ -309,6 +337,26 @@ const OrdersPage = () => {
         const orderIdFromUrl = getPositiveOrderIdFromSearch(searchParams)
         setSelectedOrderId((currentOrderId) => currentOrderId === orderIdFromUrl ? currentOrderId : orderIdFromUrl)
     }, [searchParams])
+
+    useEffect(() => {
+        setSearchParams((previousParams) => {
+            const nextParams = new URLSearchParams()
+            const orderId = getPositiveOrderIdFromSearch(previousParams) ?? selectedOrderId
+
+            if (orderId) nextParams.set("orderId", String(orderId))
+            if (filters.statusId) nextParams.set("statusId", String(filters.statusId))
+            if (filters.paymentStatus) nextParams.set("paymentStatus", filters.paymentStatus)
+            if (filters.deliveryStatus) nextParams.set("deliveryStatus", filters.deliveryStatus)
+            if (filters.from && filters.to) {
+                nextParams.set("from", filters.from)
+                nextParams.set("to", filters.to)
+            }
+            if (problemOnly) nextParams.set("problemOnly", "1")
+            if (attentionOnly) nextParams.set("attentionOnly", "1")
+
+            return nextParams.toString() === previousParams.toString() ? previousParams : nextParams
+        }, {replace: true})
+    }, [attentionOnly, filters.deliveryStatus, filters.from, filters.paymentStatus, filters.statusId, filters.to, problemOnly, selectedOrderId, setSearchParams])
 
     useEffect(() => {
         const timer = window.setInterval(() => setRefreshClock(dayjs()), 15_000)
@@ -798,6 +846,7 @@ const OrdersPage = () => {
                             placeholder="Статус заказа"
                             style={{width: 180}}
                             options={statuses?.map((status) => ({label: status.title, value: status.id}))}
+                            value={filters.statusId}
                             onChange={(statusId) => setFilters((prev) => ({...prev, statusId, page: 1}))}
                         />
                         <Select
@@ -805,6 +854,7 @@ const OrdersPage = () => {
                             placeholder="Статус оплаты"
                             style={{width: 180}}
                             options={paymentStatusOptions}
+                            value={filters.paymentStatus}
                             onChange={(paymentStatus) => setFilters((prev) => ({...prev, paymentStatus, page: 1}))}
                         />
                         <Select
@@ -834,6 +884,11 @@ const OrdersPage = () => {
                         </Typography.Text>
                         {activeOrderFilterLabels.map((label) => <Tag key={label}>{label}</Tag>)}
                         {hasActiveOrderFilters && <Button size="small" onClick={setAllFilters}>Очистить всё</Button>}
+                        {hasActiveOrderFilters && (
+                            <Typography.Text type="secondary">
+                                Ссылка сохраняет эти фильтры без клиентского поиска — можно безопасно передать очередь смены коллеге.
+                            </Typography.Text>
+                        )}
                     </Space>
                 </Space>
             </Card>
