@@ -1,5 +1,5 @@
-import React, {useState} from "react"
-import {Table, Button, Modal, Form, Input, Space, Popconfirm, Tag, Alert, Empty, Typography, message} from "antd"
+import React, {useMemo, useState} from "react"
+import {Table, Button, Modal, Form, Input, Space, Popconfirm, Tag, Alert, Empty, Typography, message, Segmented} from "antd"
 import {createStyles} from "antd-style"
 import {
     useGetSizesQuery,
@@ -12,8 +12,30 @@ import SettingsTableSection from "../../components/settings/SettingsTableSection
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 
 const {Text} = Typography
+const {Search} = Input
+
+type SizeStatusFilter = "all" | "active" | "archived"
 
 const useStyles = createStyles(({token}) => ({
+    summary: {
+        display: "flex",
+        flexWrap: "wrap",
+        gap: token.marginSM,
+        marginBottom: token.marginMD
+    },
+    filterBar: {
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: token.marginSM,
+        marginBottom: token.marginMD
+    },
+    filterControls: {
+        display: "flex",
+        flexWrap: "wrap",
+        gap: token.marginSM
+    },
     formHint: {
         display: "block",
         marginTop: token.marginXXS
@@ -29,7 +51,28 @@ const SizePage: React.FC = () => {
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingSize, setEditingSize] = useState<SizeType | null>(null)
+    const [searchValue, setSearchValue] = useState("")
+    const [statusFilter, setStatusFilter] = useState<SizeStatusFilter>("all")
     const [form] = Form.useForm()
+
+    const activeCount = sizes.filter((size) => !size.deleted_at).length
+    const archivedCount = sizes.length - activeCount
+    const normalizedSearch = searchValue.trim().toLowerCase()
+    const filteredSizes = useMemo(() => sizes.filter((size) => {
+        const matchesStatus = statusFilter === "all"
+            || (statusFilter === "active" && !size.deleted_at)
+            || (statusFilter === "archived" && Boolean(size.deleted_at))
+        const matchesSearch = !normalizedSearch
+            || size.title.toLowerCase().includes(normalizedSearch)
+            || String(size.id).includes(normalizedSearch)
+
+        return matchesStatus && matchesSearch
+    }), [normalizedSearch, sizes, statusFilter])
+
+    const resetFilters = () => {
+        setSearchValue("")
+        setStatusFilter("all")
+    }
 
     const handleSave = async () => {
         try {
@@ -115,6 +158,38 @@ const SizePage: React.FC = () => {
                     setIsModalOpen(true)
                 }}
             >
+                <div className={styles.summary}>
+                    <Tag color="blue">Всего: {sizes.length}</Tag>
+                    <Tag color="green">Активные: {activeCount}</Tag>
+                    <Tag color="red">Удалённые: {archivedCount}</Tag>
+                    <Tag color={filteredSizes.length === sizes.length ? "default" : "gold"}>Показано: {filteredSizes.length}</Tag>
+                </div>
+                <div className={styles.filterBar}>
+                    <Text type="secondary">
+                        Быстро найдите размер перед созданием нового, чтобы не завести дубль в размерной сетке.
+                    </Text>
+                    <div className={styles.filterControls}>
+                        <Search
+                            allowClear
+                            placeholder="Поиск по названию или ID"
+                            value={searchValue}
+                            onChange={(event) => setSearchValue(event.target.value)}
+                            style={{width: 260}}
+                        />
+                        <Segmented<SizeStatusFilter>
+                            value={statusFilter}
+                            onChange={setStatusFilter}
+                            options={[
+                                {label: "Все", value: "all"},
+                                {label: "Активные", value: "active"},
+                                {label: "Удалённые", value: "archived"}
+                            ]}
+                        />
+                        <Button disabled={!searchValue && statusFilter === "all"} onClick={resetFilters}>
+                            Сбросить
+                        </Button>
+                    </div>
+                </div>
                 {isError && (
                     <Alert
                         type="error"
@@ -127,12 +202,19 @@ const SizePage: React.FC = () => {
                 <Table
                     rowKey="id"
                     loading={isLoading}
-                    dataSource={sizes}
+                    dataSource={filteredSizes}
                     columns={columns}
                     scroll={{x: 640}}
                     pagination={{pageSize: 20, showSizeChanger: true}}
                     locale={{
-                        emptyText: (
+                        emptyText: searchValue || statusFilter !== "all" ? (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="По выбранным фильтрам размеров нет"
+                            >
+                                <Button onClick={resetFilters}>Сбросить фильтры</Button>
+                            </Empty>
+                        ) : (
                             <Empty
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                                 description="Размеры пока не добавлены"
