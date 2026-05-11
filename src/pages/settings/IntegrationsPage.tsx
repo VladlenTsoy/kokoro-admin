@@ -1,4 +1,4 @@
-import {Alert, Button, Card, Checkbox, Col, Form, Input, List, Row, Space, Switch, Tag, Typography, message} from "antd"
+import {Alert, Button, Card, Checkbox, Col, Empty, Form, Input, List, Row, Space, Switch, Tag, Typography, message} from "antd"
 import PageHeading from "../../components/PageHeading.tsx"
 import {
     useGetIntegrationsQuery,
@@ -38,6 +38,29 @@ const statusLabel: Record<string, string> = {
     healthy: "Работает",
     paused: "Пауза"
 }
+
+const providerLabel: Record<string, string> = {
+    datra_cdp: "Datra CDP",
+    meta: "Meta / Facebook"
+}
+
+const UnsupportedIntegrationCard = ({integration}: {integration: IntegrationSetting}) => (
+    <Card
+        title={
+            <Space wrap>
+                <span>{integration.title || providerLabel[integration.providerKey] || integration.providerKey}</span>
+                <Tag color="default">Скоро</Tag>
+            </Space>
+        }
+    >
+        <Alert
+            type="info"
+            showIcon
+            message="Настройка пока недоступна в админке"
+            description="Интеграция отображается в списке, но безопасного интерфейса управления ещё нет. Не включайте её вручную в production без согласованного процесса настройки и проверки."
+        />
+    </Card>
+)
 
 const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
     const [form] = Form.useForm()
@@ -171,7 +194,7 @@ const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
 }
 
 const IntegrationsPage = () => {
-    const {data, isLoading} = useGetIntegrationsQuery()
+    const {data, isError, isFetching, isLoading, refetch} = useGetIntegrationsQuery()
 
     return (
         <Space orientation="vertical" size={18} style={{width: "100%"}}>
@@ -180,15 +203,50 @@ const IntegrationsPage = () => {
                 subtitle="Платные и внешние подключения: Datra CDP, Meta/Facebook и будущие сервисы."
             />
 
-            <List
-                loading={isLoading}
-                dataSource={data || []}
-                renderItem={(integration) => (
-                    <List.Item style={{display: "block"}}>
-                        {integration.providerKey === "datra_cdp" ? <DatraCard integration={integration} /> : null}
-                    </List.Item>
-                )}
+            <Alert
+                type="info"
+                showIcon
+                message="Проверяйте интеграции как операционный чек-лист"
+                description="Перед включением убедитесь, что биллинг активен, токен обновлён, нужные события выбраны, а тест подключения прошёл без ошибок. Production‑переключения и внешние ключи требуют согласованного доступа."
             />
+
+            {isError ? (
+                <Card>
+                    <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description="Не удалось загрузить список интеграций"
+                    >
+                        <Space direction="vertical" size={8}>
+                            <Typography.Text type="secondary">
+                                Проверьте доступ к API или повторите загрузку. До восстановления списка не меняйте внешние подключения вручную.
+                            </Typography.Text>
+                            <Button onClick={() => refetch()} loading={isFetching}>Повторить загрузку</Button>
+                        </Space>
+                    </Empty>
+                </Card>
+            ) : (
+                <List
+                    loading={isLoading}
+                    dataSource={data || []}
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="Интеграции ещё не заведены"
+                            >
+                                <Typography.Text type="secondary">
+                                    Когда API вернёт доступные провайдеры, здесь появятся карточки настройки, статусы оплаты и проверки подключения.
+                                </Typography.Text>
+                            </Empty>
+                        )
+                    }}
+                    renderItem={(integration) => (
+                        <List.Item style={{display: "block"}}>
+                            {integration.providerKey === "datra_cdp" ? <DatraCard integration={integration} /> : <UnsupportedIntegrationCard integration={integration} />}
+                        </List.Item>
+                    )}
+                />
+            )}
         </Space>
     )
 }
