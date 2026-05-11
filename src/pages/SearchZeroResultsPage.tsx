@@ -1,4 +1,5 @@
-import {Alert, Button, Card, Empty, Space, Statistic, Table, Tag, Typography} from "antd"
+import {useState} from "react"
+import {Alert, Button, Card, Empty, Input, Space, Statistic, Switch, Table, Tag, Typography} from "antd"
 import {ReloadOutlined, SearchOutlined} from "@ant-design/icons"
 import type {ColumnsType} from "antd/es/table"
 import {useNavigate} from "react-router-dom"
@@ -9,13 +10,27 @@ import {type SearchZeroResultItem, useGetSearchZeroResultsQuery} from "../featur
 const SearchZeroResultsPage = () => {
     const navigate = useNavigate()
     const {data = [], isLoading, isFetching, error, refetch} = useGetSearchZeroResultsQuery()
+    const [queryFilter, setQueryFilter] = useState("")
+    const [showRepeatedOnly, setShowRepeatedOnly] = useState(false)
     const sortedData = [...data].sort((a, b) => dayjs(b.lastSearchedAt).valueOf() - dayjs(a.lastSearchedAt).valueOf())
+    const normalizedQueryFilter = queryFilter.trim().toLowerCase()
+    const filteredData = sortedData.filter((item) => {
+        const matchesQuery = normalizedQueryFilter ? item.query.toLowerCase().includes(normalizedQueryFilter) : true
+        const matchesRepeat = showRepeatedOnly ? Number(item.count || 0) > 1 : true
+
+        return matchesQuery && matchesRepeat
+    })
     const totalSearches = sortedData.reduce((sum, item) => sum + Number(item.count || 0), 0)
     const latest = sortedData[0]?.lastSearchedAt
     const repeatedSignals = sortedData.filter((item) => Number(item.count || 0) > 1).length
+    const hasActiveFilters = Boolean(normalizedQueryFilter) || showRepeatedOnly
     const openCatalogSearch = (query: string) => {
         const params = new URLSearchParams({search: query.trim(), current: "1"})
         navigate(`/products?${params.toString()}`)
+    }
+    const resetFilters = () => {
+        setQueryFilter("")
+        setShowRepeatedOnly(false)
     }
 
     const columns: ColumnsType<SearchZeroResultItem> = [
@@ -103,22 +118,51 @@ const SearchZeroResultsPage = () => {
                     description="Сначала разберите запросы с оранжевым счётчиком и свежей датой, затем нажмите «Проверить каталог» — так быстрее отличить реальный пробел от слишком узкой выдачи."
                     style={{marginBottom: 16}}
                 />
-                <Table<SearchZeroResultItem>
-                    rowKey="id"
-                    loading={isLoading}
-                    columns={columns}
-                    dataSource={sortedData}
-                    scroll={{x: 720}}
-                    pagination={{pageSize: 20, showSizeChanger: true}}
-                    locale={{
-                        emptyText: (
-                            <Empty
-                                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                description="Пока нет поисковых запросов без результата. Когда покупатели не найдут товар, сигналы появятся здесь."
-                            />
-                        )
-                    }}
-                />
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
+                    <Space size={12} wrap style={{width: "100%"}}>
+                        <Input
+                            allowClear
+                            prefix={<SearchOutlined />}
+                            placeholder="Найти запрос, тег или артикул"
+                            value={queryFilter}
+                            onChange={(event) => setQueryFilter(event.target.value)}
+                            style={{maxWidth: 360}}
+                        />
+                        <Space>
+                            <Switch checked={showRepeatedOnly} onChange={setShowRepeatedOnly} />
+                            <Typography.Text>Только повторные сигналы</Typography.Text>
+                        </Space>
+                        {hasActiveFilters ? (
+                            <Button onClick={resetFilters}>Сбросить фильтры</Button>
+                        ) : null}
+                    </Space>
+                    <Typography.Text type="secondary">
+                        Показано {filteredData.length} из {sortedData.length}. Повторные запросы помогают быстрее найти пробелы в каталоге, тегах или синонимах.
+                    </Typography.Text>
+                    <Table<SearchZeroResultItem>
+                        rowKey="id"
+                        loading={isLoading}
+                        columns={columns}
+                        dataSource={filteredData}
+                        scroll={{x: 720}}
+                        pagination={{pageSize: 20, showSizeChanger: true}}
+                        locale={{
+                            emptyText: hasActiveFilters ? (
+                                <Empty
+                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                    description="По выбранным фильтрам сигналов нет. Сбросьте поиск или повторные сигналы, прежде чем заводить новую задачу на каталог."
+                                >
+                                    <Button onClick={resetFilters}>Сбросить фильтры</Button>
+                                </Empty>
+                            ) : (
+                                <Empty
+                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                    description="Пока нет поисковых запросов без результата. Когда покупатели не найдут товар, сигналы появятся здесь."
+                                />
+                            )
+                        }}
+                    />
+                </Space>
             </Card>
         </Space>
     )
