@@ -223,6 +223,7 @@ const OrdersPage = () => {
             ? initialDeliveryStatus as OrderDeliveryStatus
             : undefined
     }))
+    const [searchInput, setSearchInput] = useState("")
     const [problemOnly, setProblemOnly] = useState(searchParams.get("problemOnly") === "1")
     const [attentionOnly, setAttentionOnly] = useState(searchParams.get("attentionOnly") === "1")
     const [selectedOrderId, setSelectedOrderId] = useState<number | null>(() => getPositiveOrderIdFromSearch(searchParams))
@@ -275,6 +276,22 @@ const OrdersPage = () => {
     const canDeleteOrders = useCan("orders.delete")
     const currentActionOrderId = actionOrderId ?? selectedOrderId
     const currentItems = useMemo(() => data?.items || [], [data?.items])
+    const activeOrderFilterLabels = useMemo(() => {
+        const labels: string[] = []
+
+        if (filters.search) labels.push(`поиск: ${filters.search}`)
+        if (filters.statusId) {
+            labels.push(`статус: ${statuses?.find((status) => status.id === filters.statusId)?.title || filters.statusId}`)
+        }
+        if (filters.paymentStatus) labels.push(`оплата: ${paymentStatusMeta[filters.paymentStatus]?.label || filters.paymentStatus}`)
+        if (filters.deliveryStatus) labels.push(`доставка: ${deliveryStatusMeta[filters.deliveryStatus]?.label || filters.deliveryStatus}`)
+        if (filters.from && filters.to) labels.push(`период: ${dayjs(filters.from).format("DD.MM")}–${dayjs(filters.to).format("DD.MM")}`)
+        if (problemOnly) labels.push("только проблемные")
+        if (attentionOnly) labels.push("требуют внимания")
+
+        return labels
+    }, [attentionOnly, filters, problemOnly, statuses])
+    const hasActiveOrderFilters = activeOrderFilterLabels.length > 0
     const editingOrder = useMemo(
         () => selectedOrder?.id === currentActionOrderId
             ? selectedOrder
@@ -456,11 +473,13 @@ const OrdersPage = () => {
     const setTodayFilters = () => {
         setProblemOnly(false)
         setAttentionOnly(false)
+        setSearchInput("")
         setFilters(todayFilters())
     }
     const setAllFilters = () => {
         setProblemOnly(false)
         setAttentionOnly(false)
+        setSearchInput("")
         setFilters({page: 1, pageSize: 20})
     }
     const setDeliveryFilter = (deliveryStatus?: OrderDeliveryStatus) => {
@@ -761,7 +780,12 @@ const OrdersPage = () => {
                         <Input.Search
                             placeholder="Поиск по номеру, клиенту, телефону"
                             allowClear
-                            onSearch={(search) => setFilters((prev) => ({...prev, search, page: 1}))}
+                            value={searchInput}
+                            onChange={(event) => {
+                                setSearchInput(event.target.value)
+                                if (!event.target.value) setFilters((prev) => ({...prev, search: undefined, page: 1}))
+                            }}
+                            onSearch={(search) => setFilters((prev) => ({...prev, search: search.trim() || undefined, page: 1}))}
                             style={{width: 320}}
                         />
                         <Select
@@ -799,6 +823,13 @@ const OrdersPage = () => {
                         />
                         <Button onClick={setTodayFilters}>Сброс к сегодня</Button>
                     </Space>
+                    <Space wrap align="center">
+                        <Typography.Text type="secondary">
+                            {hasActiveOrderFilters ? "Активные фильтры:" : "Фильтры не ограничивают список — показаны все доступные заказы."}
+                        </Typography.Text>
+                        {activeOrderFilterLabels.map((label) => <Tag key={label}>{label}</Tag>)}
+                        {hasActiveOrderFilters && <Button size="small" onClick={setAllFilters}>Очистить всё</Button>}
+                    </Space>
                 </Space>
             </Card>
 
@@ -821,6 +852,19 @@ const OrdersPage = () => {
                     columns={orderColumns}
                     scroll={{x: 1600}}
                     rowClassName={(order) => getOrderBadges(order).some((badge) => badge.color === "red" || badge.color === "volcano") ? "table-row-alert" : ""}
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description={hasActiveOrderFilters
+                                    ? "Заказов по выбранным условиям нет. Проверьте фильтры перед созданием ручного заказа или звонком клиенту."
+                                    : "Заказы пока не поступали. Live Desk обновится автоматически при появлении новых заказов."
+                                }
+                            >
+                                {hasActiveOrderFilters && <Button onClick={setAllFilters}>Показать все заказы</Button>}
+                            </Empty>
+                        )
+                    }}
                     pagination={{
                         current: data?.page || filters.page || 1,
                         pageSize: data?.pageSize || filters.pageSize || 20,
