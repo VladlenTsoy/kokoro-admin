@@ -1,3 +1,4 @@
+import {CopyOutlined} from "@ant-design/icons"
 import {Alert, Button, Card, Descriptions, Space, Tag, Typography, message} from "antd"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
 
@@ -21,6 +22,7 @@ const PaymentsPage = () => {
                 title="Платежи"
                 subtitle="Безопасная настройка Payme callback и контроль статусов оплаты в заказах."
                 addButtonText="Скопировать callback URL"
+                addButtonIcon={<CopyOutlined />}
                 onAdd={copyCallback}
             >
                 <Alert
@@ -55,7 +57,7 @@ const PaymentsPage = () => {
                             description="Ошибочный callback может остановить подтверждение оплат. Для боевого изменения нужен отдельный контрольный тест и approval Владлена."
                         />
 
-                        <Button type="primary" onClick={copyCallback}>
+                        <Button type="primary" icon={<CopyOutlined />} onClick={copyCallback}>
                             Скопировать callback URL
                         </Button>
                     </Space>
