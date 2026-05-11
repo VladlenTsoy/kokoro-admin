@@ -1,4 +1,4 @@
-import {Button, Checkbox, Form, Input, Modal, Popconfirm, Select, Space, Table, message} from "antd"
+import {Alert, Button, Checkbox, Empty, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, message} from "antd"
 import {useEffect, useMemo, useState} from "react"
 import type {ColumnsType} from "antd/es/table"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
@@ -14,7 +14,7 @@ import {
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 
 const OrderStatusesPage = () => {
-    const {data: statuses, isLoading} = useGetOrderStatusesQuery()
+    const {data: statuses, isLoading, isError, refetch} = useGetOrderStatusesQuery()
     const [createStatus, {isLoading: isCreating}] = useCreateOrderStatusMutation()
     const [updateStatus, {isLoading: isUpdating}] = useUpdateOrderStatusEntityMutation()
     const [deleteStatus] = useDeleteOrderStatusEntityMutation()
@@ -94,19 +94,48 @@ const OrderStatusesPage = () => {
 
     const columns: ColumnsType<OrderStatusEntity> = [
         {title: "ID", dataIndex: "id", width: 70},
-        {title: "Название", dataIndex: "title"},
-        {title: "Доступ", dataIndex: "access", render: (v) => v || "—"},
-        {title: "Fixed", dataIndex: "fixed", render: (v) => (v ? "Да" : "Нет")},
-        {title: "Позиция", dataIndex: "position", render: (v) => v ?? "—"},
+        {
+            title: "Статус заказа",
+            dataIndex: "title",
+            render: (title: string, status) => (
+                <Space direction="vertical" size={2}>
+                    <strong>{title}</strong>
+                    <span style={{color: "rgba(0, 0, 0, 0.45)", fontSize: 12}}>
+                        {status.fixed ? "Системный статус" : "Пользовательский статус"}
+                        {status.access ? ` · доступ: ${status.access}` : ""}
+                    </span>
+                </Space>
+            )
+        },
+        {
+            title: "Тип",
+            dataIndex: "fixed",
+            width: 150,
+            render: (value: boolean) => (
+                <Tag color={value ? "blue" : "green"}>{value ? "Системный" : "Настраиваемый"}</Tag>
+            )
+        },
+        {
+            title: "Позиция",
+            dataIndex: "position",
+            width: 110,
+            render: (value?: number) => value ?? "—"
+        },
         {
             title: "Действия",
             key: "actions",
-            width: 280,
+            width: 300,
             render: (_, status) => (
-                <Space>
+                <Space wrap>
                     <Button type="link" onClick={() => openEdit(status)}>Редактировать</Button>
                     <Button type="link" onClick={() => {setTransitionStatus(status); setTransitionsModalOpen(true)}}>Переходы</Button>
-                    <Popconfirm title="Удалить статус?" onConfirm={() => removeStatus(status.id)}>
+                    <Popconfirm
+                        title="Удалить статус заказа?"
+                        description="Перед удалением убедитесь, что статус не используется в заказах, фильтрах и отчётах. Для системных статусов безопаснее менять переходы, а не удалять запись."
+                        okText="Удалить"
+                        cancelText="Отмена"
+                        onConfirm={() => removeStatus(status.id)}
+                    >
                         <Button type="link" danger>Удалить</Button>
                     </Popconfirm>
                 </Space>
@@ -118,11 +147,43 @@ const OrderStatusesPage = () => {
         <>
             <SettingsTableSection
                 title="Статусы заказов"
-                subtitle="CRUD статусов и настройка разрешённых переходов."
+                subtitle="Настройка статусов и разрешённых переходов, которые менеджеры видят в заказах, фильтрах и отчётах."
                 addButtonText="Добавить статус"
                 onAdd={openCreate}
             >
-                <Table rowKey="id" loading={isLoading} dataSource={statuses || []} columns={columns} pagination={false} />
+                <Alert
+                    type="info"
+                    showIcon
+                    message="Подсказка для операционной команды"
+                    description="Меняйте статусы маленькими шагами: название влияет на работу менеджеров, а переходы — на допустимый путь заказа. Перед удалением проверьте активные заказы и отчёты."
+                    style={{margin: 16}}
+                />
+                {isError && (
+                    <Alert
+                        type="error"
+                        showIcon
+                        message="Не удалось загрузить статусы заказов"
+                        description="Повторите загрузку перед изменениями, чтобы не работать с устаревшими правилами обработки заказов."
+                        action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
+                        style={{margin: "0 16px 16px"}}
+                    />
+                )}
+                <Table
+                    rowKey="id"
+                    loading={isLoading}
+                    dataSource={statuses || []}
+                    columns={columns}
+                    pagination={false}
+                    scroll={{x: 760}}
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="Статусы заказов ещё не настроены. Добавьте первый статус, чтобы менеджеры могли вести заказ по понятному сценарию."
+                            />
+                        )
+                    }}
+                />
             </SettingsTableSection>
 
             <Modal
@@ -131,10 +192,19 @@ const OrderStatusesPage = () => {
                 onCancel={() => setStatusModalOpen(false)}
                 onOk={saveStatus}
                 confirmLoading={isCreating || isUpdating}
+                okText={editingStatus ? "Сохранить" : "Создать"}
+                cancelText="Отмена"
             >
+                <Alert
+                    type="warning"
+                    showIcon
+                    message="Название статуса видно менеджерам и клиентским сценариям"
+                    description="Используйте короткую формулировку действия или этапа заказа. После создания проверьте разрешённые переходы, чтобы менеджеры не застряли в сценарии обработки."
+                    style={{marginBottom: 16}}
+                />
                 <Form form={statusForm} layout="vertical">
-                    <Form.Item name="title" label="Название статуса" rules={[{required: true}]}>
-                        <Input />
+                    <Form.Item name="title" label="Название статуса" extra="Например: «Новый», «Собирается», «Передан курьеру»." rules={[{required: true, message: "Введите название статуса"}]}>
+                        <Input placeholder="Новый" />
                     </Form.Item>
                 </Form>
             </Modal>
@@ -145,10 +215,19 @@ const OrderStatusesPage = () => {
                 onCancel={() => setTransitionsModalOpen(false)}
                 onOk={saveTransitions}
                 confirmLoading={isUpdatingTransitions}
+                okText="Сохранить переходы"
+                cancelText="Отмена"
             >
+                <Alert
+                    type="info"
+                    showIcon
+                    message="Переходы управляют следующим действием менеджера"
+                    description="Оставьте только реальные следующие этапы заказа. Если переход нужен редко или рискован, лучше согласовать правило процесса перед включением."
+                    style={{marginBottom: 16}}
+                />
                 <Form form={transitionForm} layout="vertical">
-                    <Form.Item name="toStatusIds" label="Разрешённые переходы">
-                        <Select mode="multiple" options={statusOptions} allowClear />
+                    <Form.Item name="toStatusIds" label="Разрешённые переходы" extra="Менеджер сможет перевести заказ только в выбранные статусы.">
+                        <Select mode="multiple" options={statusOptions} allowClear placeholder="Выберите допустимые следующие статусы" />
                     </Form.Item>
                     <Form.Item>
                         <Checkbox checked disabled>
