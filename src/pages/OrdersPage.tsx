@@ -718,15 +718,15 @@ const OrdersPage = () => {
             {
                 title: "Действия",
                 key: "actions",
-                width: 300,
+                width: 320,
                 fixed: "right",
                 render: (_, order) => (
-                    <Space>
-                        <Button onClick={() => openOrder(order.id)}>Открыть</Button>
-                        {canUpdateOrders && <Button type="primary" onClick={() => openNextActionModal(order)}>{getNextActionLabel(order)}</Button>}
-                        {canUpdateOrders && <Button onClick={() => openEditModal(order)}>Правки</Button>}
-                        {canUpdateOrders && <Button onClick={() => openStatusModal(order.id)}>Статус</Button>}
-                        {canDeleteOrders && <Button danger onClick={() => openCancelModal(order.id)}>Отмена</Button>}
+                    <Space wrap size={[6, 6]} className="order-row-actions">
+                        <Button size="small" onClick={() => openOrder(order.id)}>Открыть</Button>
+                        {canUpdateOrders && <Button size="small" type="primary" onClick={() => openNextActionModal(order)}>{getNextActionLabel(order)}</Button>}
+                        {canUpdateOrders && <Button size="small" onClick={() => openEditModal(order)}>Правки</Button>}
+                        {canUpdateOrders && <Button size="small" onClick={() => openStatusModal(order.id)}>Статус</Button>}
+                        {canDeleteOrders && <Button size="small" danger onClick={() => openCancelModal(order.id)}>Отмена</Button>}
                     </Space>
                 )
             }
@@ -940,9 +940,9 @@ const OrdersPage = () => {
                 onClose={closeOrderDrawer}
                 width={1100}
                 extra={selectedOrder && canUpdateOrders ? (
-                    <Space>
-                        <Button onClick={() => openEditModal(selectedOrder)}>Правки</Button>
-                        <Button type="primary" onClick={() => openNextActionModal(selectedOrder)}>{getNextActionLabel(selectedOrder)}</Button>
+                    <Space wrap size={[6, 6]} className="order-drawer-actions">
+                        <Button size="small" onClick={() => openEditModal(selectedOrder)}>Правки</Button>
+                        <Button size="small" type="primary" onClick={() => openNextActionModal(selectedOrder)}>{getNextActionLabel(selectedOrder)}</Button>
                     </Space>
                 ) : null}
             >

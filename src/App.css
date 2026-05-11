@@ -240,6 +240,22 @@ body[data-theme="dark"] .ant-layout-footer {
     background: rgba(177, 232, 28, 0.08) !important;
 }
 
+.order-row-actions {
+    max-width: 300px;
+}
+
+.order-row-actions .ant-btn,
+.order-drawer-actions .ant-btn {
+    padding-inline: 10px;
+}
+
+@media (max-width: 767px) {
+    .order-drawer-actions {
+        justify-content: flex-end;
+        max-width: 180px;
+    }
+}
+
 body[data-theme="dark"] .admin-hero-card {
     border-color: rgba(197, 255, 62, 0.22);
     background:
