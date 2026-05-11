@@ -25,7 +25,7 @@ const HeaderProfile = () => {
         } catch {
             // Даже если серверный logout не удался, локальную сессию нужно завершить.
         } finally {
-            dispatch(clearAuthData())
+            dispatch(clearAuthData("manual_logout"))
             navigate("/login", {replace: true})
         }
     }

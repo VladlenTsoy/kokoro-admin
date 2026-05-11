@@ -16,6 +16,19 @@ type LoginLocationState = {
     returnTo?: string
 }
 
+const LOGIN_NOTICE_COPY = {
+    session_expired: {
+        type: "warning" as const,
+        message: "Сессия закончилась — войдите снова",
+        description: "Это защищает админку, если refresh-сессия устарела или доступ был сброшен. После входа вернём вас в нужный внутренний раздел."
+    },
+    manual_logout: {
+        type: "success" as const,
+        message: "Вы вышли из админ-панели",
+        description: "Для продолжения работы войдите заново. Если нужно открыть конкретный раздел, используйте безопасную внутреннюю ссылку."
+    }
+}
+
 const getSafeReturnPath = (returnTo?: string) => {
     if (!returnTo || !returnTo.startsWith("/") || returnTo.startsWith("//") || returnTo.startsWith("/login")) {
         return "/"
@@ -68,10 +81,11 @@ const LoginPage = () => {
     const dispatch = useDispatch()
     const navigate = useNavigate()
     const location = useLocation()
-    const {accessToken} = useSelectedAuthData()
+    const {accessToken, noticeReason} = useSelectedAuthData()
     const returnPath = getSafeReturnPath((location.state as LoginLocationState | null)?.returnTo)
     const hasReturnPath = returnPath !== "/"
     const returnPageLabel = getReturnPageLabel(returnPath)
+    const loginNotice = noticeReason ? LOGIN_NOTICE_COPY[noticeReason] : null
 
     const [login, {isLoading: isLoginLoading}] = useLoginMutation()
 
@@ -123,6 +137,16 @@ const LoginPage = () => {
                             <Typography.Title level={4} style={{marginTop: 0}}>
                                 Вход в аккаунт
                             </Typography.Title>
+                            {loginNotice && (
+                                <Alert
+                                    type={loginNotice.type}
+                                    showIcon
+                                    style={{marginBottom: 16}}
+                                    message={loginNotice.message}
+                                    description={loginNotice.description}
+                                />
+                            )}
+
                             {hasReturnPath && (
                                 <Alert
                                     type="info"
@@ -131,9 +155,21 @@ const LoginPage = () => {
                                     message={`Вернём вас в раздел «${returnPageLabel}» после входа`}
                                     description={
                                         <Typography.Text type="secondary">
-                                            Безопасный внутренний путь: {returnPath}
+                                            {noticeReason === "session_expired"
+                                                ? "Ссылка сохранена после истечения сессии:"
+                                                : "Безопасный внутренний путь:"} {returnPath}
                                         </Typography.Text>
                                     }
+                                />
+                            )}
+
+                            {!loginNotice && !hasReturnPath && (
+                                <Alert
+                                    type="info"
+                                    showIcon
+                                    style={{marginBottom: 16}}
+                                    message="Первый вход или новая рабочая сессия"
+                                    description="Введите рабочие данные администратора. Если вы открыли прямую ссылку на раздел, после входа админка вернёт вас туда автоматически."
                                 />
                             )}
 

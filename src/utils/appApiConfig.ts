@@ -39,7 +39,7 @@ export const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, Fetch
         const refreshToken = state.auth?.refreshToken
 
         if (!refreshToken) {
-            api.dispatch(clearAuthData())
+            api.dispatch(clearAuthData("session_expired"))
             return result
         }
 
@@ -57,7 +57,7 @@ export const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, Fetch
             api.dispatch(setAuthData(refreshResult.data as Parameters<typeof setAuthData>[0]))
             result = await adminBaseQuery(args, api, extraOptions)
         } else {
-            api.dispatch(clearAuthData())
+            api.dispatch(clearAuthData("session_expired"))
         }
     }
 
