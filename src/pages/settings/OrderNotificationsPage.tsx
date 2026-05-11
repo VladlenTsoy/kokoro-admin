@@ -46,6 +46,8 @@ type FormValues = {
     isActive: boolean
 }
 
+type RuleStateFilter = "all" | "active" | "inactive"
+
 const OrderNotificationsPage = () => {
     const {data: statuses} = useGetOrderStatusesQuery()
     const {data: configs, isLoading: isLoadingConfigs, isError: isConfigsError, refetch: refetchConfigs} = useGetOrderStatusNotificationsQuery()
@@ -56,9 +58,37 @@ const OrderNotificationsPage = () => {
 
     const [isModalOpen, setModalOpen] = useState(false)
     const [editing, setEditing] = useState<OrderStatusNotification | null>(null)
+    const [configSearch, setConfigSearch] = useState("")
+    const [configStateFilter, setConfigStateFilter] = useState<RuleStateFilter>("all")
     const [form] = Form.useForm<FormValues>()
 
     const statusMap = useMemo(() => new Map((statuses || []).map((status) => [status.id, status.title])), [statuses])
+    const filteredConfigs = useMemo(() => {
+        const query = configSearch.trim().toLowerCase()
+
+        return (configs || []).filter((item) => {
+            const matchesState = configStateFilter === "all" || (configStateFilter === "active" ? item.isActive : !item.isActive)
+            const statusTitle = statusMap.get(item.statusId) || ""
+            const searchableText = [
+                item.id,
+                item.statusId,
+                statusTitle,
+                typeLabelMap[item.type],
+                item.type,
+                recipientLabelMap[item.sendTo],
+                item.sendTo,
+                item.template
+            ].join(" ").toLowerCase()
+
+            return matchesState && (!query || searchableText.includes(query))
+        })
+    }, [configSearch, configStateFilter, configs, statusMap])
+
+    const hasConfigFilters = configSearch.trim().length > 0 || configStateFilter !== "all"
+    const resetConfigFilters = () => {
+        setConfigSearch("")
+        setConfigStateFilter("all")
+    }
     const notificationSummary = useMemo(() => {
         const safeConfigs = configs || []
         const safeLogs = logs || []
@@ -178,6 +208,7 @@ const OrderNotificationsPage = () => {
                 description={(
                     <Space size={[8, 8]} wrap>
                         <Tag color="blue">Правил: {notificationSummary.totalRules}</Tag>
+                        <Tag color="geekblue">Найдено: {filteredConfigs.length}</Tag>
                         <Tag color="green">Активно: {notificationSummary.enabledRules}</Tag>
                         <Tag color="default">Выключено: {notificationSummary.disabledRules}</Tag>
                         <Tag color={notificationSummary.queuedLogs > 0 ? "processing" : "default"}>В очереди: {notificationSummary.queuedLogs}</Tag>
@@ -195,6 +226,27 @@ const OrderNotificationsPage = () => {
                 addButtonText="Добавить правило"
                 onAdd={openCreate}
             >
+                <Space size={[8, 8]} wrap style={{padding: "16px 16px 0", width: "100%"}}>
+                    <Input.Search
+                        allowClear
+                        placeholder="Найти по статусу, каналу, получателю, шаблону или ID"
+                        value={configSearch}
+                        onChange={(event) => setConfigSearch(event.target.value)}
+                        style={{minWidth: 280, maxWidth: 460}}
+                    />
+                    <Select<RuleStateFilter>
+                        value={configStateFilter}
+                        onChange={setConfigStateFilter}
+                        style={{width: 180}}
+                        options={[
+                            {label: "Все правила", value: "all"},
+                            {label: "Только активные", value: "active"},
+                            {label: "Только выключенные", value: "inactive"}
+                        ]}
+                    />
+                    <Tag color={hasConfigFilters ? "blue" : "default"}>Показано {filteredConfigs.length} из {notificationSummary.totalRules}</Tag>
+                    {hasConfigFilters && <Button onClick={resetConfigFilters}>Сбросить фильтры</Button>}
+                </Space>
                 {isConfigsError && (
                     <Alert
                         type="error"
@@ -208,7 +260,7 @@ const OrderNotificationsPage = () => {
                 <Table
                     rowKey="id"
                     loading={isLoadingConfigs}
-                    dataSource={configs || []}
+                    dataSource={filteredConfigs}
                     columns={configColumns}
                     pagination={false}
                     scroll={{x: 900}}
@@ -216,9 +268,13 @@ const OrderNotificationsPage = () => {
                         emptyText: (
                             <Empty
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                description="Правила уведомлений ещё не настроены"
+                                description={hasConfigFilters ? "По текущим фильтрам правил не найдено" : "Правила уведомлений ещё не настроены"}
                             >
-                                <Button type="primary" onClick={openCreate}>Добавить первое правило</Button>
+                                {hasConfigFilters ? (
+                                    <Button onClick={resetConfigFilters}>Сбросить фильтры</Button>
+                                ) : (
+                                    <Button type="primary" onClick={openCreate}>Добавить первое правило</Button>
+                                )}
                             </Empty>
                         )
                     }}
