@@ -1,6 +1,7 @@
 import React, {useMemo, useState} from "react"
-import {Alert, Button, Empty, Form, Input, Modal, Popconfirm, Space, Switch, Table, Tag, Typography, message} from "antd"
+import {Alert, Button, Empty, Form, Input, Modal, Popconfirm, Segmented, Space, Switch, Table, Tag, Typography, message} from "antd"
 import type {ColumnsType} from "antd/es/table"
+import {createStyles} from "antd-style"
 import {
     useGetSourcesQuery,
     useCreateSourceMutation,
@@ -12,8 +13,34 @@ import SettingsTableSection from "../../components/settings/SettingsTableSection
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 
 const {Text} = Typography
+const {Search} = Input
+
+type SourceStatusFilter = "all" | "active" | "inactive"
+
+const useStyles = createStyles(({token}) => ({
+    summary: {
+        display: "flex",
+        flexWrap: "wrap",
+        gap: token.marginSM,
+        marginBottom: token.marginMD
+    },
+    filterBar: {
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: token.marginSM,
+        marginBottom: token.marginMD
+    },
+    filterControls: {
+        display: "flex",
+        flexWrap: "wrap",
+        gap: token.marginSM
+    }
+}))
 
 const SourcePage: React.FC = () => {
+    const {styles} = useStyles()
     const {data: sources = [], isLoading, isError, refetch} = useGetSourcesQuery()
     const [createSource, {isLoading: isCreating}] = useCreateSourceMutation()
     const [updateSource, {isLoading: isUpdating}] = useUpdateSourceMutation()
@@ -21,6 +48,8 @@ const SourcePage: React.FC = () => {
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingSource, setEditingSource] = useState<SourceType | null>(null)
+    const [searchValue, setSearchValue] = useState("")
+    const [statusFilter, setStatusFilter] = useState<SourceStatusFilter>("all")
 
     const [form] = Form.useForm()
 
@@ -29,7 +58,25 @@ const SourcePage: React.FC = () => {
         [sources]
     )
     const inactiveSourcesCount = sources.length - activeSourcesCount
+    const normalizedSearch = searchValue.trim().toLowerCase()
+    const filteredSources = useMemo(() => sources.filter((source) => {
+        const matchesStatus = statusFilter === "all"
+            || (statusFilter === "active" && source.isActive)
+            || (statusFilter === "inactive" && !source.isActive)
+        const matchesSearch = !normalizedSearch
+            || source.title.toLowerCase().includes(normalizedSearch)
+            || source.code.toLowerCase().includes(normalizedSearch)
+            || String(source.id).includes(normalizedSearch)
+
+        return matchesStatus && matchesSearch
+    }), [normalizedSearch, sources, statusFilter])
+    const hasActiveFilters = Boolean(searchValue) || statusFilter !== "all"
     const isSaving = isCreating || isUpdating
+
+    const resetFilters = () => {
+        setSearchValue("")
+        setStatusFilter("all")
+    }
 
     const openCreateModal = () => {
         setEditingSource(null)
@@ -131,6 +178,36 @@ const SourcePage: React.FC = () => {
                         message={`Источники заказов: ${activeSourcesCount} активных, ${inactiveSourcesCount} отключённых`}
                         description="Активные источники помогают быстрее понять, откуда пришёл заказ. Отключайте канал вместо удаления, если по нему уже есть история заказов; удаление используйте только после проверки аналитики и интеграций."
                     />
+                    <div className={styles.summary}>
+                        <Tag color="blue">Всего: {sources.length}</Tag>
+                        <Tag color="green">Активные: {activeSourcesCount}</Tag>
+                        <Tag>Отключённые: {inactiveSourcesCount}</Tag>
+                        <Tag color={filteredSources.length === sources.length ? "default" : "gold"}>Показано: {filteredSources.length}</Tag>
+                    </div>
+                    <div className={styles.filterBar}>
+                        <Text type="secondary">
+                            Найдите источник по названию, коду или ID перед созданием нового канала, чтобы не дублировать аналитику заказов.
+                        </Text>
+                        <div className={styles.filterControls}>
+                            <Search
+                                allowClear
+                                placeholder="Поиск по названию, коду или ID"
+                                value={searchValue}
+                                onChange={(event) => setSearchValue(event.target.value)}
+                                style={{width: 280}}
+                            />
+                            <Segmented<SourceStatusFilter>
+                                value={statusFilter}
+                                onChange={setStatusFilter}
+                                options={[
+                                    {label: "Все", value: "all"},
+                                    {label: "Активные", value: "active"},
+                                    {label: "Отключённые", value: "inactive"}
+                                ]}
+                            />
+                            <Button disabled={!hasActiveFilters} onClick={resetFilters}>Сбросить</Button>
+                        </div>
+                    </div>
                     {isError && (
                         <Alert
                             type="error"
@@ -143,12 +220,19 @@ const SourcePage: React.FC = () => {
                 </Space>
                 <Table<SourceType>
                     loading={isLoading}
-                    dataSource={sources}
+                    dataSource={filteredSources}
                     columns={columns}
                     rowKey="id"
                     scroll={{x: 720}}
                     locale={{
-                        emptyText: (
+                        emptyText: hasActiveFilters ? (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="По выбранным фильтрам источников нет"
+                            >
+                                <Button onClick={resetFilters}>Сбросить фильтры</Button>
+                            </Empty>
+                        ) : (
                             <Empty
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                                 description="Источники заказов ещё не настроены. Добавьте первый канал, чтобы менеджеры видели происхождение заказов."
