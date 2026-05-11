@@ -1,5 +1,5 @@
 import {Button, Card, Col, Empty, Row, Space, Statistic, Table, Tag, Typography} from "antd"
-import {AlertOutlined, CheckCircleOutlined, ClockCircleOutlined, FireOutlined, ShoppingOutlined, ThunderboltOutlined} from "@ant-design/icons"
+import {AlertOutlined, CheckCircleOutlined, ClockCircleOutlined, FireOutlined, ShoppingOutlined, SwapRightOutlined, ThunderboltOutlined} from "@ant-design/icons"
 import type {ColumnsType} from "antd/es/table"
 import PageHeading from "../components/PageHeading.tsx"
 import {useGetOrdersSummaryQuery} from "../features/orders/orderApi.ts"
@@ -7,6 +7,23 @@ import type {OrdersSummaryActivityItem} from "../features/orders/OrderTypes.ts"
 import {useNavigate} from "react-router-dom"
 import {formatMoney} from "../utils/formatters.ts"
 import dayjs from "dayjs"
+
+const dashboardStatusMeta: Record<string, {label: string; color?: string}> = {
+    pending: {label: "Новый / ждёт", color: "orange"},
+    paid: {label: "Оплачен", color: "green"},
+    failed: {label: "Оплата не прошла", color: "red"},
+    refunded: {label: "Возврат", color: "purple"},
+    preparing: {label: "В работе", color: "blue"},
+    ready: {label: "Готов к выдаче", color: "cyan"},
+    delivering: {label: "В доставке", color: "geekblue"},
+    delivered: {label: "Доставлен/выдан", color: "green"},
+    cancelled: {label: "Отменён", color: "red"}
+}
+
+const getDashboardStatusMeta = (value?: string) => {
+    if (!value) return null
+    return dashboardStatusMeta[value] || {label: value, color: undefined}
+}
 
 const HomePage = () => {
     const navigate = useNavigate()
@@ -30,13 +47,21 @@ const HomePage = () => {
         {
             title: "Переход",
             key: "transition",
-            width: 240,
-            render: (_, item) => (
-                <Space wrap size={[4, 4]}>
-                    {item.fromStatus && <Tag>{item.fromStatus}</Tag>}
-                    {item.toStatus && <Tag color="blue">{item.toStatus}</Tag>}
-                </Space>
-            )
+            width: 260,
+            render: (_, item) => {
+                const fromStatus = getDashboardStatusMeta(item.fromStatus)
+                const toStatus = getDashboardStatusMeta(item.toStatus)
+
+                if (!fromStatus && !toStatus) return <Typography.Text type="secondary">Без изменения статуса</Typography.Text>
+
+                return (
+                    <Space wrap size={[4, 4]}>
+                        {fromStatus && <Tag color={fromStatus.color}>{fromStatus.label}</Tag>}
+                        {fromStatus && toStatus && <SwapRightOutlined style={{color: "#8c8c8c"}} />}
+                        {toStatus && <Tag color={toStatus.color || "blue"}>{toStatus.label}</Tag>}
+                    </Space>
+                )
+            }
         },
         {title: "Кто", dataIndex: "changedBy", width: 180, render: (value?: string) => value || "Система"},
         {
@@ -111,7 +136,7 @@ const HomePage = () => {
                         <Space orientation="vertical" size={12} style={{width: "100%"}}>
                             <Typography.Text>
                                 {hasProblems
-                                    ? "Сначала разберите проблемные заказы: просроченные новые, оплаченные без обработки, failed payment или paid + cancelled."
+                                    ? "Сначала разберите проблемные заказы: просроченные новые, оплаченные без обработки, неуспешную оплату или оплаченные отмены."
                                     : "Критичных проблем по заказам сегодня не видно. Держите фокус на новых и готовых заказах."}
                             </Typography.Text>
                             <Button danger={hasProblems} type={hasProblems ? "primary" : "default"} onClick={() => openOrders("problemOnly=1")}>
@@ -130,9 +155,12 @@ const HomePage = () => {
                                 dataSource={summary?.recentActivity || []}
                                 pagination={false}
                                 size="middle"
+                                scroll={{x: 720}}
                             />
                         ) : (
-                            <Empty description="Пока нет событий по заказам" />
+                            <Empty description="Пока нет событий по заказам">
+                                <Button onClick={() => openOrders()}>Открыть журнал заказов</Button>
+                            </Empty>
                         )}
                     </Card>
                 </Col>
