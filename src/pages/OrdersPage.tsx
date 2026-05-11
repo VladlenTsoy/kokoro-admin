@@ -25,7 +25,7 @@ import {
     message
 } from "antd"
 import type {ColumnsType} from "antd/es/table"
-import {AlertOutlined, CheckCircleOutlined, ClockCircleOutlined, FireOutlined, ShoppingOutlined, ThunderboltOutlined} from "@ant-design/icons"
+import {AlertOutlined, CheckCircleOutlined, ClockCircleOutlined, CopyOutlined, FireOutlined, ShoppingOutlined, ThunderboltOutlined} from "@ant-design/icons"
 import {useEffect, useMemo, useRef, useState} from "react"
 import dayjs from "dayjs"
 import PageHeading from "../components/PageHeading.tsx"
@@ -135,6 +135,28 @@ const getFallbackSlaSnapshot = (order: AdminOrder): OrderSlaSnapshot => {
 }
 
 const getOrderSlaSnapshot = (order: AdminOrder) => order.sla || getFallbackSlaSnapshot(order)
+
+const buildOrderHandoffText = (order: AdminOrder, phone?: string | null) => {
+    const clientName = order.client?.name || order.clientName || "Клиент не указан"
+    const address = order.clientAddress?.address || "Адрес не указан"
+    const payment = order.paymentMethod?.title || (order.paymentStatus ? paymentStatusMeta[order.paymentStatus].label : "Оплата не указана")
+    const delivery = order.deliveryType?.title || (order.deliveryStatus ? deliveryStatusMeta[order.deliveryStatus].label : "Доставка не указана")
+    const assignedEmployee = order.assignedEmployee
+        ? `${order.assignedEmployee.firstName} ${order.assignedEmployee.lastName}`
+        : "Не назначен"
+
+    return [
+        `Заказ #${order.orderNumber || order.id}`,
+        `Клиент: ${clientName}`,
+        `Телефон: ${phone || "Не указан"}`,
+        `Адрес: ${address}`,
+        `Следующий шаг: ${getNextActionLabel(order)}`,
+        `Оплата: ${payment}`,
+        `Доставка: ${delivery}`,
+        `Ответственный: ${assignedEmployee}`,
+        `Итого к оплате: ${formatMoney(order.total)}`
+    ].join("\n")
+}
 
 const getOrderBadges = (order: AdminOrder) => {
     const badges: Array<{label: string; color: string}> = []
@@ -430,6 +452,15 @@ const OrdersPage = () => {
             message.success("Телефон скопирован")
         } catch {
             message.error("Не удалось скопировать телефон")
+        }
+    }
+
+    const copyOrderHandoff = async (order: AdminOrder) => {
+        try {
+            await navigator.clipboard.writeText(buildOrderHandoffText(order, selectedPhone))
+            message.success("Сводка для передачи скопирована")
+        } catch {
+            message.error("Не удалось скопировать сводку")
         }
     }
 
@@ -902,10 +933,17 @@ const OrdersPage = () => {
                                         </div>
                                     </Card>
 
-                                    <Card title="Сводка для передачи">
+                                    <Card
+                                        title="Сводка для передачи"
+                                        extra={(
+                                            <Tooltip title="Скопировать краткую сводку для чата, звонка или курьера">
+                                                <Button icon={<CopyOutlined />} onClick={() => copyOrderHandoff(selectedOrder)}>Скопировать</Button>
+                                            </Tooltip>
+                                        )}
+                                    >
                                         <Space orientation="vertical" size={12} style={{width: "100%"}}>
                                             <Typography.Text type="secondary">
-                                                Короткий чек-лист перед звонком клиенту, выдачей или передачей курьеру.
+                                                Короткий чек-лист перед звонком клиенту, выдачей или передачей курьеру. Кнопка копирования берёт только безопасные операционные поля из карточки.
                                             </Typography.Text>
                                             <Descriptions bordered size="small" column={1}>
                                                 <Descriptions.Item label="Следующий шаг">{getNextActionLabel(selectedOrder)}</Descriptions.Item>
