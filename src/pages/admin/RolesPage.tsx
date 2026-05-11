@@ -1,4 +1,4 @@
-import {Alert, Button, Card, Checkbox, Drawer, Empty, Form, Input, Popconfirm, Space, Statistic, Switch, Table, Tag, Typography, message} from "antd"
+import {Alert, Button, Card, Checkbox, Drawer, Empty, Form, Input, Popconfirm, Segmented, Space, Statistic, Switch, Table, Tag, Typography, message} from "antd"
 import type {ColumnsType} from "antd/es/table"
 import {useMemo, useState} from "react"
 import {Navigate} from "react-router-dom"
@@ -23,6 +23,7 @@ interface RoleFormValues {
 }
 
 const ACTIONS: PermissionAction[] = ["read", "create", "update", "delete", "manage"]
+type RoleStatusFilter = "all" | "active" | "inactive"
 const ACTION_LABELS: Record<PermissionAction, string> = {
     read: "Просмотр",
     create: "Создание",
@@ -146,10 +147,24 @@ const RolesPage = () => {
     const canManageStaff = useCan("staff.manage")
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
     const [editingRole, setEditingRole] = useState<Role | null>(null)
+    const [roleSearch, setRoleSearch] = useState("")
+    const [roleStatusFilter, setRoleStatusFilter] = useState<RoleStatusFilter>("all")
     const [form] = Form.useForm<RoleFormValues>()
     const selectedPermissions = Form.useWatch("permissions", form) ?? []
 
     const roles = useMemo(() => (data ? [...data].sort((a, b) => b.id - a.id) : []), [data])
+    const normalizedRoleSearch = roleSearch.trim().toLowerCase()
+    const filteredRoles = useMemo(() => roles.filter((role) => {
+        const matchesStatus = roleStatusFilter === "all"
+            || (roleStatusFilter === "active" && role.isActive)
+            || (roleStatusFilter === "inactive" && !role.isActive)
+        const matchesSearch = !normalizedRoleSearch
+            || role.code.toLowerCase().includes(normalizedRoleSearch)
+            || role.name.toLowerCase().includes(normalizedRoleSearch)
+
+        return matchesStatus && matchesSearch
+    }), [normalizedRoleSearch, roleStatusFilter, roles])
+    const hasRoleFilters = Boolean(normalizedRoleSearch) || roleStatusFilter !== "all"
 
     if (getApiStatusCode(error) === 403 || getApiStatusCode(permissionCatalogError) === 403) {
         return <Navigate to="/forbidden" replace />
@@ -307,22 +322,58 @@ const RolesPage = () => {
                         message="Роли влияют на доступ сотрудников к операционным разделам"
                         description="Перед удалением или отключением роли проверьте, какие сотрудники используют её в смене. Если роль нужна для истории или временно не используется — лучше отключить её, а не удалять."
                     />
-                    <Table<Role>
-                    rowKey="id"
-                    loading={isLoading || isPermissionCatalogLoading}
-                    columns={columns}
-                    dataSource={roles}
-                    pagination={false}
-                    scroll={{x: 1100}}
-                    locale={{
-                        emptyText: (
-                            <Empty
-                                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                description="Роли ещё не настроены. Создайте первую роль и выдайте только необходимые доступы для работы смены."
+                    <Space wrap style={{width: "100%", justifyContent: "space-between"}}>
+                        <Space wrap>
+                            <Input.Search
+                                allowClear
+                                placeholder="Найти роль по коду или названию"
+                                value={roleSearch}
+                                onChange={(event) => setRoleSearch(event.target.value)}
+                                style={{width: 320, maxWidth: "100%"}}
                             />
-                        )
-                    }}
-                />
+                            <Segmented<RoleStatusFilter>
+                                value={roleStatusFilter}
+                                onChange={setRoleStatusFilter}
+                                options={[
+                                    {label: "Все", value: "all"},
+                                    {label: "Активные", value: "active"},
+                                    {label: "Отключённые", value: "inactive"}
+                                ]}
+                            />
+                        </Space>
+                        <Typography.Text type="secondary">
+                            Показано {filteredRoles.length} из {roles.length}
+                        </Typography.Text>
+                    </Space>
+                    {hasRoleFilters ? (
+                        <Alert
+                            type="info"
+                            showIcon
+                            message="Применены фильтры ролей"
+                            description="Если нужной роли нет в списке, сбросьте поиск и статус перед созданием новой — так меньше риск завести дубль доступа."
+                            action={<Button onClick={() => { setRoleSearch(""); setRoleStatusFilter("all") }}>Сбросить</Button>}
+                        />
+                    ) : null}
+                    <Table<Role>
+                        rowKey="id"
+                        loading={isLoading || isPermissionCatalogLoading}
+                        columns={columns}
+                        dataSource={filteredRoles}
+                        pagination={false}
+                        scroll={{x: 1100}}
+                        locale={{
+                            emptyText: (
+                                <Empty
+                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                    description={hasRoleFilters
+                                        ? "По выбранным фильтрам роли не найдены. Сбросьте поиск и статус перед созданием новой роли, чтобы избежать дублей."
+                                        : "Роли ещё не настроены. Создайте первую роль и выдайте только необходимые доступы для работы смены."}
+                                >
+                                    {hasRoleFilters ? <Button onClick={() => { setRoleSearch(""); setRoleStatusFilter("all") }}>Сбросить фильтры</Button> : null}
+                                </Empty>
+                            )
+                        }}
+                    />
                 </Space>
             </Card>
 
