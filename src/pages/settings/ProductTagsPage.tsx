@@ -1,4 +1,4 @@
-import {Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag, message} from "antd"
+import {Alert, Button, Empty, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Typography, message} from "antd"
 import type {ColumnsType} from "antd/es/table"
 import {useMemo, useState} from "react"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
@@ -26,9 +26,14 @@ const ACTIVE_OPTIONS = [
     {label: "Неактивные", value: "false"}
 ]
 
+const ACTIVE_FILTER_LABELS: Record<NonNullable<ProductVariantTagFilters["isActive"]>, string> = {
+    true: "Только активные",
+    false: "Только неактивные"
+}
+
 const ProductTagsPage = () => {
     const [filters, setFilters] = useState<ProductVariantTagFilters>({})
-    const {data, isLoading} = useGetAllTagsQuery(filters)
+    const {data, isLoading, isError, refetch} = useGetAllTagsQuery(filters)
     const [createTag, {isLoading: isCreating}] = useCreateTagMutation()
     const [updateTag, {isLoading: isUpdating}] = useUpdateTagMutation()
     const [deleteTag, {isLoading: isDeleting}] = useDeleteTagMutation()
@@ -46,6 +51,9 @@ const ProductTagsPage = () => {
         () => [...(data ?? [])].sort((a, b) => a.sortOrder - b.sortOrder || b.id - a.id),
         [data]
     )
+    const hasActiveFilters = Boolean(filters.search || filters.type || filters.isActive)
+
+    const resetFilters = () => setFilters({})
 
     const closeModal = () => {
         setIsModalOpen(false)
@@ -127,51 +135,76 @@ const ProductTagsPage = () => {
 
     const columns: ColumnsType<ProductVariantTagType> = [
         {
-            title: "title",
+            title: "Тег",
             dataIndex: "title",
             render: (title: string, tag) => (
-                <Space>
-                    {tag.type === "color_palette" && tag.colorHex && (
-                        <span
-                            style={{
-                                width: 18,
-                                height: 18,
-                                borderRadius: 6,
-                                border: "1px solid rgba(0,0,0,0.18)",
-                                background: tag.colorHex,
-                                display: "inline-block"
-                            }}
-                        />
-                    )}
-                    {title}
+                <Space direction="vertical" size={2}>
+                    <Space>
+                        {tag.type === "color_palette" && tag.colorHex && (
+                            <span
+                                style={{
+                                    width: 18,
+                                    height: 18,
+                                    borderRadius: 6,
+                                    border: "1px solid rgba(0,0,0,0.18)",
+                                    background: tag.colorHex,
+                                    display: "inline-block"
+                                }}
+                            />
+                        )}
+                        <Typography.Text strong>{title}</Typography.Text>
+                    </Space>
+                    <Space size={6} wrap>
+                        <Tag color="blue">ID {tag.id}</Tag>
+                        <Typography.Text type="secondary">{tag.slug ? `slug: ${tag.slug}` : "slug создаст backend"}</Typography.Text>
+                    </Space>
                 </Space>
             )
         },
-        {title: "slug", dataIndex: "slug"},
         {
-            title: "type",
+            title: "Тип",
             dataIndex: "type",
             render: (type: ProductTagType) => <Tag>{PRODUCT_TAG_TYPE_LABELS[type]}</Tag>
         },
         {
-            title: "colorHex",
+            title: "Цвет",
             dataIndex: "colorHex",
-            render: (colorHex?: string | null) => colorHex || "—"
+            render: (colorHex?: string | null) => colorHex ? (
+                <Space>
+                    <span
+                        style={{
+                            width: 18,
+                            height: 18,
+                            borderRadius: 6,
+                            border: "1px solid rgba(0,0,0,0.18)",
+                            background: colorHex,
+                            display: "inline-block"
+                        }}
+                    />
+                    {colorHex}
+                </Space>
+            ) : <Typography.Text type="secondary">Не задан</Typography.Text>
         },
         {
-            title: "isActive",
+            title: "Статус",
             dataIndex: "isActive",
             render: (isActive: boolean, tag) => (
-                <Switch
-                    checked={isActive}
-                    disabled={!canUpdate}
-                    onChange={(checked) => handleToggleActive(tag, checked)}
-                />
+                <Space direction="vertical" size={4}>
+                    <Tag color={isActive ? "green" : "default"}>{isActive ? "Активен" : "Скрыт"}</Tag>
+                    <Switch
+                        checked={isActive}
+                        disabled={!canUpdate}
+                        checkedChildren="Вкл"
+                        unCheckedChildren="Выкл"
+                        onChange={(checked) => handleToggleActive(tag, checked)}
+                    />
+                    {!canUpdate && <Typography.Text type="secondary">Нет прав на изменение</Typography.Text>}
+                </Space>
             )
         },
-        {title: "sortOrder", dataIndex: "sortOrder", sorter: (a, b) => a.sortOrder - b.sortOrder},
+        {title: "Сортировка", dataIndex: "sortOrder", sorter: (a, b) => a.sortOrder - b.sortOrder},
         {
-            title: "actions",
+            title: "Действия",
             key: "actions",
             render: (_, tag) => (
                 <Space>
@@ -183,6 +216,9 @@ const ProductTagsPage = () => {
                     {canDelete && (
                         <Popconfirm
                             title="Удалить тег?"
+                            description="Проверьте, что тег не используется в активных товарах, фильтрах или промо-подборках. Действие нельзя отменить из админки."
+                            okText="Удалить"
+                            cancelText="Отмена"
                             onConfirm={() => handleDelete(tag.id)}
                             okButtonProps={{loading: isDeleting}}
                         >
@@ -205,35 +241,73 @@ const ProductTagsPage = () => {
                 onAdd={openCreate}
                 canAdd={canCreate}
             >
-                <Space style={{padding: 16}} wrap>
-                    <Input.Search
-                        placeholder="Поиск по title или slug"
-                        allowClear
-                        onSearch={(search) => setFilters((prev) => ({...prev, search: search || undefined}))}
-                        style={{width: 280}}
-                    />
-                    <Select
-                        allowClear
-                        placeholder="Тип"
-                        options={PRODUCT_TAG_TYPE_OPTIONS}
-                        style={{width: 210}}
-                        onChange={(type) => setFilters((prev) => ({...prev, type}))}
-                    />
-                    <Select
-                        allowClear
-                        placeholder="Активность"
-                        options={ACTIVE_OPTIONS}
-                        style={{width: 170}}
-                        onChange={(isActive) => setFilters((prev) => ({...prev, isActive}))}
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
+                    {isError ? (
+                        <Alert
+                            type="error"
+                            showIcon
+                            message="Не удалось загрузить теги товаров"
+                            description="Не меняйте теги вслепую: они влияют на фильтры, подборки и карточки товаров. Повторите загрузку или передайте проблему администратору."
+                            action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
+                        />
+                    ) : null}
+                    <Space style={{padding: 16, paddingBottom: 0}} wrap>
+                        <Input.Search
+                            placeholder="Поиск по названию или slug"
+                            allowClear
+                            value={filters.search}
+                            onChange={(event) => setFilters((prev) => ({...prev, search: event.target.value || undefined}))}
+                            onSearch={(search) => setFilters((prev) => ({...prev, search: search || undefined}))}
+                            style={{width: 280}}
+                        />
+                        <Select
+                            allowClear
+                            placeholder="Тип тега"
+                            options={PRODUCT_TAG_TYPE_OPTIONS}
+                            value={filters.type}
+                            style={{width: 210}}
+                            onChange={(type) => setFilters((prev) => ({...prev, type}))}
+                        />
+                        <Select
+                            allowClear
+                            placeholder="Активность"
+                            options={ACTIVE_OPTIONS}
+                            value={filters.isActive}
+                            style={{width: 170}}
+                            onChange={(isActive) => setFilters((prev) => ({...prev, isActive}))}
+                        />
+                        {hasActiveFilters && <Button onClick={resetFilters}>Сбросить фильтры</Button>}
+                    </Space>
+                    {hasActiveFilters ? (
+                        <Space style={{padding: "0 16px"}} size={6} wrap>
+                            <Typography.Text type="secondary">Показаны теги по фильтрам:</Typography.Text>
+                            {filters.search && <Tag>Поиск: {filters.search}</Tag>}
+                            {filters.type && <Tag>{PRODUCT_TAG_TYPE_LABELS[filters.type]}</Tag>}
+                            {filters.isActive && <Tag>{ACTIVE_FILTER_LABELS[filters.isActive]}</Tag>}
+                        </Space>
+                    ) : null}
+                    <Table<ProductVariantTagType>
+                        rowKey="id"
+                        loading={isLoading}
+                        dataSource={tags}
+                        columns={columns}
+                        scroll={{x: 1000}}
+                        locale={{
+                            emptyText: (
+                                <Empty
+                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                    description={hasActiveFilters ? "Теги по выбранным фильтрам не найдены" : "Теги товаров ещё не созданы"}
+                                >
+                                    {hasActiveFilters ? (
+                                        <Button onClick={resetFilters}>Сбросить фильтры</Button>
+                                    ) : (
+                                        canCreate && <Button type="primary" onClick={openCreate}>Создать первый тег</Button>
+                                    )}
+                                </Empty>
+                            )
+                        }}
                     />
                 </Space>
-                <Table<ProductVariantTagType>
-                    rowKey="id"
-                    loading={isLoading}
-                    dataSource={tags}
-                    columns={columns}
-                    scroll={{x: 1000}}
-                />
             </SettingsTableSection>
 
             <Modal
@@ -243,34 +317,43 @@ const ProductTagsPage = () => {
                 onOk={handleSubmit}
                 confirmLoading={isCreating || isUpdating}
             >
+                <Alert
+                    type="info"
+                    showIcon
+                    style={{marginBottom: 16}}
+                    message="Теги помогают менеджерам быстро собирать фильтры и подборки"
+                    description="Используйте понятное название, выбирайте точный тип и меняйте slug только если понимаете, где он уже используется. Для цветовой гаммы укажите HEX, чтобы тег легко узнавался в таблице."
+                />
                 <Form<ProductTagFormValues> form={form} layout="vertical" initialValues={{type: "custom", isActive: true, sortOrder: 100}}>
                     <Form.Item
                         name="title"
-                        label="title"
-                        rules={[{required: true, message: "Введите title"}]}
+                        label="Название"
+                        extra="Короткое имя, которое менеджеры увидят в каталоге и фильтрах."
+                        rules={[{required: true, message: "Введите название"}, {max: 120, message: "Максимум 120 символов"}]}
                     >
-                        <Input placeholder="Pastel" />
+                        <Input placeholder="Пастель" maxLength={120} showCount />
                     </Form.Item>
-                    <Form.Item name="type" label="type">
+                    <Form.Item name="type" label="Тип тега" extra="Тип помогает не смешивать сезон, стиль, фандом и цветовые палитры.">
                         <Select options={PRODUCT_TAG_TYPE_OPTIONS} />
                     </Form.Item>
-                    <Form.Item name="slug" label="slug" extra="Можно оставить пустым: backend сгенерирует slug сам.">
+                    <Form.Item name="slug" label="Slug" extra="Можно оставить пустым: backend сгенерирует slug сам. Меняйте существующий slug осторожно — он может использоваться в ссылках или фильтрах.">
                         <Input placeholder="pastel" />
                     </Form.Item>
                     {selectedType === "color_palette" && (
                         <Form.Item
                             name="colorHex"
-                            label="colorHex"
+                            label="HEX цвет"
+                            extra="Например #F4C6D7. Цвет нужен для быстрой визуальной проверки палитры."
                             rules={[{pattern: /^#([0-9A-Fa-f]{6})$/, message: "Неверный HEX код"}]}
                         >
                             <Input type="color" />
                         </Form.Item>
                     )}
-                    <Form.Item name="sortOrder" label="sortOrder">
+                    <Form.Item name="sortOrder" label="Порядок сортировки" extra="Меньшее число поднимает тег выше в списках.">
                         <InputNumber min={0} style={{width: "100%"}} />
                     </Form.Item>
-                    <Form.Item name="isActive" label="isActive" valuePropName="checked">
-                        <Switch />
+                    <Form.Item name="isActive" label="Активен" valuePropName="checked" extra="Отключите тег, если он больше не должен использоваться в новых фильтрах и подборках.">
+                        <Switch checkedChildren="Да" unCheckedChildren="Нет" />
                     </Form.Item>
                 </Form>
             </Modal>
