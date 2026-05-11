@@ -1,5 +1,5 @@
 import {Alert, Button, Empty, Form, Input, Modal, Popconfirm, Space, Table, Tag, Typography, message} from "antd"
-import {useState} from "react"
+import {useMemo, useState} from "react"
 import type {ColumnsType} from "antd/es/table"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
 import type {CollectionType} from "../../features/settings/collection/CollectionTypes.ts"
@@ -24,6 +24,19 @@ const CollectionsPage = () => {
 
     const [isOpen, setIsOpen] = useState(false)
     const [editing, setEditing] = useState<CollectionType | null>(null)
+    const [collectionSearch, setCollectionSearch] = useState("")
+
+    const collections = useMemo(() => data ?? [], [data])
+    const normalizedSearch = collectionSearch.trim().toLowerCase()
+    const filteredCollections = useMemo(
+        () => normalizedSearch
+            ? collections.filter((collection) =>
+                collection.title.toLowerCase().includes(normalizedSearch) || String(collection.id).includes(normalizedSearch)
+            )
+            : collections,
+        [collections, normalizedSearch]
+    )
+    const hasSearch = normalizedSearch.length > 0
 
     const openCreate = () => {
         setEditing(null)
@@ -129,10 +142,29 @@ const CollectionsPage = () => {
                             action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
                         />
                     ) : null}
+                    <Space style={{padding: 16, paddingBottom: 0}} wrap>
+                        <Input.Search
+                            allowClear
+                            placeholder="Поиск по названию или ID"
+                            value={collectionSearch}
+                            onChange={(event) => setCollectionSearch(event.target.value)}
+                            onSearch={setCollectionSearch}
+                            style={{width: 280}}
+                        />
+                        <Tag color="blue">Всего коллекций: {collections.length}</Tag>
+                        {hasSearch ? <Tag>Найдено: {filteredCollections.length}</Tag> : null}
+                        {hasSearch ? <Button onClick={() => setCollectionSearch("")}>Сбросить поиск</Button> : null}
+                    </Space>
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Перед созданием проверьте дубли"
+                        description="Поиск помогает быстро найти похожие сезонные, промо и капсульные подборки, чтобы не плодить одинаковые коллекции на витрине."
+                    />
                     <Table
                         rowKey="id"
                         loading={isLoading}
-                        dataSource={data || []}
+                        dataSource={filteredCollections}
                         columns={columns}
                         pagination={false}
                         scroll={{x: 720}}
@@ -140,9 +172,13 @@ const CollectionsPage = () => {
                             emptyText: (
                                 <Empty
                                     image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                    description="Коллекции ещё не созданы"
+                                    description={hasSearch ? "Коллекции по поиску не найдены" : "Коллекции ещё не созданы"}
                                 >
-                                    <Button type="primary" onClick={openCreate}>Создать первую коллекцию</Button>
+                                    {hasSearch ? (
+                                        <Button onClick={() => setCollectionSearch("")}>Сбросить поиск</Button>
+                                    ) : (
+                                        <Button type="primary" onClick={openCreate}>Создать первую коллекцию</Button>
+                                    )}
                                 </Empty>
                             )
                         }}
