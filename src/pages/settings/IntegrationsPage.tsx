@@ -1,4 +1,4 @@
-import {Alert, Button, Card, Checkbox, Col, Empty, Form, Input, List, Row, Space, Switch, Tag, Typography, message} from "antd"
+import {Alert, Button, Card, Checkbox, Col, Empty, Form, Input, List, Row, Select, Space, Switch, Tag, Typography, message} from "antd"
 import PageHeading from "../../components/PageHeading.tsx"
 import {
     useGetIntegrationsQuery,
@@ -38,6 +38,13 @@ const statusLabel: Record<string, string> = {
     healthy: "Работает",
     paused: "Пауза"
 }
+
+const billingStatusOptions = [
+    {value: "active", label: "Активен — можно проверять и включать"},
+    {value: "locked", label: "Заблокирован — нет оплаты/доступа"},
+    {value: "expired", label: "Истёк — нужен контакт с провайдером"},
+    {value: "free", label: "Бесплатный режим"}
+]
 
 const providerLabel: Record<string, string> = {
     datra_cdp: "Datra CDP",
@@ -143,23 +150,39 @@ const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
                 >
                     <Row gutter={16}>
                         <Col xs={24} md={12}>
-                            <Form.Item name="billingStatus" label="Billing status">
-                                <Input placeholder="active / locked / expired" />
+                            <Form.Item
+                                name="billingStatus"
+                                label="Статус оплаты Datra"
+                                tooltip="Меняйте только после подтверждения оплаты или тестового доступа."
+                            >
+                                <Select options={billingStatusOptions} />
                             </Form.Item>
                         </Col>
                         <Col xs={24} md={12}>
-                            <Form.Item name="endpoint" label="Datra endpoint">
+                            <Form.Item
+                                name="endpoint"
+                                label="Endpoint Datra"
+                                extra="Оставьте стандартный адрес, если Datra не выдала отдельный API endpoint."
+                            >
                                 <Input placeholder="https://api.datra.uz" disabled={!paid} />
                             </Form.Item>
                         </Col>
                         <Col xs={24} md={12}>
-                            <Form.Item name="tenantId" label="Tenant / client id">
-                                <Input placeholder="Опционально" disabled={!paid} />
+                            <Form.Item
+                                name="tenantId"
+                                label="Tenant / client ID"
+                                extra="Публичный идентификатор клиента Datra. Не вставляйте сюда секретные ключи."
+                            >
+                                <Input placeholder="Например: kokoro-production" disabled={!paid} autoComplete="off" />
                             </Form.Item>
                         </Col>
                         <Col xs={24} md={12}>
-                            <Form.Item name="apiToken" label={integration.hasSecret ? "API token (сохранён, введите новый для замены)" : "API token"}>
-                                <Input.Password placeholder="Bearer token Datra" disabled={!paid} />
+                            <Form.Item
+                                name="apiToken"
+                                label={integration.hasSecret ? "API token Datra (сохранён, введите новый только для замены)" : "API token Datra"}
+                                extra="Токен не показывается после сохранения. Вводите новый только при плановой ротации или первичной настройке."
+                            >
+                                <Input.Password placeholder="Вставьте токен Datra" disabled={!paid} autoComplete="new-password" />
                             </Form.Item>
                         </Col>
                     </Row>
