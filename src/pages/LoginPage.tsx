@@ -24,6 +24,43 @@ const getSafeReturnPath = (returnTo?: string) => {
     return returnTo
 }
 
+const RETURN_PAGE_LABELS: Array<{prefix: string; label: string}> = [
+    {prefix: "/orders", label: "Заказы"},
+    {prefix: "/clients", label: "Клиенты"},
+    {prefix: "/products/product/create", label: "Создание товара"},
+    {prefix: "/products/product", label: "Карточка товара"},
+    {prefix: "/products", label: "Каталог товаров"},
+    {prefix: "/search-zero-results", label: "Поисковые запросы без результатов"},
+    {prefix: "/settings/employees", label: "Сотрудники"},
+    {prefix: "/settings/roles", label: "Роли и доступы"},
+    {prefix: "/settings/overview", label: "Готовность магазина"},
+    {prefix: "/settings/product-categories", label: "Категории"},
+    {prefix: "/settings/product-tags", label: "Теги товаров"},
+    {prefix: "/settings/product-properties", label: "Свойства товаров"},
+    {prefix: "/settings/product-variant-statuses", label: "Статусы вариантов"},
+    {prefix: "/settings/product-storages", label: "Склады"},
+    {prefix: "/settings/sources", label: "Источники заказов"},
+    {prefix: "/settings/order-statuses", label: "Статусы заказов"},
+    {prefix: "/settings/notifications", label: "Уведомления"},
+    {prefix: "/settings/payments", label: "Платежи"},
+    {prefix: "/settings/integrations", label: "Интеграции"},
+    {prefix: "/settings/countries", label: "Страны и города"},
+    {prefix: "/settings/sales-points", label: "Точки продаж"},
+    {prefix: "/settings/colors", label: "Цвета"},
+    {prefix: "/settings/sizes", label: "Размеры"},
+    {prefix: "/settings/collections", label: "Коллекции"},
+    {prefix: "/settings/promo-codes", label: "Промокоды"},
+    {prefix: "/settings", label: "Настройки"},
+    {prefix: "/", label: "Рабочий стол"}
+]
+
+const getReturnPageLabel = (returnPath: string) => {
+    const pathname = returnPath.split(/[?#]/)[0] || "/"
+    const match = RETURN_PAGE_LABELS.find(({prefix}) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+
+    return match?.label ?? "Запрошенный раздел"
+}
+
 const LoginPage = () => {
     const [form] = Form.useForm<LoginFormValues>()
     const dispatch = useDispatch()
@@ -32,6 +69,7 @@ const LoginPage = () => {
     const {accessToken} = useSelectedAuthData()
     const returnPath = getSafeReturnPath((location.state as LoginLocationState | null)?.returnTo)
     const hasReturnPath = returnPath !== "/"
+    const returnPageLabel = getReturnPageLabel(returnPath)
 
     const [login, {isLoading: isLoginLoading}] = useLoginMutation()
 
@@ -84,8 +122,12 @@ const LoginPage = () => {
                                     type="info"
                                     showIcon
                                     style={{marginBottom: 16}}
-                                    message="Вернём вас на запрошенную страницу после входа"
-                                    description={returnPath}
+                                    message={`Вернём вас в раздел «${returnPageLabel}» после входа`}
+                                    description={
+                                        <Typography.Text type="secondary">
+                                            Безопасный внутренний путь: {returnPath}
+                                        </Typography.Text>
+                                    }
                                 />
                             )}
 
