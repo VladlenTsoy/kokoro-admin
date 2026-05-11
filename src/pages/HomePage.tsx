@@ -6,24 +6,8 @@ import {useGetOrdersSummaryQuery} from "../features/orders/orderApi.ts"
 import type {OrdersSummaryActivityItem} from "../features/orders/OrderTypes.ts"
 import {useNavigate} from "react-router-dom"
 import {formatMoney} from "../utils/formatters.ts"
+import {getGenericStatusMeta} from "../utils/adminStatusMeta.ts"
 import dayjs from "dayjs"
-
-const dashboardStatusMeta: Record<string, {label: string; color?: string}> = {
-    pending: {label: "Новый / ждёт", color: "orange"},
-    paid: {label: "Оплачен", color: "green"},
-    failed: {label: "Оплата не прошла", color: "red"},
-    refunded: {label: "Возврат", color: "purple"},
-    preparing: {label: "В работе", color: "blue"},
-    ready: {label: "Готов к выдаче", color: "cyan"},
-    delivering: {label: "В доставке", color: "geekblue"},
-    delivered: {label: "Доставлен/выдан", color: "green"},
-    cancelled: {label: "Отменён", color: "red"}
-}
-
-const getDashboardStatusMeta = (value?: string) => {
-    if (!value) return null
-    return dashboardStatusMeta[value] || {label: value, color: undefined}
-}
 
 const HomePage = () => {
     const navigate = useNavigate()
@@ -49,8 +33,8 @@ const HomePage = () => {
             key: "transition",
             width: 260,
             render: (_, item) => {
-                const fromStatus = getDashboardStatusMeta(item.fromStatus)
-                const toStatus = getDashboardStatusMeta(item.toStatus)
+                const fromStatus = getGenericStatusMeta(item.fromStatus)
+                const toStatus = getGenericStatusMeta(item.toStatus)
 
                 if (!fromStatus && !toStatus) return <Typography.Text type="secondary">Без изменения статуса</Typography.Text>
 

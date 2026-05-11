@@ -17,37 +17,8 @@ import {
 import {getNestErrorMessage} from "../utils/getNestErrorMessage.ts"
 import {formatMoney} from "../utils/formatters.ts"
 import {useCan} from "../features/auth/permissions.ts"
+import {getBonusOperationMeta, getDeliveryStatusMeta, getPaymentStatusMeta} from "../utils/adminStatusMeta.ts"
 import dayjs from "dayjs"
-
-const paymentStatusMeta: Record<string, {label: string; color: string}> = {
-    pending: {label: "Ждёт оплату", color: "gold"},
-    paid: {label: "Оплачен", color: "green"},
-    failed: {label: "Ошибка оплаты", color: "red"},
-    refunded: {label: "Возврат", color: "purple"},
-    cancelled: {label: "Отменён", color: "red"}
-}
-
-const deliveryStatusMeta: Record<string, {label: string; color: string}> = {
-    pending: {label: "Новый", color: "orange"},
-    preparing: {label: "Готовится", color: "blue"},
-    ready: {label: "Готов к выдаче", color: "cyan"},
-    delivering: {label: "В доставке", color: "geekblue"},
-    delivered: {label: "Доставлен/выдан", color: "green"},
-    cancelled: {label: "Отменён", color: "red"}
-}
-
-const clientBonusOperationMeta: Record<string, {label: string; color: string}> = {
-    accrual: {label: "Начисление", color: "green"},
-    charge: {label: "Списание", color: "orange"},
-    refund: {label: "Возврат", color: "blue"},
-    correction: {label: "Коррекция", color: "purple"},
-    expiration: {label: "Сгорание", color: "red"}
-}
-
-const getStatusMeta = (value: string | undefined, dictionary: Record<string, {label: string; color: string}>) => {
-    if (!value) return undefined
-    return dictionary[value] || {label: value, color: "default"}
-}
 
 const formatSignedBonusAmount = (value?: number) => {
     if (value === undefined || value === null) return "—"
@@ -136,8 +107,8 @@ const ClientsPage = () => {
         {title: "Дата", dataIndex: "createdAt", width: 120, render: (value?: string) => (value ? dayjs(value).format("DD.MM") : "—")},
         {title: "Сумма", dataIndex: "total", width: 120, render: (value?: number) => formatMoney(value || 0)},
         {title: "Статус", key: "status", width: 220, render: (_, order) => {
-            const paymentStatus = getStatusMeta(order.paymentStatus, paymentStatusMeta)
-            const deliveryStatus = getStatusMeta(order.deliveryStatus, deliveryStatusMeta)
+            const paymentStatus = getPaymentStatusMeta(order.paymentStatus)
+            const deliveryStatus = getDeliveryStatusMeta(order.deliveryStatus)
 
             return (
                 <Space wrap size={[4, 4]}>
@@ -152,7 +123,7 @@ const ClientsPage = () => {
     const bonusColumns: ColumnsType<AdminClientBonusTransaction> = [
         {title: "Дата", dataIndex: "createdAt", width: 130, render: (value?: string) => (value ? dayjs(value).format("DD.MM HH:mm") : "—")},
         {title: "Тип", dataIndex: "type", width: 140, render: (value?: string) => {
-            const operation = getStatusMeta(value, clientBonusOperationMeta)
+            const operation = getBonusOperationMeta(value)
             return operation ? <Tag color={operation.color}>{operation.label}</Tag> : "—"
         }},
         {

@@ -54,6 +54,7 @@ import {useGetEmployeesQuery} from "../features/admin/employeeApi.ts"
 import {formatMoney} from "../utils/formatters.ts"
 import {useCan} from "../features/auth/permissions.ts"
 import {useSearchParams} from "react-router-dom"
+import {deliveryStatusMeta, paymentStatusMeta} from "../utils/adminStatusMeta.ts"
 
 const todayFilters = (): GetAdminOrdersParams => ({
     page: 1,
@@ -74,47 +75,15 @@ const slaThresholdMinutes: Partial<Record<OrderDeliveryStatus, number>> = {
     delivering: 60
 }
 
-const paymentStatusLabel: Record<OrderPaymentStatus, string> = {
-    pending: "Ждёт оплату",
-    paid: "Оплачен",
-    failed: "Ошибка оплаты",
-    refunded: "Возврат"
-}
-
-const deliveryStatusLabel: Record<OrderDeliveryStatus, string> = {
-    pending: "Новый",
-    preparing: "Собирается",
-    ready: "Готов",
-    delivering: "В доставке",
-    delivered: "Доставлен/выдан",
-    cancelled: "Отменён"
-}
-
-const paymentStatusOptions: Array<{label: string; value: OrderPaymentStatus}> = Object.entries(paymentStatusLabel).map(([value, label]) => ({
-    label,
+const paymentStatusOptions: Array<{label: string; value: OrderPaymentStatus}> = Object.entries(paymentStatusMeta).map(([value, meta]) => ({
+    label: meta.label,
     value: value as OrderPaymentStatus
 }))
 
-const deliveryStatusOptions: Array<{label: string; value: OrderDeliveryStatus}> = Object.entries(deliveryStatusLabel).map(([value, label]) => ({
-    label,
+const deliveryStatusOptions: Array<{label: string; value: OrderDeliveryStatus}> = Object.entries(deliveryStatusMeta).map(([value, meta]) => ({
+    label: meta.label,
     value: value as OrderDeliveryStatus
 }))
-
-const paymentStatusColor: Record<OrderPaymentStatus, string> = {
-    pending: "orange",
-    paid: "green",
-    failed: "red",
-    refunded: "purple"
-}
-
-const deliveryStatusColor: Record<OrderDeliveryStatus, string> = {
-    pending: "orange",
-    preparing: "blue",
-    ready: "cyan",
-    delivering: "geekblue",
-    delivered: "green",
-    cancelled: "red"
-}
 
 type StatusIntent = "accept" | "ready" | "delivered" | "cancelled"
 
@@ -579,8 +548,8 @@ const OrdersPage = () => {
                 render: (_, order) => (
                     <Space wrap size={[0, 4]}>
                         {order.status?.title && <Tag color="blue">{order.status.title}</Tag>}
-                        {order.paymentStatus && <Tag color={paymentStatusColor[order.paymentStatus]}>{paymentStatusLabel[order.paymentStatus]}</Tag>}
-                        {order.deliveryStatus && <Tag color={deliveryStatusColor[order.deliveryStatus]}>{deliveryStatusLabel[order.deliveryStatus]}</Tag>}
+                        {order.paymentStatus && <Tag color={paymentStatusMeta[order.paymentStatus]?.color}>{paymentStatusMeta[order.paymentStatus]?.label}</Tag>}
+                        {order.deliveryStatus && <Tag color={deliveryStatusMeta[order.deliveryStatus]?.color}>{deliveryStatusMeta[order.deliveryStatus]?.label}</Tag>}
                     </Space>
                 )
             },
@@ -823,8 +792,8 @@ const OrdersPage = () => {
                                 <Col xs={24} md={10}>
                                     <Space wrap>
                                         {selectedOrder.status?.title && <Tag color="blue">{selectedOrder.status.title}</Tag>}
-                                        {selectedOrder.paymentStatus && <Tag color={paymentStatusColor[selectedOrder.paymentStatus]}>{paymentStatusLabel[selectedOrder.paymentStatus]}</Tag>}
-                                        {selectedOrder.deliveryStatus && <Tag color={deliveryStatusColor[selectedOrder.deliveryStatus]}>{deliveryStatusLabel[selectedOrder.deliveryStatus]}</Tag>}
+                                        {selectedOrder.paymentStatus && <Tag color={paymentStatusMeta[selectedOrder.paymentStatus]?.color}>{paymentStatusMeta[selectedOrder.paymentStatus]?.label}</Tag>}
+                                        {selectedOrder.deliveryStatus && <Tag color={deliveryStatusMeta[selectedOrder.deliveryStatus]?.color}>{deliveryStatusMeta[selectedOrder.deliveryStatus]?.label}</Tag>}
                                         <Tag>{formatOrderAge(selectedOrder.createdAt)}</Tag>
                                         {getOrderBadges(selectedOrder).map((badge) => <Tag key={badge.label} color={badge.color}>{badge.label}</Tag>)}
                                     </Space>
