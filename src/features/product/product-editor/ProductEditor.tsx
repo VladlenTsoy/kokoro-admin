@@ -11,7 +11,7 @@ import {createStyles} from "antd-style"
 import {useCreateProductMutation, useGetProductByIdQuery, useUpdateProductMutation} from "../productApi.ts"
 import type {ProductFormValuesType, ProductSizeMapType} from "../ProductType.ts"
 import type {ProductTemporaryImageType} from "../../file-uploader/product-image-uploader/ProductImageUploaderType.ts"
-import {useCallback, useEffect, useMemo, useState} from "react"
+import {type SetStateAction, useCallback, useEffect, useMemo, useState} from "react"
 import dayjs from "dayjs"
 import type {CreateProductType} from "../CreateProductType.ts"
 import {domainUrlForImage} from "../../../utils/appApiConfig.ts"
@@ -54,6 +54,7 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
     const [selectedSizes, setSelectedSizes] = useState<{id: number; title: string}[]>([])
     const [images, setImages] = useState<ProductTemporaryImageType[]>([])
     const [discountMode, setDiscountMode] = useState(false)
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
     const parentProductId = useMemo(() => data?.product?.id, [data])
 
@@ -148,6 +149,21 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
     // ---------- Watchers ----------
     const discountValue = Form.useWatch(["discount", "percent"], form) as number | undefined
 
+    useEffect(() => {
+        if (!hasUnsavedChanges || isSaving) return
+
+        const beforeUnloadHandler = (event: BeforeUnloadEvent) => {
+            event.preventDefault()
+            event.returnValue = ""
+        }
+
+        window.addEventListener("beforeunload", beforeUnloadHandler)
+
+        return () => {
+            window.removeEventListener("beforeunload", beforeUnloadHandler)
+        }
+    }, [hasUnsavedChanges, isSaving])
+
     // ---------- Handlers ----------
     const onSelectSizesHandler = useCallback<NonNullable<SelectProps<number[]>["onChange"]>>(
         (value, option) => {
@@ -171,6 +187,11 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
 
     const onChangeDiscountModeHandler = useCallback((mode: boolean) => {
         setDiscountMode(!mode)
+    }, [])
+
+    const onImagesChangeHandler = useCallback((value: SetStateAction<ProductTemporaryImageType[]>) => {
+        setHasUnsavedChanges(true)
+        setImages(value)
     }, [])
 
     // Сброс полей скидки при выключении
@@ -234,10 +255,12 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
                     data: payload
                 }).unwrap()
                 hideLoading()
+                setHasUnsavedChanges(false)
                 message.success("Товар обновлён")
             } else {
                 await create(payload).unwrap()
                 hideLoading()
+                setHasUnsavedChanges(false)
                 message.success(isColor ? "Цвет товара создан" : "Товар создан")
                 navigate("/products")
             }
@@ -256,8 +279,8 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
     // ---------- Memoized Left/Right blocks ----------
     const leftBlock = useMemo(() => <LeftBlock />, [])
     const rightBlock = useMemo(
-        () => <RightBlock imageUrls={images} setImageUrl={setImages} isSaving={isSaving} />,
-        [images, isSaving]
+        () => <RightBlock imageUrls={images} setImageUrl={onImagesChangeHandler} isSaving={isSaving} />,
+        [images, isSaving, onImagesChangeHandler]
     )
 
     // ---------- Render ----------
@@ -290,7 +313,16 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
                     id="editor-product"
                     className={styles.content}
                     disabled={isLoading || isSaving || isProductLoadError}
+                    onValuesChange={() => setHasUnsavedChanges(true)}
                 >
+                    {hasUnsavedChanges && !isSaving && (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            message="Есть несохранённые изменения"
+                            description="Сохраните товар перед закрытием вкладки или обновлением страницы, чтобы не потерять правки каталога."
+                        />
+                    )}
                     <Element name="basic">
                         <BaseSection onSelectSizesChange={onSelectSizesHandler} />
                     </Element>
