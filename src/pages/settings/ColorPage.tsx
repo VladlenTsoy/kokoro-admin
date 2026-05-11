@@ -1,5 +1,5 @@
-import React, {useState} from "react"
-import {Table, Button, Modal, Form, Input, Space, Popconfirm, Tag, Alert, Empty, Typography, message} from "antd"
+import React, {useMemo, useState} from "react"
+import {Table, Button, Modal, Form, Input, Space, Popconfirm, Tag, Alert, Empty, Typography, message, Segmented} from "antd"
 import {createStyles} from "antd-style"
 import {
     useGetColorsQuery,
@@ -12,8 +12,30 @@ import SettingsTableSection from "../../components/settings/SettingsTableSection
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 
 const {Text} = Typography
+const {Search} = Input
+
+type ColorStatusFilter = "all" | "active" | "archived"
 
 const useStyles = createStyles(({token}) => ({
+    summary: {
+        display: "flex",
+        flexWrap: "wrap",
+        gap: token.marginSM,
+        marginBottom: token.marginMD
+    },
+    filterBar: {
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: token.marginSM,
+        marginBottom: token.marginMD
+    },
+    filterControls: {
+        display: "flex",
+        flexWrap: "wrap",
+        gap: token.marginSM
+    },
     colorPreview: {
         display: "inline-flex",
         alignItems: "center",
@@ -41,7 +63,29 @@ const ColorPage: React.FC = () => {
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingColor, setEditingColor] = useState<ColorType | null>(null)
+    const [searchValue, setSearchValue] = useState("")
+    const [statusFilter, setStatusFilter] = useState<ColorStatusFilter>("all")
     const [form] = Form.useForm()
+
+    const activeCount = colors.filter((color) => !color.deleted_at).length
+    const archivedCount = colors.length - activeCount
+    const normalizedSearch = searchValue.trim().toLowerCase()
+    const filteredColors = useMemo(() => colors.filter((color) => {
+        const matchesStatus = statusFilter === "all"
+            || (statusFilter === "active" && !color.deleted_at)
+            || (statusFilter === "archived" && Boolean(color.deleted_at))
+        const matchesSearch = !normalizedSearch
+            || color.title.toLowerCase().includes(normalizedSearch)
+            || color.hex.toLowerCase().includes(normalizedSearch)
+            || String(color.id).includes(normalizedSearch)
+
+        return matchesStatus && matchesSearch
+    }), [colors, normalizedSearch, statusFilter])
+
+    const resetFilters = () => {
+        setSearchValue("")
+        setStatusFilter("all")
+    }
 
     const handleSave = async () => {
         try {
@@ -142,6 +186,38 @@ const ColorPage: React.FC = () => {
                     setIsModalOpen(true)
                 }}
             >
+                <div className={styles.summary}>
+                    <Tag color="blue">Всего: {colors.length}</Tag>
+                    <Tag color="green">Активные: {activeCount}</Tag>
+                    <Tag color="red">Удалённые: {archivedCount}</Tag>
+                    <Tag color={filteredColors.length === colors.length ? "default" : "gold"}>Показано: {filteredColors.length}</Tag>
+                </div>
+                <div className={styles.filterBar}>
+                    <Text type="secondary">
+                        Перед добавлением проверьте название, HEX или ID: дубли похожих цветов усложняют подбор вариантов и комплектацию заказа.
+                    </Text>
+                    <div className={styles.filterControls}>
+                        <Search
+                            allowClear
+                            placeholder="Поиск по названию, HEX или ID"
+                            value={searchValue}
+                            onChange={(event) => setSearchValue(event.target.value)}
+                            style={{width: 280}}
+                        />
+                        <Segmented<ColorStatusFilter>
+                            value={statusFilter}
+                            onChange={setStatusFilter}
+                            options={[
+                                {label: "Все", value: "all"},
+                                {label: "Активные", value: "active"},
+                                {label: "Удалённые", value: "archived"}
+                            ]}
+                        />
+                        <Button disabled={!searchValue && statusFilter === "all"} onClick={resetFilters}>
+                            Сбросить
+                        </Button>
+                    </div>
+                </div>
                 {isError && (
                     <Alert
                         type="error"
@@ -154,12 +230,19 @@ const ColorPage: React.FC = () => {
                 <Table
                     rowKey="id"
                     loading={isLoading}
-                    dataSource={colors}
+                    dataSource={filteredColors}
                     columns={columns}
                     scroll={{x: 720}}
                     pagination={{pageSize: 20, showSizeChanger: true}}
                     locale={{
-                        emptyText: (
+                        emptyText: searchValue || statusFilter !== "all" ? (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="По выбранным фильтрам цветов нет"
+                            >
+                                <Button onClick={resetFilters}>Сбросить фильтры</Button>
+                            </Empty>
+                        ) : (
                             <Empty
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                                 description="Цвета пока не добавлены"
