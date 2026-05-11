@@ -51,6 +51,12 @@ const ProductTagsPage = () => {
         () => [...(data ?? [])].sort((a, b) => a.sortOrder - b.sortOrder || b.id - a.id),
         [data]
     )
+    const tagSummary = useMemo(() => ({
+        total: tags.length,
+        active: tags.filter((tag) => tag.isActive).length,
+        inactive: tags.filter((tag) => !tag.isActive).length,
+        colorPalettes: tags.filter((tag) => tag.type === "color_palette").length
+    }), [tags])
     const hasActiveFilters = Boolean(filters.search || filters.type || filters.isActive)
 
     const resetFilters = () => setFilters({})
@@ -251,6 +257,23 @@ const ProductTagsPage = () => {
                             action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
                         />
                     ) : null}
+                    <Alert
+                        type="info"
+                        showIcon
+                        style={{margin: "16px 16px 0"}}
+                        message="Контекст словаря тегов"
+                        description={(
+                            <Space size={8} wrap>
+                                <Tag color="blue">Показано: {tagSummary.total}</Tag>
+                                <Tag color="green">Активные: {tagSummary.active}</Tag>
+                                <Tag>Скрытые: {tagSummary.inactive}</Tag>
+                                <Tag color="purple">Цветовые палитры: {tagSummary.colorPalettes}</Tag>
+                                <Typography.Text type="secondary">
+                                    Перед созданием нового тега проверьте поиск и тип, чтобы не плодить дубли в фильтрах и подборках.
+                                </Typography.Text>
+                            </Space>
+                        )}
+                    />
                     <Space style={{padding: 16, paddingBottom: 0}} wrap>
                         <Input.Search
                             placeholder="Поиск по названию или slug"
