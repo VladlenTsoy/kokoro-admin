@@ -1,5 +1,5 @@
 import {Alert, Button, Card, Col, Form, Input, Row, Space, Tag, Typography, message} from "antd"
-import {useEffect} from "react"
+import {useEffect, useState} from "react"
 import {useLocation, useNavigate} from "react-router-dom"
 import {useLoginMutation} from "../features/admin/authApi.ts"
 import {useDispatch} from "../features/store.ts"
@@ -63,6 +63,8 @@ const getReturnPageLabel = (returnPath: string) => {
 
 const LoginPage = () => {
     const [form] = Form.useForm<LoginFormValues>()
+    const [lastLoginError, setLastLoginError] = useState<string | null>(null)
+    const [isCapsLockOn, setIsCapsLockOn] = useState(false)
     const dispatch = useDispatch()
     const navigate = useNavigate()
     const location = useLocation()
@@ -80,6 +82,8 @@ const LoginPage = () => {
     }, [accessToken, navigate, returnPath])
 
     const onSubmit = async (values: LoginFormValues) => {
+        setLastLoginError(null)
+
         try {
             const payload = await login({email: values.email, password: values.password}).unwrap()
 
@@ -87,7 +91,9 @@ const LoginPage = () => {
             message.success("Вы успешно вошли")
             navigate(returnPath, {replace: true})
         } catch (error) {
-            message.error(getNestErrorMessage(error))
+            const errorMessage = getNestErrorMessage(error)
+            setLastLoginError(errorMessage)
+            message.error(errorMessage)
         }
     }
 
@@ -131,6 +137,16 @@ const LoginPage = () => {
                                 />
                             )}
 
+                            {lastLoginError && (
+                                <Alert
+                                    type="error"
+                                    showIcon
+                                    style={{marginBottom: 16}}
+                                    message="Не удалось войти"
+                                    description="Проверьте email и пароль. Если доступ должен быть открыт, обратитесь к администратору — не создавайте новый пароль в переписке и не пересылайте текущий."
+                                />
+                            )}
+
                             <Form<LoginFormValues> form={form} layout="vertical" onFinish={onSubmit}>
                                 <Form.Item
                                     name="email"
@@ -140,19 +156,27 @@ const LoginPage = () => {
                                         {type: "email", message: "Неверный формат email"}
                                     ]}
                                 >
-                                    <Input placeholder="admin@kokoro.uz" size="large" />
+                                    <Input placeholder="Введите рабочий email" size="large" autoComplete="username" />
                                 </Form.Item>
 
                                 <Form.Item
                                     name="password"
                                     label="Пароль"
+                                    extra={isCapsLockOn ? "Включён Caps Lock — из-за этого пароль может не подойти." : "Не используйте примерные или пересланные пароли; запросите безопасный сброс у администратора."}
+                                    validateStatus={isCapsLockOn ? "warning" : undefined}
                                     rules={[
                                         {required: true, message: "Введите пароль"},
                                         {min: 8, message: "Минимум 8 символов"},
                                         {max: 100, message: "Максимум 100 символов"}
                                     ]}
                                 >
-                                    <Input.Password placeholder="StrongPassword123" size="large" />
+                                    <Input.Password
+                                        placeholder="Введите пароль"
+                                        size="large"
+                                        autoComplete="current-password"
+                                        onKeyUp={(event) => setIsCapsLockOn(event.getModifierState("CapsLock"))}
+                                        onBlur={() => setIsCapsLockOn(false)}
+                                    />
                                 </Form.Item>
 
                                 <Button
