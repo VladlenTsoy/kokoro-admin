@@ -106,6 +106,7 @@ const HeaderMenu = () => {
             </div>
             <Segmented
                 className={styles.segmented}
+                aria-label="Основная навигация админки"
                 options={options}
                 value={selectedValue}
                 onChange={(value) => navigate(value)}

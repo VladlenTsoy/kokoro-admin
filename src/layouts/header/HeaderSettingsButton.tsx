@@ -19,6 +19,8 @@ const HeaderSettingsButton = () => {
                 size="large"
                 shape="circle"
                 type={isSettingsPage ? "primary" : "default"}
+                aria-label="Открыть настройки админки"
+                title="Открыть настройки админки"
                 icon={<SettingOutlined />}
                 onClick={() => navigate("/settings")}
             />
