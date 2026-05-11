@@ -30,7 +30,13 @@ const PermissionGuard = ({permission, anyOf}: PermissionGuardProps) => {
     const currentEmployee = employee ?? data
 
     if (!accessToken) {
-        return <Navigate to="/login" replace />
+        return (
+            <Navigate
+                to="/login"
+                replace
+                state={{returnTo: `${location.pathname}${location.search}${location.hash}`}}
+            />
+        )
     }
 
     if ((!currentEmployee || !Array.isArray(currentEmployee.permissions)) && isLoading) {
