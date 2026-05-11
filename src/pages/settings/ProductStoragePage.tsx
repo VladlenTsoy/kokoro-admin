@@ -1,5 +1,5 @@
 import React, {useMemo, useState} from "react"
-import {Table, Button, Popconfirm, Modal, Form, Input, InputNumber, Empty, Alert, Space, Tag, Typography, message} from "antd"
+import {Table, Button, Popconfirm, Modal, Form, Input, InputNumber, Empty, Alert, Space, Tag, Typography, Segmented, Statistic, message} from "antd"
 import {
     useGetStoragesQuery,
     useCreateStorageMutation,
@@ -14,20 +14,47 @@ const ProductStoragePage: React.FC = () => {
     const {data: storages = [], isLoading, isError, refetch} = useGetStoragesQuery()
     const [createStorage, {isLoading: isCreating}] = useCreateStorageMutation()
     const [updateStorage, {isLoading: isUpdating}] = useUpdateStorageMutation()
-    const [deleteStorage] = useDeleteStorageMutation()
+    const [deleteStorage, {isLoading: isDeleting}] = useDeleteStorageMutation()
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingStorage, setEditingStorage] = useState<ProductStorageType | null>(null)
+    const [search, setSearch] = useState("")
+    const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all")
 
     const [form] = Form.useForm()
 
     const storageSummary = useMemo(() => {
         const active = storages.filter((storage) => !storage.deleted_at).length
         return {
+            total: storages.length,
             active,
-            archived: storages.length - active
+            archived: storages.length - active,
+            salesPoints: new Set(storages.map((storage) => storage.salesPointId)).size
         }
     }, [storages])
+
+    const filteredStorages = useMemo(() => {
+        const normalizedSearch = search.trim().toLowerCase()
+
+        return storages.filter((storage) => {
+            const matchesSearch = !normalizedSearch
+                || storage.title.toLowerCase().includes(normalizedSearch)
+                || String(storage.id).includes(normalizedSearch)
+                || String(storage.salesPointId).includes(normalizedSearch)
+            const matchesStatus = statusFilter === "all"
+                || (statusFilter === "active" && !storage.deleted_at)
+                || (statusFilter === "archived" && Boolean(storage.deleted_at))
+
+            return matchesSearch && matchesStatus
+        })
+    }, [search, statusFilter, storages])
+
+    const hasActiveFilters = Boolean(search.trim()) || statusFilter !== "all"
+
+    const resetFilters = () => {
+        setSearch("")
+        setStatusFilter("all")
+    }
 
     const openCreate = () => {
         setEditingStorage(null)
@@ -108,9 +135,10 @@ const ProductStoragePage: React.FC = () => {
                         description="Перед удалением убедитесь, что к складу не привязаны активные остатки или заказы."
                         okText="Удалить"
                         cancelText="Отмена"
+                        okButtonProps={{loading: isDeleting}}
                         onConfirm={() => handleDelete(record.id)}
                     >
-                        <Button type="link" danger>
+                        <Button type="link" danger loading={isDeleting}>
                             Удалить
                         </Button>
                     </Popconfirm>
@@ -138,21 +166,58 @@ const ProductStoragePage: React.FC = () => {
                         />
                     )}
                     {!isError && storages.length > 0 && (
-                        <Alert
-                            type="info"
-                            showIcon
-                            message={`Активных складов: ${storageSummary.active}`}
-                            description={`Архивных: ${storageSummary.archived}. Перед правкой склада проверьте точку продаж — от неё зависят остатки, выдача и менеджерский подбор товара.`}
-                        />
+                        <>
+                            <Alert
+                                type="info"
+                                showIcon
+                                message={`Активных складов: ${storageSummary.active}`}
+                                description={`Архивных: ${storageSummary.archived}. Перед правкой склада проверьте точку продаж — от неё зависят остатки, выдача и менеджерский подбор товара.`}
+                            />
+                            <Space wrap size={12}>
+                                <Statistic title="Всего складов" value={storageSummary.total} loading={isLoading} />
+                                <Statistic title="Активных" value={storageSummary.active} loading={isLoading} />
+                                <Statistic title="Архивных" value={storageSummary.archived} loading={isLoading} />
+                                <Statistic title="Точек продаж" value={storageSummary.salesPoints} loading={isLoading} />
+                                <Statistic title="Найдено" value={filteredStorages.length} loading={isLoading} />
+                            </Space>
+                            <Space wrap style={{width: "100%"}}>
+                                <Input.Search
+                                    allowClear
+                                    placeholder="Найти по названию, ID склада или ID точки продаж"
+                                    value={search}
+                                    onChange={(event) => setSearch(event.target.value)}
+                                    style={{minWidth: 280, maxWidth: 420}}
+                                />
+                                <Segmented
+                                    value={statusFilter}
+                                    onChange={(value) => setStatusFilter(value as "all" | "active" | "archived")}
+                                    options={[
+                                        {label: "Все", value: "all"},
+                                        {label: "Активные", value: "active"},
+                                        {label: "Архив", value: "archived"}
+                                    ]}
+                                />
+                                {hasActiveFilters && (
+                                    <Button onClick={resetFilters}>Сбросить фильтры</Button>
+                                )}
+                            </Space>
+                        </>
                     )}
                     <Table
                         loading={isLoading}
-                        dataSource={storages}
+                        dataSource={filteredStorages}
                         columns={columns}
                         rowKey="id"
                         scroll={{x: 760}}
                         locale={{
-                            emptyText: (
+                            emptyText: hasActiveFilters ? (
+                                <Empty
+                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                    description="По этим фильтрам склады не найдены"
+                                >
+                                    <Button onClick={resetFilters}>Сбросить фильтры</Button>
+                                </Empty>
+                            ) : (
                                 <Empty
                                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                                     description="Склады ещё не добавлены"
