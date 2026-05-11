@@ -54,6 +54,19 @@ const useStyles = createStyles(({token}) => ({
         "@media (max-width: 1100px)": {
             justifyContent: "flex-end",
             flexWrap: "wrap"
+        },
+        "@media (max-width: 760px)": {
+            alignItems: "stretch",
+            display: "grid",
+            gridTemplateColumns: "1fr repeat(5, auto)",
+            width: "100%"
+        },
+        "@media (max-width: 520px)": {
+            gridTemplateColumns: "repeat(5, auto)",
+            justifyContent: "start",
+            overflowX: "auto",
+            paddingBottom: 2,
+            scrollbarWidth: "thin"
         }
     },
     content: {
