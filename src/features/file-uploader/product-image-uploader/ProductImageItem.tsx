@@ -1,10 +1,12 @@
 import React from "react"
 import cn from "classnames"
 import {createStyles} from "antd-style"
-import {DeleteOutlined, LoadingOutlined, StarFilled} from "@ant-design/icons"
-import {Tooltip} from "antd"
+import {DeleteOutlined, ExclamationCircleFilled, LoadingOutlined, StarFilled} from "@ant-design/icons"
+import {Tooltip, Typography} from "antd"
 import {motion} from "framer-motion"
 import SizeBytesBlock from "../../../components/SizeBytesBlock.tsx"
+
+const {Text} = Typography
 
 const useStyles = createStyles(({token}) => ({
     container: {
@@ -75,6 +77,25 @@ const useStyles = createStyles(({token}) => ({
         fontSize: 40,
         color: token.colorWhite
     },
+    imageError: {
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+        zIndex: 6,
+        padding: 12,
+        textAlign: "center",
+        color: token.colorWhite,
+        background: "rgba(0, 0, 0, 0.58)",
+        borderRadius: 13
+    },
+    errorIcon: {
+        fontSize: 28,
+        color: token.colorWarning
+    },
     itemLoading: {
         filter: "blur(3px)"
     }
@@ -84,13 +105,14 @@ interface Props {
     url: string
     path?: string
     loading?: boolean
+    error?: boolean
     size?: number
     isFirst: boolean
     isDragging: boolean
-    removePhoto?: (path: string) => void
+    removePhoto?: () => void
 }
 
-const ProductImageItem: React.FC<Props> = ({isDragging, loading, size, url, isFirst, removePhoto, path}) => {
+const ProductImageItem: React.FC<Props> = ({isDragging, loading, error, size, url, isFirst, removePhoto}) => {
     const {styles} = useStyles()
 
     return (
@@ -109,6 +131,13 @@ const ProductImageItem: React.FC<Props> = ({isDragging, loading, size, url, isFi
 
             {size && (
                 <SizeBytesBlock size={size} />
+            )}
+
+            {error && (
+                <div className={styles.imageError}>
+                    <ExclamationCircleFilled className={styles.errorIcon} />
+                    <Text style={{color: "inherit"}}>Ошибка загрузки. Удалите превью и попробуйте снова.</Text>
+                </div>
             )}
 
             <div
@@ -140,7 +169,7 @@ const ProductImageItem: React.FC<Props> = ({isDragging, loading, size, url, isFi
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                         e.stopPropagation()
-                        if (path) removePhoto(path)
+                        removePhoto()
                     }}
                 >
                     <DeleteOutlined />
