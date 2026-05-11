@@ -72,6 +72,32 @@ const SettingsIndexRedirect = () => {
     return <Navigate to={firstAvailable?.to ?? "/forbidden"} replace />
 }
 
+const getRouteLoadingTip = (pathname: string) => {
+    if (pathname.startsWith("/orders")) {
+        return "Открываем заказы и статусы смены..."
+    }
+
+    if (pathname.startsWith("/products")) {
+        return "Загружаем каталог и карточки товаров..."
+    }
+
+    if (pathname.startsWith("/clients")) {
+        return "Готовим клиентскую базу..."
+    }
+
+    if (pathname.startsWith("/settings")) {
+        return "Открываем настройки рабочего процесса..."
+    }
+
+    return "Загружаем рабочий экран..."
+}
+
+const RouteLoadingFallback = () => {
+    const {pathname} = useLocation()
+
+    return <Spin fullscreen tip={getRouteLoadingTip(pathname)} />
+}
+
 export const AppRouter = () => {
     return (
         <BrowserRouter>
