@@ -98,7 +98,7 @@ export const useProductColumns = (): ColumnsType<ProductType> => {
                                 <Button icon={<EditOutlined />} />
                             </Link>
                         )}
-                        {canDeleteCatalog && <ProductTableDeleteAction productId={record.id} />}
+                        {canDeleteCatalog && <ProductTableDeleteAction productId={record.id} productTitle={record.title} />}
                     </Space>
                 )
             } satisfies ColumnsType<ProductType>[number]]
