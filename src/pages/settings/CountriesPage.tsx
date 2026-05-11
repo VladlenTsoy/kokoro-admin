@@ -1,5 +1,5 @@
 import React, {useMemo, useState} from "react"
-import {Alert, Button, Empty, Form, Input, Modal, Popconfirm, Space, Table, Tag, Typography, message} from "antd"
+import {Alert, Button, Checkbox, Empty, Form, Input, Modal, Popconfirm, Space, Table, Tag, Typography, message} from "antd"
 import type {ColumnsType} from "antd/es/table"
 import type {CountryType, CityType} from "../../features/settings/country/CountryTypes.ts"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
@@ -36,14 +36,49 @@ const CountryCityPage: React.FC = () => {
     const [editingItem, setEditingItem] = useState<EditingItem | null>(null)
     const [selectedCountryId, setSelectedCountryId] = useState<number | null>(null)
     const [modalType, setModalType] = useState<"country" | "city">("country")
+    const [searchQuery, setSearchQuery] = useState("")
+    const [showWithoutCitiesOnly, setShowWithoutCitiesOnly] = useState(false)
     const [form] = Form.useForm()
 
     const sortedCountries = useMemo(
         () => [...(countries ?? [])].sort((a, b) => a.name.localeCompare(b.name, "ru") || a.id - b.id),
         [countries]
     )
+    const normalizedSearchQuery = searchQuery.trim().toLowerCase()
+    const filteredCountries = useMemo(
+        () => sortedCountries.filter((country) => {
+            const cityCount = country.cities?.length ?? 0
+            if (showWithoutCitiesOnly && cityCount > 0) {
+                return false
+            }
+
+            if (!normalizedSearchQuery) {
+                return true
+            }
+
+            const cityMatches = country.cities?.some((city) => (
+                city.name.toLowerCase().includes(normalizedSearchQuery)
+                || String(city.id).includes(normalizedSearchQuery)
+            ))
+
+            return (
+                country.name.toLowerCase().includes(normalizedSearchQuery)
+                || String(country.id).includes(normalizedSearchQuery)
+                || Boolean(cityMatches)
+            )
+        }),
+        [normalizedSearchQuery, showWithoutCitiesOnly, sortedCountries]
+    )
     const selectedCountry = sortedCountries.find((country) => country.id === selectedCountryId)
     const isSaving = isCreatingCountry || isUpdatingCountry || isCreatingCity || isUpdatingCity
+    const totalCities = sortedCountries.reduce((sum, country) => sum + (country.cities?.length ?? 0), 0)
+    const countriesWithoutCities = sortedCountries.filter((country) => (country.cities?.length ?? 0) === 0).length
+    const hasActiveFilters = Boolean(normalizedSearchQuery) || showWithoutCitiesOnly
+
+    const resetFilters = () => {
+        setSearchQuery("")
+        setShowWithoutCitiesOnly(false)
+    }
 
     const closeModal = () => {
         setIsModalOpen(false)
@@ -250,10 +285,39 @@ const CountryCityPage: React.FC = () => {
                     description="Если страна или город уже используется в доставке, точках продаж или заказах, сначала нужен безопасный backend-контроль связей. Сейчас админка показывает предупреждение, но не знает usage-count."
                 />
 
+                <Space direction="vertical" size={10} style={{width: "100%"}}>
+                    <Space wrap size={8}>
+                        <Tag color="blue">{sortedCountries.length} стран</Tag>
+                        <Tag color="green">{totalCities} городов</Tag>
+                        <Tag color={countriesWithoutCities ? "orange" : "default"}>
+                            {countriesWithoutCities} стран без городов
+                        </Tag>
+                        <Tag color={hasActiveFilters ? "purple" : "default"}>
+                            Найдено: {filteredCountries.length}
+                        </Tag>
+                    </Space>
+                    <Space wrap style={{width: "100%"}}>
+                        <Input.Search
+                            allowClear
+                            placeholder="Найти страну, город или ID"
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.target.value)}
+                            style={{width: 320, maxWidth: "100%"}}
+                        />
+                        <Checkbox
+                            checked={showWithoutCitiesOnly}
+                            onChange={(event) => setShowWithoutCitiesOnly(event.target.checked)}
+                        >
+                            Только страны без городов
+                        </Checkbox>
+                        {hasActiveFilters ? <Button onClick={resetFilters}>Сбросить фильтры</Button> : null}
+                    </Space>
+                </Space>
+
                 <Table
                     columns={countryColumns}
                     expandable={{expandedRowRender}}
-                    dataSource={sortedCountries}
+                    dataSource={filteredCountries}
                     rowKey="id"
                     loading={isLoading}
                     scroll={{x: 760}}
@@ -261,9 +325,17 @@ const CountryCityPage: React.FC = () => {
                         emptyText: (
                             <Empty
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                description="Страны ещё не настроены"
+                                description={
+                                    hasActiveFilters
+                                        ? "По текущим фильтрам страны или города не найдены"
+                                        : "Страны ещё не настроены"
+                                }
                             >
-                                <Button type="primary" onClick={() => openModal("country")}>Добавить страну</Button>
+                                {hasActiveFilters ? (
+                                    <Button onClick={resetFilters}>Сбросить фильтры</Button>
+                                ) : (
+                                    <Button type="primary" onClick={() => openModal("country")}>Добавить страну</Button>
+                                )}
                             </Empty>
                         )
                     }}
