@@ -25,6 +25,7 @@ const CollectionsPage = () => {
     const [isOpen, setIsOpen] = useState(false)
     const [editing, setEditing] = useState<CollectionType | null>(null)
     const [collectionSearch, setCollectionSearch] = useState("")
+    const [deletingCollectionId, setDeletingCollectionId] = useState<number | null>(null)
 
     const collections = useMemo(() => data ?? [], [data])
     const normalizedSearch = collectionSearch.trim().toLowerCase()
@@ -69,11 +70,14 @@ const CollectionsPage = () => {
     }
 
     const handleDelete = async (id: number) => {
+        setDeletingCollectionId(id)
         try {
             await deleteCollection(id).unwrap()
             message.success("Коллекция удалена")
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setDeletingCollectionId(null)
         }
     }
 
@@ -113,9 +117,10 @@ const CollectionsPage = () => {
                         description="Проверьте, что коллекция не используется в активных товарах или промо-подборках. Действие нельзя отменить из админки."
                         okText="Удалить"
                         cancelText="Отмена"
+                        okButtonProps={{loading: deletingCollectionId === record.id, danger: true}}
                         onConfirm={() => handleDelete(record.id)}
                     >
-                        <Button type="link" danger>
+                        <Button type="link" danger loading={deletingCollectionId === record.id}>
                             Удалить
                         </Button>
                     </Popconfirm>
