@@ -1,4 +1,5 @@
-import {Alert, Button, Card, Checkbox, Col, Empty, Form, Input, List, Row, Select, Space, Switch, Tag, Typography, message} from "antd"
+import {useMemo} from "react"
+import {Alert, Button, Card, Checkbox, Col, Empty, Form, Input, List, Row, Select, Space, Statistic, Switch, Tag, Typography, message} from "antd"
 import PageHeading from "../../components/PageHeading.tsx"
 import {
     useGetIntegrationsQuery,
@@ -49,6 +50,26 @@ const billingStatusOptions = [
 const providerLabel: Record<string, string> = {
     datra_cdp: "Datra CDP",
     meta: "Meta / Facebook"
+}
+
+const getIntegrationAttentionReason = (integration: IntegrationSetting) => {
+    if (integration.status === "billing_locked" || integration.billingStatus === "locked" || integration.billingStatus === "expired") {
+        return "биллинг или доступ требуют проверки"
+    }
+
+    if (!integration.configured) {
+        return "нет безопасно завершённой настройки"
+    }
+
+    if (integration.lastError) {
+        return "есть последняя ошибка подключения"
+    }
+
+    if (integration.enabled && (!integration.healthy || integration.runtimeStatus === "error")) {
+        return "включена, но health check не зелёный"
+    }
+
+    return null
 }
 
 const UnsupportedIntegrationCard = ({integration}: {integration: IntegrationSetting}) => (
@@ -218,6 +239,30 @@ const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
 
 const IntegrationsPage = () => {
     const {data, isError, isFetching, isLoading, refetch} = useGetIntegrationsQuery()
+    const integrations = useMemo(() => data || [], [data])
+
+    const summary = useMemo(() => {
+        return integrations.reduce(
+            (acc, integration) => {
+                acc.total += 1
+
+                if (integration.enabled) acc.enabled += 1
+                if (integration.configured) acc.configured += 1
+                if (integration.healthy) acc.healthy += 1
+                if (getIntegrationAttentionReason(integration)) acc.needsAttention += 1
+
+                return acc
+            },
+            {total: 0, enabled: 0, configured: 0, healthy: 0, needsAttention: 0}
+        )
+    }, [integrations])
+
+    const attentionIntegrations = useMemo(
+        () => integrations
+            .map((integration) => ({integration, reason: getIntegrationAttentionReason(integration)}))
+            .filter((item): item is {integration: IntegrationSetting; reason: string} => Boolean(item.reason)),
+        [integrations]
+    )
 
     return (
         <Space orientation="vertical" size={18} style={{width: "100%"}}>
@@ -232,6 +277,42 @@ const IntegrationsPage = () => {
                 message="Проверяйте интеграции как операционный чек-лист"
                 description="Перед включением убедитесь, что биллинг активен, токен обновлён, нужные события выбраны, а тест подключения прошёл без ошибок. Production‑переключения и внешние ключи требуют согласованного доступа."
             />
+
+            {!isError && integrations.length > 0 && (
+                <>
+                    <Row gutter={[12, 12]}>
+                        <Col xs={12} md={6}>
+                            <Card size="small"><Statistic title="Всего провайдеров" value={summary.total} loading={isLoading} /></Card>
+                        </Col>
+                        <Col xs={12} md={6}>
+                            <Card size="small"><Statistic title="Включены" value={summary.enabled} loading={isLoading} /></Card>
+                        </Col>
+                        <Col xs={12} md={6}>
+                            <Card size="small"><Statistic title="Настроены" value={summary.configured} loading={isLoading} /></Card>
+                        </Col>
+                        <Col xs={12} md={6}>
+                            <Card size="small"><Statistic title="Требуют внимания" value={summary.needsAttention} loading={isLoading} valueStyle={{color: summary.needsAttention > 0 ? "#cf1322" : undefined}} /></Card>
+                        </Col>
+                    </Row>
+
+                    {attentionIntegrations.length > 0 && (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            message="Есть интеграции, которые лучше проверить до включения или кампаний"
+                            description={
+                                <Space direction="vertical" size={4}>
+                                    {attentionIntegrations.map(({integration, reason}) => (
+                                        <Typography.Text key={integration.id}>
+                                            <Typography.Text strong>{integration.title || providerLabel[integration.providerKey] || integration.providerKey}</Typography.Text>: {reason}
+                                        </Typography.Text>
+                                    ))}
+                                </Space>
+                            }
+                        />
+                    )}
+                </>
+            )}
 
             {isError ? (
                 <Card>
@@ -250,7 +331,7 @@ const IntegrationsPage = () => {
             ) : (
                 <List
                     loading={isLoading}
-                    dataSource={data || []}
+                    dataSource={integrations}
                     locale={{
                         emptyText: (
                             <Empty
