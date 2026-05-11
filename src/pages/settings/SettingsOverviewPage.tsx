@@ -81,6 +81,7 @@ const SettingsOverviewPage = () => {
     ]
 
     const completed = checklist.filter((item) => item.done).length
+    const attentionItems = checklist.filter((item) => !item.done)
     const progress = Math.round((completed / checklist.length) * 100)
     const progressStatus = hasSetupError ? "exception" : progress === 100 ? "success" : "active"
     const handleRetry = () => setupQueries.forEach((query) => query.refetch())
@@ -100,6 +101,31 @@ const SettingsOverviewPage = () => {
                     message="Не удалось проверить часть настроек"
                     description="Checklist может быть неполным: обновите данные перед запуском продаж или изменением операционных настроек."
                     action={<Button size="small" onClick={handleRetry}>Повторить проверку</Button>}
+                />
+            )}
+
+            {!isLoadingSetup && !hasSetupError && attentionItems.length > 0 && (
+                <Alert
+                    type="info"
+                    showIcon
+                    message="Следующие настройки требуют внимания перед продажами"
+                    description={(
+                        <Space direction="vertical" size={8} style={{width: "100%"}}>
+                            {attentionItems.slice(0, 3).map((item) => (
+                                <Space key={item.path} size={8} wrap>
+                                    <Tag color="orange">Нужно</Tag>
+                                    <Typography.Text strong>{item.title}</Typography.Text>
+                                    <Typography.Text type="secondary">{item.description}</Typography.Text>
+                                    <Button size="small" onClick={() => navigate(item.path)}>{item.action}</Button>
+                                </Space>
+                            ))}
+                            {attentionItems.length > 3 && (
+                                <Typography.Text type="secondary">
+                                    Ещё задач: {attentionItems.length - 3}. Полный список ниже в checklist.
+                                </Typography.Text>
+                            )}
+                        </Space>
+                    )}
                 />
             )}
 
