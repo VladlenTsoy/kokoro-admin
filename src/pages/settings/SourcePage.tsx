@@ -1,5 +1,5 @@
-import React, {useState} from "react"
-import {Alert, Button, Empty, Form, Input, Modal, Popconfirm, Space, Switch, Table, Tag} from "antd"
+import React, {useMemo, useState} from "react"
+import {Alert, Button, Empty, Form, Input, Modal, Popconfirm, Space, Switch, Table, Tag, Typography} from "antd"
 import type {ColumnsType} from "antd/es/table"
 import {
     useGetSourcesQuery,
@@ -10,8 +10,10 @@ import {
 import type {SourceType} from "../../features/source/SourceType.ts"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
 
+const {Text} = Typography
+
 const SourcePage: React.FC = () => {
-    const {data, isLoading} = useGetSourcesQuery()
+    const {data: sources = [], isLoading, isError, refetch} = useGetSourcesQuery()
     const [createSource] = useCreateSourceMutation()
     const [updateSource] = useUpdateSourceMutation()
     const [deleteSource] = useDeleteSourceMutation()
@@ -20,6 +22,17 @@ const SourcePage: React.FC = () => {
     const [editingSource, setEditingSource] = useState<SourceType | null>(null)
 
     const [form] = Form.useForm()
+
+    const activeSourcesCount = useMemo(
+        () => sources.filter((source) => source.isActive).length,
+        [sources]
+    )
+
+    const openCreateModal = () => {
+        setEditingSource(null)
+        form.resetFields()
+        setIsModalOpen(true)
+    }
 
     const handleSubmit = async () => {
         const values = await form.validateFields()
@@ -90,22 +103,28 @@ const SourcePage: React.FC = () => {
                 title="Источники заказов"
                 subtitle="Управление каналами поступления заказов: сайт, мессенджеры, маркетплейсы и офлайн-точки."
                 addButtonText="Добавить источник"
-                onAdd={() => {
-                    setEditingSource(null)
-                    form.resetFields()
-                    setIsModalOpen(true)
-                }}
+                onAdd={openCreateModal}
             >
-                <Alert
-                    type="info"
-                    showIcon
-                    message="Подсказка для менеджеров"
-                    description="Активные источники помогают быстрее понять, откуда пришёл заказ. Отключайте канал вместо удаления, если по нему уже есть история заказов."
-                    style={{margin: 16}}
-                />
+                <Space direction="vertical" size={12} style={{width: "100%", padding: 16, paddingBottom: 0}}>
+                    <Alert
+                        type="info"
+                        showIcon
+                        message={`Активных источников: ${activeSourcesCount} из ${sources.length}`}
+                        description="Активные источники помогают быстрее понять, откуда пришёл заказ. Отключайте канал вместо удаления, если по нему уже есть история заказов."
+                    />
+                    {isError && (
+                        <Alert
+                            type="error"
+                            showIcon
+                            message="Не удалось загрузить источники заказов"
+                            description="Повторите загрузку перед настройкой каналов, чтобы менеджеры не опирались на устаревший список источников."
+                            action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
+                        />
+                    )}
+                </Space>
                 <Table<SourceType>
                     loading={isLoading}
-                    dataSource={data || []}
+                    dataSource={sources}
                     columns={columns}
                     rowKey="id"
                     scroll={{x: 720}}
@@ -114,7 +133,9 @@ const SourcePage: React.FC = () => {
                             <Empty
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                                 description="Источники заказов ещё не настроены. Добавьте первый канал, чтобы менеджеры видели происхождение заказов."
-                            />
+                            >
+                                <Button type="primary" onClick={openCreateModal}>Добавить первый источник</Button>
+                            </Empty>
                         )
                     }}
                 />
@@ -142,11 +163,17 @@ const SourcePage: React.FC = () => {
                     <Form.Item
                         name="code"
                         label="Код"
-                        extra="Короткий стабильный код для интеграций и аналитики, например telegram или site."
-                        rules={[{required: true, message: "Введите код источника"}]}
+                        extra="Короткий стабильный код для интеграций и аналитики: латиница, цифры, дефис или подчёркивание."
+                        rules={[
+                            {required: true, message: "Введите код источника"},
+                            {pattern: /^[a-z0-9_-]+$/, message: "Используйте только a-z, 0-9, дефис или подчёркивание"}
+                        ]}
                     >
                         <Input placeholder="telegram" />
                     </Form.Item>
+                    <Text type="secondary">
+                        Перед сохранением проверьте, что код совпадает с внешним каналом: это помогает корректно считать заказы в аналитике.
+                    </Text>
                     <Form.Item name="isActive" label="Активен" valuePropName="checked" extra="Отключённый источник сохраняет историю, но не должен использоваться для новых заказов.">
                         <Switch checkedChildren="Да" unCheckedChildren="Нет" />
                     </Form.Item>
