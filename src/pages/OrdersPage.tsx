@@ -258,6 +258,9 @@ const OrdersPage = () => {
     const [selectedOrderId, setSelectedOrderId] = useState<number | null>(() => getPositiveOrderIdFromSearch(searchParams))
     const [actionOrderId, setActionOrderId] = useState<number | null>(null)
     const [liveAlertsEnabled, setLiveAlertsEnabled] = useState(() => localStorage.getItem(LIVE_ALERT_STORAGE_KEY) !== "0")
+    const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">(() => (
+        canUseBrowserNotifications() ? Notification.permission : "unsupported"
+    ))
     const [lastSuccessfulRefreshAt, setLastSuccessfulRefreshAt] = useState<string | null>(null)
     const [refreshClock, setRefreshClock] = useState(() => dayjs())
     const lastSummaryRef = useRef<{newOrders: number; problemToday: number} | null>(null)
@@ -425,7 +428,13 @@ const OrdersPage = () => {
 
     const handleLiveAlertsChange = async (enabled: boolean) => {
         if (enabled && canUseBrowserNotifications() && Notification.permission === "default") {
-            await Notification.requestPermission()
+            const permission = await Notification.requestPermission()
+            setNotificationPermission(permission)
+            if (permission === "denied") {
+                message.warning("Desktop-уведомления запрещены в браузере — звуковой сигнал останется, но всплывающих уведомлений не будет.")
+            }
+        } else {
+            setNotificationPermission(canUseBrowserNotifications() ? Notification.permission : "unsupported")
         }
         setLiveAlertsEnabled(enabled)
     }
@@ -559,6 +568,14 @@ const OrdersPage = () => {
     const openClientProfile = (clientId: number) => {
         navigate(`/clients?clientId=${clientId}`)
     }
+
+    const notificationPermissionMessage = notificationPermission === "granted"
+        ? "Desktop-уведомления разрешены: браузер покажет короткий безопасный alert без ФИО и телефона."
+        : notificationPermission === "denied"
+            ? "Desktop-уведомления запрещены в браузере: оставляем только звук и обновление стола заказов."
+            : notificationPermission === "unsupported"
+                ? "Браузер не поддерживает desktop-уведомления: Live Ops Alert работает через звук и автообновление."
+                : "Desktop-уведомления ещё не разрешены: при включении браузер попросит доступ."
 
     const handleEditSubmit = async () => {
         if (!currentActionOrderId) return
@@ -776,6 +793,12 @@ const OrdersPage = () => {
                             Уведомления не содержат ФИО или телефон клиента.
                         </Typography.Text>
                     </Space>
+                    <Alert
+                        showIcon
+                        type={notificationPermission === "denied" ? "warning" : "info"}
+                        message="Статус desktop-уведомлений"
+                        description={notificationPermissionMessage}
+                    />
                     {isRefreshStale && (
                         <Alert
                             showIcon
