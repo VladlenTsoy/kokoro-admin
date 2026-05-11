@@ -1,5 +1,5 @@
 import React, {useState} from "react"
-import {Table, Button, Modal, Form, Input, Space, Popconfirm, Tag, Alert, Empty, Typography} from "antd"
+import {Table, Button, Modal, Form, Input, Space, Popconfirm, Tag, Alert, Empty, Typography, message} from "antd"
 import {createStyles} from "antd-style"
 import {
     useGetColorsQuery,
@@ -9,6 +9,7 @@ import {
 } from "../../features/settings/color/colorApi.ts"
 import type {ColorType} from "../../features/settings/color/ColorTypes.ts"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
+import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 
 const {Text} = Typography
 
@@ -34,24 +35,42 @@ const useStyles = createStyles(({token}) => ({
 const ColorPage: React.FC = () => {
     const {styles} = useStyles()
     const {data: colors = [], isLoading, isError, refetch} = useGetColorsQuery()
-    const [createColor] = useCreateColorMutation()
-    const [updateColor] = useUpdateColorMutation()
-    const [deleteColor] = useDeleteColorMutation()
+    const [createColor, {isLoading: isCreating}] = useCreateColorMutation()
+    const [updateColor, {isLoading: isUpdating}] = useUpdateColorMutation()
+    const [deleteColor, {isLoading: isDeleting}] = useDeleteColorMutation()
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingColor, setEditingColor] = useState<ColorType | null>(null)
     const [form] = Form.useForm()
 
     const handleSave = async () => {
-        const values = await form.validateFields()
-        if (editingColor) {
-            await updateColor({id: editingColor.id, data: values})
-        } else {
-            await createColor(values)
+        try {
+            const values = await form.validateFields()
+            if (editingColor) {
+                await updateColor({id: editingColor.id, data: values}).unwrap()
+                message.success("Цвет обновлён")
+            } else {
+                await createColor(values).unwrap()
+                message.success("Цвет создан")
+            }
+            setIsModalOpen(false)
+            setEditingColor(null)
+            form.resetFields()
+        } catch (error) {
+            if (typeof error === "object" && error !== null && "errorFields" in error) {
+                return
+            }
+            message.error(getNestErrorMessage(error))
         }
-        setIsModalOpen(false)
-        setEditingColor(null)
-        form.resetFields()
+    }
+
+    const handleDelete = async (id: number) => {
+        try {
+            await deleteColor(id).unwrap()
+            message.success("Цвет удалён")
+        } catch (error) {
+            message.error(getNestErrorMessage(error))
+        }
     }
 
     const columns = [
@@ -99,7 +118,8 @@ const ColorPage: React.FC = () => {
                         description="Проверьте, что цвет не используется в активных товарах. Это действие может убрать вариант из выбора менеджеров."
                         okText="Удалить"
                         cancelText="Отмена"
-                        onConfirm={() => deleteColor(record.id)}
+                        onConfirm={() => handleDelete(record.id)}
+                        okButtonProps={{loading: isDeleting}}
                     >
                         <Button type="link" danger>
                             Удалить
@@ -165,6 +185,7 @@ const ColorPage: React.FC = () => {
                 title={editingColor ? "Редактировать цвет" : "Добавить цвет"}
                 onCancel={() => setIsModalOpen(false)}
                 onOk={handleSave}
+                confirmLoading={isCreating || isUpdating}
             >
                 <Form form={form} layout="vertical">
                     <Form.Item

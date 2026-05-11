@@ -1,5 +1,5 @@
 import React, {useState} from "react"
-import {Table, Button, Modal, Form, Input, Space, Popconfirm, Tag, Alert, Empty, Typography} from "antd"
+import {Table, Button, Modal, Form, Input, Space, Popconfirm, Tag, Alert, Empty, Typography, message} from "antd"
 import {createStyles} from "antd-style"
 import {
     useGetSizesQuery,
@@ -9,6 +9,7 @@ import {
 } from "../../features/settings/size/sizeApi.ts"
 import type {SizeType} from "../../features/settings/size/SizeTypes.ts"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
+import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 
 const {Text} = Typography
 
@@ -22,24 +23,42 @@ const useStyles = createStyles(({token}) => ({
 const SizePage: React.FC = () => {
     const {styles} = useStyles()
     const {data: sizes = [], isLoading, isError, refetch} = useGetSizesQuery()
-    const [createSize] = useCreateSizeMutation()
-    const [updateSize] = useUpdateSizeMutation()
-    const [deleteSize] = useDeleteSizeMutation()
+    const [createSize, {isLoading: isCreating}] = useCreateSizeMutation()
+    const [updateSize, {isLoading: isUpdating}] = useUpdateSizeMutation()
+    const [deleteSize, {isLoading: isDeleting}] = useDeleteSizeMutation()
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingSize, setEditingSize] = useState<SizeType | null>(null)
     const [form] = Form.useForm()
 
     const handleSave = async () => {
-        const values = await form.validateFields()
-        if (editingSize) {
-            await updateSize({id: editingSize.id, data: values})
-        } else {
-            await createSize(values)
+        try {
+            const values = await form.validateFields()
+            if (editingSize) {
+                await updateSize({id: editingSize.id, data: values}).unwrap()
+                message.success("Размер обновлён")
+            } else {
+                await createSize(values).unwrap()
+                message.success("Размер создан")
+            }
+            setIsModalOpen(false)
+            setEditingSize(null)
+            form.resetFields()
+        } catch (error) {
+            if (typeof error === "object" && error !== null && "errorFields" in error) {
+                return
+            }
+            message.error(getNestErrorMessage(error))
         }
-        setIsModalOpen(false)
-        setEditingSize(null)
-        form.resetFields()
+    }
+
+    const handleDelete = async (id: number) => {
+        try {
+            await deleteSize(id).unwrap()
+            message.success("Размер удалён")
+        } catch (error) {
+            message.error(getNestErrorMessage(error))
+        }
     }
 
     const columns = [
@@ -72,7 +91,8 @@ const SizePage: React.FC = () => {
                         description="Проверьте, что размер не используется в активных товарах. Удаление может убрать вариант из выбора менеджеров и карточек заказа."
                         okText="Удалить"
                         cancelText="Отмена"
-                        onConfirm={() => deleteSize(record.id)}
+                        onConfirm={() => handleDelete(record.id)}
+                        okButtonProps={{loading: isDeleting}}
                     >
                         <Button type="link" danger>
                             Удалить
@@ -138,6 +158,7 @@ const SizePage: React.FC = () => {
                 title={editingSize ? "Редактировать размер" : "Добавить размер"}
                 onCancel={() => setIsModalOpen(false)}
                 onOk={handleSave}
+                confirmLoading={isCreating || isUpdating}
             >
                 <Form form={form} layout="vertical">
                     <Form.Item
