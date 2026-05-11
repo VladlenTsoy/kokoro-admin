@@ -6,7 +6,7 @@ import {clearAuthData, useSelectedAuthData} from "../../features/auth/authSlice.
 import {useDispatch} from "../../features/store.ts"
 import {useChangePasswordMutation, useLogoutMutation} from "../../features/admin/authApi.ts"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
-import {DownOutlined, UserOutlined} from "@ant-design/icons"
+import {DownOutlined, ExclamationCircleOutlined, UserOutlined} from "@ant-design/icons"
 
 const HeaderProfile = () => {
     const dispatch = useDispatch()
@@ -55,6 +55,18 @@ const HeaderProfile = () => {
         {key: "logout", label: "Выйти", danger: true}
     ]
 
+    const confirmLogout = () => {
+        Modal.confirm({
+            title: "Выйти из админ-панели?",
+            icon: <ExclamationCircleOutlined />,
+            content: "Проверьте, что текущие правки в формах сохранены. После выхода для продолжения работы потребуется снова войти в аккаунт.",
+            okText: "Выйти",
+            okButtonProps: {danger: true},
+            cancelText: "Остаться",
+            onOk: handleLogout
+        })
+    }
+
     const onMenuClick: MenuProps["onClick"] = ({key}) => {
         if (key === "changePassword") {
             setIsPasswordModalOpen(true)
@@ -62,7 +74,7 @@ const HeaderProfile = () => {
         }
 
         if (key === "logout") {
-            void handleLogout()
+            confirmLogout()
         }
     }
 
