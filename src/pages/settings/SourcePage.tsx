@@ -1,5 +1,5 @@
 import React, {useMemo, useState} from "react"
-import {Alert, Button, Empty, Form, Input, Modal, Popconfirm, Space, Switch, Table, Tag, Typography} from "antd"
+import {Alert, Button, Empty, Form, Input, Modal, Popconfirm, Space, Switch, Table, Tag, Typography, message} from "antd"
 import type {ColumnsType} from "antd/es/table"
 import {
     useGetSourcesQuery,
@@ -9,14 +9,15 @@ import {
 } from "../../features/source/sourceApi.ts"
 import type {SourceType} from "../../features/source/SourceType.ts"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
+import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 
 const {Text} = Typography
 
 const SourcePage: React.FC = () => {
     const {data: sources = [], isLoading, isError, refetch} = useGetSourcesQuery()
-    const [createSource] = useCreateSourceMutation()
-    const [updateSource] = useUpdateSourceMutation()
-    const [deleteSource] = useDeleteSourceMutation()
+    const [createSource, {isLoading: isCreating}] = useCreateSourceMutation()
+    const [updateSource, {isLoading: isUpdating}] = useUpdateSourceMutation()
+    const [deleteSource, {isLoading: isDeleting}] = useDeleteSourceMutation()
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingSource, setEditingSource] = useState<SourceType | null>(null)
@@ -27,6 +28,8 @@ const SourcePage: React.FC = () => {
         () => sources.filter((source) => source.isActive).length,
         [sources]
     )
+    const inactiveSourcesCount = sources.length - activeSourcesCount
+    const isSaving = isCreating || isUpdating
 
     const openCreateModal = () => {
         setEditingSource(null)
@@ -35,15 +38,30 @@ const SourcePage: React.FC = () => {
     }
 
     const handleSubmit = async () => {
-        const values = await form.validateFields()
-        if (editingSource) {
-            await updateSource({id: editingSource.id, body: values})
-        } else {
-            await createSource(values)
+        try {
+            const values = await form.validateFields()
+            if (editingSource) {
+                await updateSource({id: editingSource.id, body: values}).unwrap()
+                message.success("Источник обновлён")
+            } else {
+                await createSource(values).unwrap()
+                message.success("Источник создан")
+            }
+            setIsModalOpen(false)
+            setEditingSource(null)
+            form.resetFields()
+        } catch (error) {
+            message.error(getNestErrorMessage(error))
         }
-        setIsModalOpen(false)
-        setEditingSource(null)
-        form.resetFields()
+    }
+
+    const handleDelete = async (id: number) => {
+        try {
+            await deleteSource(id).unwrap()
+            message.success("Источник удалён")
+        } catch (error) {
+            message.error(getNestErrorMessage(error))
+        }
     }
 
     const columns: ColumnsType<SourceType> = [
@@ -86,7 +104,8 @@ const SourcePage: React.FC = () => {
                         description="Перед удалением убедитесь, что источник не используется в заказах и аналитике."
                         okText="Удалить"
                         cancelText="Отмена"
-                        onConfirm={() => deleteSource(record.id)}
+                        onConfirm={() => handleDelete(record.id)}
+                        okButtonProps={{loading: isDeleting}}
                     >
                         <Button type="link" danger>
                             Удалить
@@ -109,8 +128,8 @@ const SourcePage: React.FC = () => {
                     <Alert
                         type="info"
                         showIcon
-                        message={`Активных источников: ${activeSourcesCount} из ${sources.length}`}
-                        description="Активные источники помогают быстрее понять, откуда пришёл заказ. Отключайте канал вместо удаления, если по нему уже есть история заказов."
+                        message={`Источники заказов: ${activeSourcesCount} активных, ${inactiveSourcesCount} отключённых`}
+                        description="Активные источники помогают быстрее понять, откуда пришёл заказ. Отключайте канал вместо удаления, если по нему уже есть история заказов; удаление используйте только после проверки аналитики и интеграций."
                     />
                     {isError && (
                         <Alert
@@ -146,6 +165,7 @@ const SourcePage: React.FC = () => {
                 open={isModalOpen}
                 onCancel={() => setIsModalOpen(false)}
                 onOk={handleSubmit}
+                confirmLoading={isSaving}
                 okText={editingSource ? "Сохранить" : "Создать"}
                 cancelText="Отмена"
             >
