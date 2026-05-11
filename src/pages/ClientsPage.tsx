@@ -2,6 +2,7 @@ import {Alert, Button, Card, Col, Descriptions, Drawer, Empty, Form, Input, Moda
 import {CrownOutlined, PhoneOutlined, ReloadOutlined, ShoppingOutlined, TeamOutlined} from "@ant-design/icons"
 import type {ColumnsType} from "antd/es/table"
 import {useState} from "react"
+import {useNavigate} from "react-router-dom"
 import PageHeading from "../components/PageHeading.tsx"
 import type {AdminClient, AdminClientBonusTransaction, AdminClientOrder} from "../features/clients/clientTypes.ts"
 import {
@@ -56,6 +57,7 @@ const renderClientTabWarning = (messageText: string, error: unknown, onRetry: ()
 type ClientStatusFilter = "all" | "active" | "blocked"
 
 const ClientsPage = () => {
+    const navigate = useNavigate()
     const [filters, setFilters] = useState<{search?: string; status: ClientStatusFilter; page: number; pageSize: number}>({
         search: "",
         status: "all",
@@ -118,6 +120,10 @@ const ClientsPage = () => {
 
     const resetClientFilters = () => setFilters((prev) => ({...prev, search: "", status: "all", page: 1}))
 
+    const openClientOrder = (order: AdminClientOrder) => {
+        navigate(`/orders?orderId=${order.id}`)
+    }
+
     const handleBlockToggle = async (client: AdminClient) => {
         try {
             if (client.isActive) {
@@ -171,7 +177,13 @@ const ClientsPage = () => {
                     {deliveryStatus && <Tag color={deliveryStatus.color}>{deliveryStatus.label}</Tag>}
                 </Space>
             )
-        }}
+        }},
+        {
+            title: "Действие",
+            key: "actions",
+            width: 150,
+            render: (_, order) => <Button size="small" onClick={() => openClientOrder(order)}>Открыть заказ</Button>
+        }
     ]
 
     const bonusColumns: ColumnsType<AdminClientBonusTransaction> = [

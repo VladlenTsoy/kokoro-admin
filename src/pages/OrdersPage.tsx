@@ -101,6 +101,11 @@ const statusIntentKeywords: Record<StatusIntent, string[]> = {
     cancelled: ["cancel", "отмен"]
 }
 
+const getPositiveOrderIdFromSearch = (searchParams: URLSearchParams) => {
+    const orderId = Number(searchParams.get("orderId"))
+    return Number.isInteger(orderId) && orderId > 0 ? orderId : null
+}
+
 const getOrderAgeMinutes = (createdAt?: string) => {
     if (!createdAt) return 0
     return Math.max(dayjs().diff(dayjs(createdAt), "minute"), 0)
@@ -210,7 +215,7 @@ const getHistoryStatusTitle = (item: OrderHistoryItem, side: "from" | "to") => {
 }
 
 const OrdersPage = () => {
-    const [searchParams] = useSearchParams()
+    const [searchParams, setSearchParams] = useSearchParams()
     const initialDeliveryStatus = searchParams.get("deliveryStatus")
     const [filters, setFilters] = useState<GetAdminOrdersParams>(() => ({
         ...todayFilters(),
@@ -220,7 +225,7 @@ const OrdersPage = () => {
     }))
     const [problemOnly, setProblemOnly] = useState(searchParams.get("problemOnly") === "1")
     const [attentionOnly, setAttentionOnly] = useState(searchParams.get("attentionOnly") === "1")
-    const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
+    const [selectedOrderId, setSelectedOrderId] = useState<number | null>(() => getPositiveOrderIdFromSearch(searchParams))
     const [actionOrderId, setActionOrderId] = useState<number | null>(null)
     const [liveAlertsEnabled, setLiveAlertsEnabled] = useState(() => localStorage.getItem(LIVE_ALERT_STORAGE_KEY) !== "0")
     const [lastSuccessfulRefreshAt, setLastSuccessfulRefreshAt] = useState<string | null>(null)
@@ -281,6 +286,11 @@ const OrdersPage = () => {
     useEffect(() => {
         localStorage.setItem(LIVE_ALERT_STORAGE_KEY, liveAlertsEnabled ? "1" : "0")
     }, [liveAlertsEnabled])
+
+    useEffect(() => {
+        const orderIdFromUrl = getPositiveOrderIdFromSearch(searchParams)
+        setSelectedOrderId((currentOrderId) => currentOrderId === orderIdFromUrl ? currentOrderId : orderIdFromUrl)
+    }, [searchParams])
 
     useEffect(() => {
         const timer = window.setInterval(() => setRefreshClock(dayjs()), 15_000)
@@ -361,7 +371,21 @@ const OrdersPage = () => {
             .find((status) => keywords.some((keyword) => status.title.toLowerCase().includes(keyword)))
     }
 
-    const openOrder = (id: number) => setSelectedOrderId(id)
+    const updateSelectedOrderId = (id: number | null) => {
+        setSelectedOrderId(id)
+        setSearchParams((previousParams) => {
+            const nextParams = new URLSearchParams(previousParams)
+            if (id) {
+                nextParams.set("orderId", String(id))
+            } else {
+                nextParams.delete("orderId")
+            }
+            return nextParams
+        }, {replace: !id})
+    }
+
+    const openOrder = (id: number) => updateSelectedOrderId(id)
+    const closeOrderDrawer = () => updateSelectedOrderId(null)
     const selectedPhone = selectedOrder?.client?.phone || selectedOrder?.phone
 
     const openStatusModal = (id: number) => {
@@ -809,7 +833,7 @@ const OrdersPage = () => {
             <Drawer
                 title={selectedOrder ? `Заказ ${selectedOrder.orderNumber || `#${selectedOrder.id}`}` : "Карточка заказа"}
                 open={Boolean(selectedOrderId)}
-                onClose={() => setSelectedOrderId(null)}
+                onClose={closeOrderDrawer}
                 width={1100}
                 extra={selectedOrder && canUpdateOrders ? (
                     <Space>
@@ -840,7 +864,7 @@ const OrdersPage = () => {
                         image={Empty.PRESENTED_IMAGE_SIMPLE}
                         description="Заказ не найден или больше недоступен"
                     >
-                        <Button onClick={() => setSelectedOrderId(null)}>Вернуться к списку</Button>
+                        <Button onClick={closeOrderDrawer}>Вернуться к списку</Button>
                     </Empty>
                 )}
                 {!isOrderLoading && !isOrderError && selectedOrder && (
