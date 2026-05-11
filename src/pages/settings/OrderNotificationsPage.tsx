@@ -1,6 +1,6 @@
 import {Alert, Button, Empty, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Typography, message} from "antd"
 import type {ColumnsType} from "antd/es/table"
-import {useState} from "react"
+import {useMemo, useState} from "react"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
 import type {OrderStatusNotification, OrderStatusNotificationLog} from "../../features/order-notifications/orderNotificationTypes.ts"
 import {
@@ -58,7 +58,23 @@ const OrderNotificationsPage = () => {
     const [editing, setEditing] = useState<OrderStatusNotification | null>(null)
     const [form] = Form.useForm<FormValues>()
 
-    const statusMap = new Map((statuses || []).map((status) => [status.id, status.title]))
+    const statusMap = useMemo(() => new Map((statuses || []).map((status) => [status.id, status.title])), [statuses])
+    const notificationSummary = useMemo(() => {
+        const safeConfigs = configs || []
+        const safeLogs = logs || []
+        const enabledRules = safeConfigs.filter((item) => item.isActive).length
+        const disabledRules = safeConfigs.length - enabledRules
+        const failedLogs = safeLogs.filter((item) => item.status === "failed").length
+        const queuedLogs = safeLogs.filter((item) => item.status === "queued").length
+
+        return {
+            totalRules: safeConfigs.length,
+            enabledRules,
+            disabledRules,
+            failedLogs,
+            queuedLogs
+        }
+    }, [configs, logs])
 
     const openCreate = () => {
         setEditing(null)
@@ -153,6 +169,24 @@ const OrderNotificationsPage = () => {
                 showIcon
                 message="Проверяйте правила уведомлений перед сменой статусов"
                 description="Активное правило может отправить сообщение клиенту, курьеру или команде. Используйте понятный шаблон и выключайте правило, если канал ещё не готов к работе."
+            />
+
+            <Alert
+                type={notificationSummary.failedLogs > 0 ? "warning" : "success"}
+                showIcon
+                message="Операционная сводка уведомлений"
+                description={(
+                    <Space size={[8, 8]} wrap>
+                        <Tag color="blue">Правил: {notificationSummary.totalRules}</Tag>
+                        <Tag color="green">Активно: {notificationSummary.enabledRules}</Tag>
+                        <Tag color="default">Выключено: {notificationSummary.disabledRules}</Tag>
+                        <Tag color={notificationSummary.queuedLogs > 0 ? "processing" : "default"}>В очереди: {notificationSummary.queuedLogs}</Tag>
+                        <Tag color={notificationSummary.failedLogs > 0 ? "red" : "default"}>Ошибок: {notificationSummary.failedLogs}</Tag>
+                        <Typography.Text type="secondary">
+                            Если есть ошибки, сначала проверьте логи и шаблон, затем меняйте правила отправки.
+                        </Typography.Text>
+                    </Space>
+                )}
             />
 
             <SettingsTableSection
