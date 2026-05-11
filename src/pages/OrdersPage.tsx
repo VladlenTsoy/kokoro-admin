@@ -229,7 +229,12 @@ const OrdersPage = () => {
         refetchOnFocus: true,
         refetchOnMountOrArgChange: true
     })
-    const {data: selectedOrder, isFetching: isOrderLoading} = useGetOrderByIdQuery(selectedOrderId ?? 0, {
+    const {
+        data: selectedOrder,
+        isFetching: isOrderLoading,
+        isError: isOrderError,
+        refetch: refetchSelectedOrder
+    } = useGetOrderByIdQuery(selectedOrderId ?? 0, {
         skip: !selectedOrderId
     })
     const {data: orderHistory} = useGetOrderHistoryQuery(selectedOrderId ?? 0, {
@@ -782,8 +787,32 @@ const OrdersPage = () => {
                     </Space>
                 ) : null}
             >
-                {isOrderLoading && <Typography.Text type="secondary">Загрузка...</Typography.Text>}
-                {!isOrderLoading && selectedOrder && (
+                {isOrderLoading && (
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Загружаем карточку заказа"
+                        description="Подтягиваем состав, оплату, доставку и историю — не меняйте статус, пока данные не обновились."
+                    />
+                )}
+                {!isOrderLoading && isOrderError && (
+                    <Alert
+                        type="error"
+                        showIcon
+                        message="Не удалось открыть карточку заказа"
+                        description="Повторите загрузку перед звонком клиенту или изменением статуса, чтобы не работать с неполными данными."
+                        action={<Button size="small" onClick={() => refetchSelectedOrder()}>Повторить</Button>}
+                    />
+                )}
+                {!isOrderLoading && !isOrderError && selectedOrderId && !selectedOrder && (
+                    <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description="Заказ не найден или больше недоступен"
+                    >
+                        <Button onClick={() => setSelectedOrderId(null)}>Вернуться к списку</Button>
+                    </Empty>
+                )}
+                {!isOrderLoading && !isOrderError && selectedOrder && (
                     <Space orientation="vertical" size={16} style={{width: "100%"}}>
                         <Card className="drawer-command-card">
                             <Row gutter={[16, 16]} align="middle">
