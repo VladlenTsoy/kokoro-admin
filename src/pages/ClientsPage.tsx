@@ -1,8 +1,8 @@
 import {Alert, Button, Card, Col, Descriptions, Drawer, Empty, Form, Input, Modal, Row, Segmented, Space, Statistic, Table, Tabs, Tag, Typography, message} from "antd"
 import {CrownOutlined, PhoneOutlined, ReloadOutlined, ShoppingOutlined, TeamOutlined} from "@ant-design/icons"
 import type {ColumnsType} from "antd/es/table"
-import {useState} from "react"
-import {useNavigate} from "react-router-dom"
+import {useEffect, useState} from "react"
+import {useNavigate, useSearchParams} from "react-router-dom"
 import PageHeading from "../components/PageHeading.tsx"
 import type {AdminClient, AdminClientBonusTransaction, AdminClientOrder} from "../features/clients/clientTypes.ts"
 import {
@@ -56,15 +56,21 @@ const renderClientTabWarning = (messageText: string, error: unknown, onRetry: ()
 
 type ClientStatusFilter = "all" | "active" | "blocked"
 
+const getPositiveClientIdFromSearch = (searchParams: URLSearchParams) => {
+    const clientId = Number(searchParams.get("clientId"))
+    return Number.isInteger(clientId) && clientId > 0 ? clientId : null
+}
+
 const ClientsPage = () => {
     const navigate = useNavigate()
+    const [searchParams, setSearchParams] = useSearchParams()
     const [filters, setFilters] = useState<{search?: string; status: ClientStatusFilter; page: number; pageSize: number}>({
         search: "",
         status: "all",
         page: 1,
         pageSize: 20
     })
-    const [selectedClientId, setSelectedClientId] = useState<number | null>(null)
+    const [selectedClientId, setSelectedClientId] = useState<number | null>(() => getPositiveClientIdFromSearch(searchParams))
     const [editingClientId, setEditingClientId] = useState<number | null>(null)
     const [isEditModalOpen, setEditModalOpen] = useState(false)
     const [editForm] = Form.useForm<{name?: string; phone?: string}>()
@@ -117,6 +123,24 @@ const ClientsPage = () => {
     const buyersOnPage = clients.filter((client) => (client.ordersCount ?? 0) > 0).length
     const totalSpentOnPage = clients.reduce((sum, client) => sum + Number(client.totalSpent || 0), 0)
     const hasActiveFilters = Boolean(filters.search) || filters.status !== "all"
+
+    useEffect(() => {
+        const clientIdFromUrl = getPositiveClientIdFromSearch(searchParams)
+        setSelectedClientId((currentClientId) => currentClientId === clientIdFromUrl ? currentClientId : clientIdFromUrl)
+    }, [searchParams])
+
+    const updateSelectedClientId = (id: number | null) => {
+        setSelectedClientId(id)
+        setSearchParams((previousParams) => {
+            const nextParams = new URLSearchParams(previousParams)
+            if (id) {
+                nextParams.set("clientId", String(id))
+            } else {
+                nextParams.delete("clientId")
+            }
+            return nextParams
+        }, {replace: !id})
+    }
 
     const resetClientFilters = () => setFilters((prev) => ({...prev, search: "", status: "all", page: 1}))
 
@@ -234,7 +258,7 @@ const ClientsPage = () => {
             width: 280,
             render: (_, client) => (
                 <Space wrap size={[8, 8]}>
-                    <Button onClick={() => setSelectedClientId(client.id)}>Открыть</Button>
+                    <Button onClick={() => updateSelectedClientId(client.id)}>Открыть</Button>
                     {canUpdateClients && <Button onClick={() => openEdit(client)}>Редактировать</Button>}
                     {canDeleteClients && (
                         <Button danger={client.isActive} onClick={() => handleBlockToggle(client)}>
@@ -343,7 +367,7 @@ const ClientsPage = () => {
                 title={clientDetails ? `Клиент #${clientDetails.id}` : "Карточка клиента"}
                 width={760}
                 open={Boolean(selectedClientId)}
-                onClose={() => setSelectedClientId(null)}
+                onClose={() => updateSelectedClientId(null)}
             >
                 {isClientLoading && <Typography.Text type="secondary">Загружаем карточку клиента, историю заказов и данные для поддержки...</Typography.Text>}
                 {!isClientLoading && clientDetailsError && !clientDetails && (

@@ -54,7 +54,7 @@ import {useGetSourcesQuery} from "../features/source/sourceApi.ts"
 import {useGetEmployeesQuery} from "../features/admin/employeeApi.ts"
 import {formatMoney} from "../utils/formatters.ts"
 import {useCan} from "../features/auth/permissions.ts"
-import {useSearchParams} from "react-router-dom"
+import {useNavigate, useSearchParams} from "react-router-dom"
 import {deliveryStatusMeta, paymentStatusMeta} from "../utils/adminStatusMeta.ts"
 
 const todayFilters = (): GetAdminOrdersParams => ({
@@ -215,6 +215,7 @@ const getHistoryStatusTitle = (item: OrderHistoryItem, side: "from" | "to") => {
 }
 
 const OrdersPage = () => {
+    const navigate = useNavigate()
     const [searchParams, setSearchParams] = useSearchParams()
     const initialDeliveryStatus = searchParams.get("deliveryStatus")
     const [filters, setFilters] = useState<GetAdminOrdersParams>(() => ({
@@ -505,6 +506,10 @@ const OrdersPage = () => {
         } catch {
             message.error("Не удалось скопировать сводку")
         }
+    }
+
+    const openClientProfile = (clientId: number) => {
+        navigate(`/clients?clientId=${clientId}`)
     }
 
     const handleEditSubmit = async () => {
@@ -1044,13 +1049,18 @@ const OrdersPage = () => {
                                         <Alert
                                             type="info"
                                             showIcon
-                                            message="CRM-действия пока недоступны из карточки заказа"
-                                            description="В API карточки заказа нет безопасных операций для слияния дублей, редактирования адресной книги или истории клиента. Кнопки ниже оставлены как явные placeholders, чтобы не имитировать несуществующее поведение."
+                                            message={selectedOrder.client?.id ? "Можно открыть CRM-карточку клиента" : "CRM-карточка клиента недоступна"}
+                                            description={selectedOrder.client?.id
+                                                ? "Откройте профиль клиента, чтобы проверить историю заказов, адреса и бонусы перед звонком, блокировкой или спорной отменой. Из карточки заказа не выполняем рискованные CRM-операции напрямую."
+                                                : "В карточке заказа нет безопасного clientId для перехода в CRM. Слияние дублей, редактирование адресной книги и история клиента остаются недоступны из заказа, чтобы не имитировать несуществующее поведение."
+                                            }
                                         />
                                         <Space wrap style={{marginTop: 12}}>
+                                            <Button disabled={!selectedOrder.client?.id} onClick={() => selectedOrder.client?.id && openClientProfile(selectedOrder.client.id)}>
+                                                Открыть профиль клиента
+                                            </Button>
                                             <Button disabled>Объединить дубль клиента</Button>
                                             <Button disabled>Редактировать адрес клиента</Button>
-                                            <Button disabled>Открыть историю клиента</Button>
                                         </Space>
                                     </Card>
 
