@@ -1,4 +1,4 @@
-import {Alert, Button, Empty, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Typography, message} from "antd"
+import {Alert, Button, Card, Col, Empty, Form, Input, Modal, Popconfirm, Row, Segmented, Select, Space, Statistic, Switch, Table, Tag, Typography, message} from "antd"
 import type {ColumnsType} from "antd/es/table"
 import {useMemo, useState} from "react"
 import {
@@ -13,6 +13,8 @@ import {useCan} from "../../features/auth/permissions.ts"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 
 type CategoryFormValues = Pick<ProductCategoryType, "title" | "parent_category_id" | "url" | "is_hide">
+type VisibilityFilter = "all" | "visible" | "hidden"
+type HierarchyFilter = "all" | "root" | "child"
 
 const ProductCategoryPage = () => {
     const {data, isLoading, isError, refetch} = useGetCategoriesQuery()
@@ -26,6 +28,9 @@ const ProductCategoryPage = () => {
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingCategory, setEditingCategory] = useState<ProductCategoryType | null>(null)
+    const [categorySearch, setCategorySearch] = useState("")
+    const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>("all")
+    const [hierarchyFilter, setHierarchyFilter] = useState<HierarchyFilter>("all")
 
     const [form] = Form.useForm<CategoryFormValues>()
 
@@ -33,6 +38,46 @@ const ProductCategoryPage = () => {
         () => [...(data ?? [])].sort((a, b) => (a.parent_category_id ?? 0) - (b.parent_category_id ?? 0) || a.title.localeCompare(b.title)),
         [data]
     )
+
+    const categorySummary = useMemo(() => {
+        const visible = categories.filter((category) => !category.is_hide).length
+        const root = categories.filter((category) => !category.parent_category_id).length
+
+        return {
+            total: categories.length,
+            visible,
+            hidden: categories.length - visible,
+            root,
+            child: categories.length - root
+        }
+    }, [categories])
+
+    const filteredCategories = useMemo(() => {
+        const normalizedSearch = categorySearch.trim().toLowerCase()
+
+        return categories.filter((category) => {
+            const matchesSearch = !normalizedSearch
+                || category.title.toLowerCase().includes(normalizedSearch)
+                || category.url.toLowerCase().includes(normalizedSearch)
+                || String(category.id).includes(normalizedSearch)
+            const matchesVisibility = visibilityFilter === "all"
+                || (visibilityFilter === "visible" && !category.is_hide)
+                || (visibilityFilter === "hidden" && category.is_hide)
+            const matchesHierarchy = hierarchyFilter === "all"
+                || (hierarchyFilter === "root" && !category.parent_category_id)
+                || (hierarchyFilter === "child" && Boolean(category.parent_category_id))
+
+            return matchesSearch && matchesVisibility && matchesHierarchy
+        })
+    }, [categories, categorySearch, hierarchyFilter, visibilityFilter])
+
+    const hasCategoryFilters = Boolean(categorySearch.trim()) || visibilityFilter !== "all" || hierarchyFilter !== "all"
+
+    const resetCategoryFilters = () => {
+        setCategorySearch("")
+        setVisibilityFilter("all")
+        setHierarchyFilter("all")
+    }
 
     const parentTitleById = useMemo(
         () => new Map((data ?? []).map((category) => [category.id, category.title])),
@@ -173,6 +218,67 @@ const ProductCategoryPage = () => {
                 canAdd={canCreate}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
+                    <Row gutter={[12, 12]}>
+                        <Col xs={24} sm={12} lg={6}>
+                            <Card size="small"><Statistic title="Всего категорий" value={categorySummary.total} /></Card>
+                        </Col>
+                        <Col xs={24} sm={12} lg={6}>
+                            <Card size="small"><Statistic title="Видны на витрине" value={categorySummary.visible} /></Card>
+                        </Col>
+                        <Col xs={24} sm={12} lg={6}>
+                            <Card size="small"><Statistic title="Скрыты" value={categorySummary.hidden} /></Card>
+                        </Col>
+                        <Col xs={24} sm={12} lg={6}>
+                            <Card size="small"><Statistic title="Корневые / дочерние" value={`${categorySummary.root} / ${categorySummary.child}`} /></Card>
+                        </Col>
+                    </Row>
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Фильтры помогают безопасно проверять структуру каталога"
+                        description="Перед созданием новой категории найдите похожие разделы по названию, URL или ID и проверьте скрытые категории — так меньше риск дублей и сломанных клиентских ссылок."
+                    />
+                    <Space wrap style={{width: "100%", justifyContent: "space-between"}}>
+                        <Space wrap>
+                            <Input.Search
+                                allowClear
+                                placeholder="Найти категорию по названию, URL или ID"
+                                value={categorySearch}
+                                onChange={(event) => setCategorySearch(event.target.value)}
+                                style={{width: 320, maxWidth: "100%"}}
+                            />
+                            <Segmented<VisibilityFilter>
+                                value={visibilityFilter}
+                                onChange={setVisibilityFilter}
+                                options={[
+                                    {label: "Все", value: "all"},
+                                    {label: "Видимые", value: "visible"},
+                                    {label: "Скрытые", value: "hidden"}
+                                ]}
+                            />
+                            <Segmented<HierarchyFilter>
+                                value={hierarchyFilter}
+                                onChange={setHierarchyFilter}
+                                options={[
+                                    {label: "Все уровни", value: "all"},
+                                    {label: "Корневые", value: "root"},
+                                    {label: "Дочерние", value: "child"}
+                                ]}
+                            />
+                        </Space>
+                        <Typography.Text type="secondary">
+                            Показано {filteredCategories.length} из {categories.length}
+                        </Typography.Text>
+                    </Space>
+                    {hasCategoryFilters ? (
+                        <Alert
+                            type="info"
+                            showIcon
+                            message="Применены фильтры категорий"
+                            description="Если нужного раздела нет в списке, сбросьте поиск, видимость и уровень перед созданием новой категории."
+                            action={<Button onClick={resetCategoryFilters}>Сбросить</Button>}
+                        />
+                    ) : null}
                     {isError ? (
                         <Alert
                             type="error"
@@ -184,7 +290,7 @@ const ProductCategoryPage = () => {
                     ) : null}
                     <Table
                         loading={isLoading}
-                        dataSource={categories}
+                        dataSource={filteredCategories}
                         columns={columns}
                         rowKey="id"
                         scroll={{x: 760}}
@@ -193,9 +299,15 @@ const ProductCategoryPage = () => {
                             emptyText: (
                                 <Empty
                                     image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                    description={isError ? "Категории не загружены" : "Категорий пока нет"}
+                                    description={isError
+                                        ? "Категории не загружены"
+                                        : hasCategoryFilters
+                                            ? "По выбранным фильтрам категории не найдены. Сбросьте фильтры перед созданием новой категории, чтобы не завести дубль."
+                                            : "Категорий пока нет"}
                                 >
-                                    {!isError && canCreate ? (
+                                    {hasCategoryFilters ? (
+                                        <Button onClick={resetCategoryFilters}>Сбросить фильтры</Button>
+                                    ) : !isError && canCreate ? (
                                         <Button type="primary" onClick={openCreate}>Создать первую категорию</Button>
                                     ) : null}
                                 </Empty>
