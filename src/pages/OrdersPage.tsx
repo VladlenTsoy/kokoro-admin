@@ -921,15 +921,15 @@ const OrdersPage = () => {
                                     </Descriptions>
 
                                     <Descriptions title="Суммы" bordered size="small" column={1}>
-                                        <Descriptions.Item label="Subtotal">{formatMoney(selectedOrder.subtotal ?? 0)}</Descriptions.Item>
-                                        <Descriptions.Item label="Discount">{formatMoney(selectedOrder.discountTotal ?? 0)}</Descriptions.Item>
-                                        <Descriptions.Item label="Promo">{selectedOrder.promoCode || "—"}</Descriptions.Item>
-                                        <Descriptions.Item label="Promo discount">{formatMoney(selectedOrder.promoDiscount ?? 0)}</Descriptions.Item>
-                                        <Descriptions.Item label="Bonus spent">{formatMoney(selectedOrder.bonusSpent ?? 0)}</Descriptions.Item>
-                                        <Descriptions.Item label="Bonus earned">{formatMoney(selectedOrder.bonusEarned ?? 0)}</Descriptions.Item>
-                                        <Descriptions.Item label="Delivery">{formatMoney(selectedOrder.deliveryPrice ?? 0)}</Descriptions.Item>
-                                        <Descriptions.Item label="Total">{formatMoney(selectedOrder.total)}</Descriptions.Item>
-                                        <Descriptions.Item label="Cancel reason">{selectedOrder.cancelReason || "—"}</Descriptions.Item>
+                                        <Descriptions.Item label="Товары до скидок">{formatMoney(selectedOrder.subtotal ?? 0)}</Descriptions.Item>
+                                        <Descriptions.Item label="Скидка по позициям">{formatMoney(selectedOrder.discountTotal ?? 0)}</Descriptions.Item>
+                                        <Descriptions.Item label="Промокод">{selectedOrder.promoCode || "—"}</Descriptions.Item>
+                                        <Descriptions.Item label="Скидка по промокоду">{formatMoney(selectedOrder.promoDiscount ?? 0)}</Descriptions.Item>
+                                        <Descriptions.Item label="Списано бонусов">{formatMoney(selectedOrder.bonusSpent ?? 0)}</Descriptions.Item>
+                                        <Descriptions.Item label="Начислено бонусов">{formatMoney(selectedOrder.bonusEarned ?? 0)}</Descriptions.Item>
+                                        <Descriptions.Item label="Доставка">{formatMoney(selectedOrder.deliveryPrice ?? 0)}</Descriptions.Item>
+                                        <Descriptions.Item label="Итого к оплате"><Typography.Text strong>{formatMoney(selectedOrder.total)}</Typography.Text></Descriptions.Item>
+                                        <Descriptions.Item label="Причина отмены">{selectedOrder.cancelReason || "—"}</Descriptions.Item>
                                     </Descriptions>
                                 </Space>
                             </Col>
