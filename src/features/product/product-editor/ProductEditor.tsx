@@ -1,4 +1,4 @@
-import {Col, Form, type FormProps, message, Row, type SelectProps} from "antd"
+import {Alert, Button, Col, Form, type FormProps, message, Row, type SelectProps} from "antd"
 import BaseSection from "./content/BaseSection.tsx"
 import PriceSection from "./content/PriceSection.tsx"
 import QtySection from "./content/QtySection.tsx"
@@ -32,7 +32,13 @@ interface Props {
 
 const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
     const [form] = Form.useForm<ProductFormValuesType>()
-    const {data, isLoading} = useGetProductByIdQuery(productId, {
+    const {
+        data,
+        isError: isProductLoadError,
+        isFetching: isProductFetching,
+        isLoading,
+        refetch: refetchProduct
+    } = useGetProductByIdQuery(productId, {
         refetchOnMountOrArgChange: true,
         refetchOnReconnect: true,
         refetchOnFocus: true,
@@ -261,6 +267,20 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
                 {leftBlock}
             </Col>
             <Col xl={12} md={12} xs={24}>
+                {isProductLoadError && productId && (
+                    <Alert
+                        type="warning"
+                        showIcon
+                        message="Не удалось загрузить карточку товара"
+                        description="Проверьте соединение и повторите загрузку перед изменением цены, остатков или публикации. Так менеджер не сохранит форму поверх неполных данных."
+                        action={
+                            <Button size="small" onClick={() => refetchProduct()} loading={isProductFetching}>
+                                Повторить
+                            </Button>
+                        }
+                        style={{marginBottom: 12}}
+                    />
+                )}
                 <Form
                     layout="vertical"
                     size="large"
@@ -269,7 +289,7 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
                     onFinishFailed={onFinishFailedHandler}
                     id="editor-product"
                     className={styles.content}
-                    disabled={isLoading || isSaving}
+                    disabled={isLoading || isSaving || isProductLoadError}
                 >
                     <Element name="basic">
                         <BaseSection onSelectSizesChange={onSelectSizesHandler} />
