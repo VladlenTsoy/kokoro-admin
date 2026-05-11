@@ -10,7 +10,7 @@ import {DeleteOutlined, EditOutlined, PlusOutlined} from "@ant-design/icons"
 import type {ProductPropertyType} from "../../features/settings/product-property/ProductPropertyTypes.ts"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 import {useCan} from "../../features/auth/permissions.ts"
-import {useState} from "react"
+import {useMemo, useState} from "react"
 
 const {Title, Text} = Typography
 
@@ -31,9 +31,35 @@ const ProductPropertyPage = () => {
     const [form] = Form.useForm<ProductPropertyFormValues>()
     const [editingProperty, setEditingProperty] = useState<ProductPropertyType | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [searchText, setSearchText] = useState("")
     const canCreate = useCan("catalog.create")
     const canUpdate = useCan("catalog.update")
     const canDelete = useCan("catalog.delete")
+    const normalizedSearchText = searchText.trim().toLowerCase()
+
+    const summary = useMemo(() => {
+        const properties = data ?? []
+
+        return {
+            total: properties.length,
+            global: properties.filter((property) => property.is_global).length,
+            local: properties.filter((property) => !property.is_global).length
+        }
+    }, [data])
+
+    const filteredProperties = useMemo(() => {
+        const properties = [...(data ?? [])].sort((a, b) => a.title.localeCompare(b.title, "ru") || a.id - b.id)
+
+        if (!normalizedSearchText) {
+            return properties
+        }
+
+        return properties.filter((property) => {
+            const searchableText = [property.title, property.description, String(property.id)].join(" ").toLowerCase()
+
+            return searchableText.includes(normalizedSearchText)
+        })
+    }, [data, normalizedSearchText])
 
     const closeModal = () => {
         setIsModalOpen(false)
@@ -117,7 +143,7 @@ const ProductPropertyPage = () => {
         )}
     </Space>
 
-    const propertyItems = data?.map(item => ({
+    const propertyItems = filteredProperties.map(item => ({
         key: item.id,
         label: (
             <Space direction="vertical" size={2}>
@@ -159,6 +185,20 @@ const ProductPropertyPage = () => {
                     message="Свойства помогают менеджерам одинаково заполнять карточки товаров"
                     description="Используйте понятные названия и короткие описания. HTML в описании очищается перед показом, но перед публикацией всё равно проверяйте, что текст выглядит корректно на витрине."
                 />
+                <Space size={8} wrap>
+                    <Tag color="blue">Всего: {summary.total}</Tag>
+                    <Tag color="green">Глобальных: {summary.global}</Tag>
+                    <Tag>Локальных: {summary.local}</Tag>
+                    {normalizedSearchText ? <Tag color="purple">Найдено: {filteredProperties.length}</Tag> : null}
+                </Space>
+                <Input.Search
+                    allowClear
+                    enterButton="Найти"
+                    placeholder="Найти по названию, описанию или ID перед созданием дубля"
+                    value={searchText}
+                    onChange={(event) => setSearchText(event.target.value)}
+                    onSearch={(value) => setSearchText(value)}
+                />
                 {isError ? (
                     <Alert
                         type="error"
@@ -175,8 +215,15 @@ const ProductPropertyPage = () => {
                             <Text type="secondary">Загружаем свойства каталога…</Text>
                         </div>
                     </div>
-                ) : propertyItems?.length ? (
+                ) : propertyItems.length ? (
                     <Collapse size="large" items={propertyItems} />
+                ) : normalizedSearchText ? (
+                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="По этим условиям свойства не найдены">
+                        <Space direction="vertical" size={8}>
+                            <Text type="secondary">Сбросьте поиск или проверьте существующие свойства перед созданием нового.</Text>
+                            <Button onClick={() => setSearchText("")}>Сбросить поиск</Button>
+                        </Space>
+                    </Empty>
                 ) : (
                     <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Глобальные свойства ещё не созданы">
                         {canCreate ? <Button type="primary" onClick={openCreate}>Создать первое свойство</Button> : null}
