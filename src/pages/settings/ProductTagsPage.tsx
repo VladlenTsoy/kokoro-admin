@@ -46,6 +46,7 @@ const ProductTagsPage = () => {
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingTag, setEditingTag] = useState<ProductVariantTagType | null>(null)
+    const [activeToggleTagId, setActiveToggleTagId] = useState<number | null>(null)
 
     const tags = useMemo(
         () => [...(data ?? [])].sort((a, b) => a.sortOrder - b.sortOrder || b.id - a.id),
@@ -122,11 +123,15 @@ const ProductTagsPage = () => {
     }
 
     const handleToggleActive = async (tag: ProductVariantTagType, isActive: boolean) => {
+        setActiveToggleTagId(tag.id)
+
         try {
             await updateTag({id: tag.id, body: {isActive}}).unwrap()
             message.success(isActive ? "Тег активирован" : "Тег деактивирован")
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setActiveToggleTagId(null)
         }
     }
 
@@ -199,7 +204,8 @@ const ProductTagsPage = () => {
                     <Tag color={isActive ? "green" : "default"}>{isActive ? "Активен" : "Скрыт"}</Tag>
                     <Switch
                         checked={isActive}
-                        disabled={!canUpdate}
+                        disabled={!canUpdate || (isUpdating && activeToggleTagId !== tag.id)}
+                        loading={activeToggleTagId === tag.id}
                         checkedChildren="Вкл"
                         unCheckedChildren="Выкл"
                         onChange={(checked) => handleToggleActive(tag, checked)}
