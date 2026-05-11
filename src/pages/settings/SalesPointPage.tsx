@@ -1,5 +1,5 @@
-import React, {useState} from "react"
-import {Alert, Button, Empty, Form, Input, InputNumber, Modal, Popconfirm, Space, Table, Tag, Typography} from "antd"
+import React, {useMemo, useState} from "react"
+import {Alert, Button, Empty, Form, Input, InputNumber, Modal, Popconfirm, Space, Table, Tag, Typography, message} from "antd"
 import type {ColumnsType} from "antd/es/table"
 import {
     useGetSalesPointsQuery,
@@ -9,17 +9,30 @@ import {
 } from "../../features/settings/sales-point/salesPointApi.ts"
 import type {SalesPointType} from "../../features/settings/sales-point/SalesPointTypes.ts"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
+import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 
 const SalesPointPage: React.FC = () => {
-    const {data, isLoading, isError, refetch} = useGetSalesPointsQuery()
-    const [createSalesPoint] = useCreateSalesPointMutation()
-    const [updateSalesPoint] = useUpdateSalesPointMutation()
-    const [deleteSalesPoint] = useDeleteSalesPointMutation()
+    const {data: salesPoints = [], isLoading, isError, refetch} = useGetSalesPointsQuery()
+    const [createSalesPoint, {isLoading: isCreatingSalesPoint}] = useCreateSalesPointMutation()
+    const [updateSalesPoint, {isLoading: isUpdatingSalesPoint}] = useUpdateSalesPointMutation()
+    const [deleteSalesPoint, {isLoading: isDeletingSalesPoint}] = useDeleteSalesPointMutation()
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingPoint, setEditingPoint] = useState<SalesPointType | null>(null)
 
     const [form] = Form.useForm()
+
+    const activeSalesPointsCount = useMemo(
+        () => salesPoints.filter((point) => !point.deleted_at).length,
+        [salesPoints]
+    )
+    const isSaving = isCreatingSalesPoint || isUpdatingSalesPoint
+
+    const closeModal = () => {
+        setIsModalOpen(false)
+        setEditingPoint(null)
+        form.resetFields()
+    }
 
     const openCreateModal = () => {
         setEditingPoint(null)
@@ -28,22 +41,35 @@ const SalesPointPage: React.FC = () => {
     }
 
     const handleSubmit = async () => {
-        const values = await form.validateFields()
-        const body = {
-            title: values.title,
-            location: {
-                lat: values.lat,
-                lng: values.lng
+        try {
+            const values = await form.validateFields()
+            const body = {
+                title: values.title,
+                location: {
+                    lat: values.lat,
+                    lng: values.lng
+                }
             }
+            if (editingPoint) {
+                await updateSalesPoint({id: editingPoint.id, body}).unwrap()
+                message.success("Точка продаж обновлена")
+            } else {
+                await createSalesPoint(body).unwrap()
+                message.success("Точка продаж создана")
+            }
+            closeModal()
+        } catch (error) {
+            message.error(getNestErrorMessage(error))
         }
-        if (editingPoint) {
-            await updateSalesPoint({id: editingPoint.id, body})
-        } else {
-            await createSalesPoint(body)
+    }
+
+    const handleDelete = async (id: number) => {
+        try {
+            await deleteSalesPoint(id).unwrap()
+            message.success("Точка продаж удалена")
+        } catch (error) {
+            message.error(getNestErrorMessage(error))
         }
-        setIsModalOpen(false)
-        setEditingPoint(null)
-        form.resetFields()
     }
 
     const columns: ColumnsType<SalesPointType> = [
@@ -101,7 +127,8 @@ const SalesPointPage: React.FC = () => {
                         description="Перед удалением проверьте склады, зоны доставки и заказы, которые могут быть привязаны к этой точке. Если есть история операций, безопаснее сначала отключить её на уровне бизнес-процесса."
                         okText="Удалить"
                         cancelText="Отмена"
-                        onConfirm={() => deleteSalesPoint(record.id)}
+                        onConfirm={() => handleDelete(record.id)}
+                        okButtonProps={{loading: isDeletingSalesPoint}}
                     >
                         <Button type="link" danger>
                             Удалить
@@ -124,7 +151,7 @@ const SalesPointPage: React.FC = () => {
                     <Alert
                         type="info"
                         showIcon
-                        message="Операционная подсказка"
+                        message={`Активных точек продаж: ${activeSalesPointsCount} из ${salesPoints.length}`}
                         description="Название должно быть понятным менеджеру в заказе, а координаты — достаточно точными для клиента и курьера. Не удаляйте точки с активными складами или заказами без проверки связей."
                     />
                     {isError && (
@@ -138,7 +165,7 @@ const SalesPointPage: React.FC = () => {
                     )}
                     <Table<SalesPointType>
                         loading={isLoading}
-                        dataSource={data || []}
+                        dataSource={salesPoints}
                         columns={columns}
                         rowKey="id"
                         scroll={{x: 760}}
@@ -161,10 +188,12 @@ const SalesPointPage: React.FC = () => {
             <Modal
                 title={editingPoint ? "Редактирование точки продаж" : "Создание точки продаж"}
                 open={isModalOpen}
-                onCancel={() => setIsModalOpen(false)}
+                onCancel={closeModal}
                 onOk={handleSubmit}
                 okText={editingPoint ? "Сохранить" : "Создать точку"}
                 cancelText="Отмена"
+                confirmLoading={isSaving}
+                destroyOnClose
             >
                 <Alert
                     type="warning"
