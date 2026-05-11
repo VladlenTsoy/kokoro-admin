@@ -1,11 +1,36 @@
 import {CopyOutlined} from "@ant-design/icons"
-import {Alert, Button, Card, Descriptions, Space, Tag, Typography, message} from "antd"
+import {Alert, Button, Card, Descriptions, List, Space, Tag, Typography, message} from "antd"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
 
 const callbackPath = "/api/payme"
 
 const PaymentsPage = () => {
+    const {hostname, protocol} = window.location
     const callbackUrl = `${window.location.origin}${callbackPath}`
+    const isLocalHost = ["localhost", "127.0.0.1", "0.0.0.0"].includes(hostname)
+    const isHttpsCallback = protocol === "https:"
+    const readinessItems = [
+        {
+            title: "Callback использует HTTPS",
+            description: isHttpsCallback
+                ? "Адрес подходит для боевого кабинета Payme."
+                : "Для production Payme нужен HTTPS-домен; локальный или HTTP-адрес используйте только для разработки.",
+            ok: isHttpsCallback
+        },
+        {
+            title: "Домен похож на рабочее окружение",
+            description: isLocalHost
+                ? "Сейчас открыт локальный адрес — не переносите его в боевой Payme Business."
+                : "Проверьте, что это публичный домен нужного магазина перед копированием.",
+            ok: !isLocalHost
+        },
+        {
+            title: `Путь callback: ${callbackPath}`,
+            description: "Скопируйте адрес без ручного изменения пути, чтобы платежные уведомления попадали в API.",
+            ok: true
+        }
+    ]
+    const hasReadinessWarning = readinessItems.some((item) => !item.ok)
 
     const copyCallback = async () => {
         try {
@@ -49,6 +74,33 @@ const PaymentsPage = () => {
                             <Descriptions.Item label="После настройки">Проверить оплату тестовым заказом</Descriptions.Item>
                             <Descriptions.Item label="Если ошибка">Сверить домен, протокол HTTPS и путь {callbackPath}</Descriptions.Item>
                         </Descriptions>
+
+                        <Alert
+                            showIcon
+                            type={hasReadinessWarning ? "warning" : "success"}
+                            message={hasReadinessWarning ? "Перед копированием проверьте окружение" : "Callback выглядит готовым к настройке"}
+                            description={hasReadinessWarning
+                                ? "Страница открыта не как боевой HTTPS-домен. Это нормально для разработки, но такой адрес нельзя переносить в production-мерчант."
+                                : "Перед включением продаж всё равно выполните тестовый заказ и проверьте статус оплаты в админке."}
+                        />
+
+                        <List
+                            size="small"
+                            dataSource={readinessItems}
+                            renderItem={(item) => (
+                                <List.Item>
+                                    <List.Item.Meta
+                                        title={(
+                                            <Space wrap>
+                                                <Tag color={item.ok ? "green" : "orange"}>{item.ok ? "OK" : "Проверить"}</Tag>
+                                                <Typography.Text strong>{item.title}</Typography.Text>
+                                            </Space>
+                                        )}
+                                        description={item.description}
+                                    />
+                                </List.Item>
+                            )}
+                        />
 
                         <Alert
                             showIcon
