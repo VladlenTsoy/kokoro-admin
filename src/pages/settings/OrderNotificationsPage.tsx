@@ -1,4 +1,4 @@
-import {Button, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, message} from "antd"
+import {Alert, Button, Empty, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Typography, message} from "antd"
 import type {ColumnsType} from "antd/es/table"
 import {useState} from "react"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
@@ -13,8 +13,30 @@ import {
 import {useGetOrderStatusesQuery} from "../../features/order-status/orderStatusApi.ts"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 
-const typeOptions = ["sms", "email", "push", "telegram", "webhook"].map((value) => ({label: value, value}))
-const sendToOptions = ["client", "manager", "courier", "admin"].map((value) => ({label: value, value}))
+const typeLabelMap = {
+    sms: "SMS",
+    email: "Email",
+    push: "Push",
+    telegram: "Telegram",
+    webhook: "Webhook"
+} as const
+
+const recipientLabelMap = {
+    client: "Клиент",
+    manager: "Менеджер",
+    courier: "Курьер",
+    admin: "Администратор"
+} as const
+
+const logStatusMeta = {
+    queued: {label: "В очереди", color: "blue"},
+    sent: {label: "Отправлено", color: "green"},
+    failed: {label: "Ошибка", color: "red"},
+    skipped: {label: "Пропущено", color: "orange"}
+} as const
+
+const typeOptions = Object.entries(typeLabelMap).map(([value, label]) => ({label, value}))
+const sendToOptions = Object.entries(recipientLabelMap).map(([value, label]) => ({label, value}))
 
 type FormValues = {
     statusId: number
@@ -26,8 +48,8 @@ type FormValues = {
 
 const OrderNotificationsPage = () => {
     const {data: statuses} = useGetOrderStatusesQuery()
-    const {data: configs, isLoading: isLoadingConfigs} = useGetOrderStatusNotificationsQuery()
-    const {data: logs, isLoading: isLoadingLogs} = useGetOrderStatusNotificationLogsQuery()
+    const {data: configs, isLoading: isLoadingConfigs, isError: isConfigsError, refetch: refetchConfigs} = useGetOrderStatusNotificationsQuery()
+    const {data: logs, isLoading: isLoadingLogs, isError: isLogsError, refetch: refetchLogs} = useGetOrderStatusNotificationLogsQuery()
     const [createConfig, {isLoading: isCreating}] = useCreateOrderStatusNotificationMutation()
     const [updateConfig, {isLoading: isUpdating}] = useUpdateOrderStatusNotificationMutation()
     const [deleteConfig] = useDeleteOrderStatusNotificationMutation()
@@ -78,11 +100,15 @@ const OrderNotificationsPage = () => {
 
     const configColumns: ColumnsType<OrderStatusNotification> = [
         {title: "ID", dataIndex: "id", width: 70},
-        {title: "Статус", dataIndex: "statusId", render: (id: number) => statusMap.get(id) || id},
-        {title: "Тип", dataIndex: "type"},
-        {title: "Кому", dataIndex: "sendTo"},
-        {title: "Активен", dataIndex: "isActive", render: (v) => (v ? "Да" : "Нет")},
-        {title: "Template", dataIndex: "template", render: (v) => (v.length > 45 ? `${v.slice(0, 45)}...` : v)},
+        {title: "Статус", dataIndex: "statusId", render: (id: number) => statusMap.get(id) || `ID ${id}`},
+        {title: "Канал", dataIndex: "type", render: (type: FormValues["type"]) => typeLabelMap[type] || type},
+        {title: "Получатель", dataIndex: "sendTo", render: (sendTo: FormValues["sendTo"]) => recipientLabelMap[sendTo] || sendTo},
+        {title: "Состояние", dataIndex: "isActive", render: (v) => <Tag color={v ? "green" : "default"}>{v ? "Активно" : "Выключено"}</Tag>},
+        {
+            title: "Шаблон",
+            dataIndex: "template",
+            render: (value: string) => <Typography.Text ellipsis={{tooltip: value}}>{value || "—"}</Typography.Text>
+        },
         {
             title: "Действия",
             key: "actions",
@@ -90,7 +116,13 @@ const OrderNotificationsPage = () => {
             render: (_, item) => (
                 <Space>
                     <Button type="link" onClick={() => openEdit(item)}>Редактировать</Button>
-                    <Popconfirm title="Удалить конфиг?" onConfirm={() => removeConfig(item.id)}>
+                    <Popconfirm
+                        title="Удалить правило уведомления?"
+                        description="Перед удалением проверьте, что менеджеры не потеряют важное уведомление по этому статусу. Логи отправки останутся для аудита."
+                        okText="Удалить"
+                        cancelText="Отмена"
+                        onConfirm={() => removeConfig(item.id)}
+                    >
                         <Button type="link" danger>Удалить</Button>
                     </Popconfirm>
                 </Space>
@@ -100,38 +132,91 @@ const OrderNotificationsPage = () => {
 
     const logsColumns: ColumnsType<OrderStatusNotificationLog> = [
         {title: "ID", dataIndex: "id", width: 70},
-        {title: "Order", dataIndex: "orderId", width: 90},
+        {title: "Заказ", dataIndex: "orderId", width: 90, render: (orderId: number) => `#${orderId}`},
         {
             title: "Статус",
             dataIndex: "status",
             render: (status: OrderStatusNotificationLog["status"]) => {
-                const color = status === "sent" ? "green" : status === "failed" ? "red" : status === "skipped" ? "orange" : "blue"
-                return <Tag color={color}>{status}</Tag>
+                const meta = logStatusMeta[status] || {label: status, color: "default"}
+                return <Tag color={meta.color}>{meta.label}</Tag>
             }
         },
         {title: "Получатель", dataIndex: "recipient", render: (v) => v || "—"},
         {title: "Ошибка", dataIndex: "error", render: (v) => v || "—"},
-        {title: "Дата", dataIndex: "createdAt"}
+        {title: "Дата", dataIndex: "createdAt", render: (value: string) => value ? new Date(value).toLocaleString("ru-RU") : "—"}
     ]
 
     return (
         <Space orientation="vertical" size={16} style={{width: "100%"}}>
+            <Alert
+                type="info"
+                showIcon
+                message="Проверяйте правила уведомлений перед сменой статусов"
+                description="Активное правило может отправить сообщение клиенту, курьеру или команде. Используйте понятный шаблон и выключайте правило, если канал ещё не готов к работе."
+            />
+
             <SettingsTableSection
                 title="Уведомления по статусам"
-                subtitle="Настройка шаблонов уведомлений и аудит логов отправки."
+                subtitle="Правила отправки сообщений при смене статуса заказа: канал, получатель, шаблон и активность."
                 addButtonText="Добавить правило"
                 onAdd={openCreate}
             >
-                <Table rowKey="id" loading={isLoadingConfigs} dataSource={configs || []} columns={configColumns} pagination={false} />
+                {isConfigsError && (
+                    <Alert
+                        type="error"
+                        showIcon
+                        message="Не удалось загрузить правила уведомлений"
+                        description="Проверьте соединение или повторите попытку, чтобы не редактировать настройки вслепую."
+                        action={<Button onClick={() => refetchConfigs()}>Повторить</Button>}
+                        style={{margin: 16}}
+                    />
+                )}
+                <Table
+                    rowKey="id"
+                    loading={isLoadingConfigs}
+                    dataSource={configs || []}
+                    columns={configColumns}
+                    pagination={false}
+                    scroll={{x: 900}}
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="Правила уведомлений ещё не настроены"
+                            >
+                                <Button type="primary" onClick={openCreate}>Добавить первое правило</Button>
+                            </Empty>
+                        )
+                    }}
+                />
             </SettingsTableSection>
 
             <SettingsTableSection
                 title="Логи уведомлений"
-                subtitle="queued/sent/failed/skipped с причиной ошибки."
+                subtitle="История queued/sent/failed/skipped помогает быстро понять, дошло ли уведомление и что пошло не так."
                 addButtonText="Обновить"
-                onAdd={() => undefined}
+                onAdd={() => refetchLogs()}
             >
-                <Table rowKey="id" loading={isLoadingLogs} dataSource={logs || []} columns={logsColumns} />
+                {isLogsError && (
+                    <Alert
+                        type="error"
+                        showIcon
+                        message="Не удалось загрузить логи уведомлений"
+                        description="Без логов менеджер не увидит причину неотправленного сообщения. Повторите загрузку перед разбором инцидента."
+                        action={<Button onClick={() => refetchLogs()}>Повторить</Button>}
+                        style={{margin: 16}}
+                    />
+                )}
+                <Table
+                    rowKey="id"
+                    loading={isLoadingLogs}
+                    dataSource={logs || []}
+                    columns={logsColumns}
+                    scroll={{x: 900}}
+                    locale={{
+                        emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Логов отправки пока нет" />
+                    }}
+                />
             </SettingsTableSection>
 
             <Modal
@@ -151,11 +236,21 @@ const OrderNotificationsPage = () => {
                     <Form.Item name="sendTo" label="Кому отправлять" rules={[{required: true}]}>
                         <Select options={sendToOptions} />
                     </Form.Item>
-                    <Form.Item name="template" label="Шаблон" rules={[{required: true}]}>
-                        <Input.TextArea rows={4} placeholder="{{orderNumber}} {{status}}" />
+                    <Form.Item
+                        name="template"
+                        label="Шаблон сообщения"
+                        extra="Проверьте переменные перед сохранением: например, {{orderNumber}} и {{status}}. Не добавляйте секреты, пароли или внутренние токены."
+                        rules={[{required: true, message: "Добавьте текст шаблона уведомления"}]}
+                    >
+                        <Input.TextArea rows={4} placeholder="Например: Заказ {{orderNumber}} перешёл в статус {{status}}" />
                     </Form.Item>
-                    <Form.Item name="isActive" label="Активен" valuePropName="checked">
-                        <Switch />
+                    <Form.Item
+                        name="isActive"
+                        label="Активно"
+                        valuePropName="checked"
+                        extra="Оставьте выключенным, если канал ещё не проверен или шаблон требует согласования."
+                    >
+                        <Switch checkedChildren="Да" unCheckedChildren="Нет" />
                     </Form.Item>
                 </Form>
             </Modal>
