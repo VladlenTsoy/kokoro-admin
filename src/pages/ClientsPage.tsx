@@ -1,5 +1,5 @@
-import {Button, Card, Col, Descriptions, Drawer, Empty, Form, Input, Modal, Row, Segmented, Space, Statistic, Table, Tabs, Tag, Typography, message} from "antd"
-import {CrownOutlined, PhoneOutlined, ShoppingOutlined, TeamOutlined} from "@ant-design/icons"
+import {Alert, Button, Card, Col, Descriptions, Drawer, Empty, Form, Input, Modal, Row, Segmented, Space, Statistic, Table, Tabs, Tag, Typography, message} from "antd"
+import {CrownOutlined, PhoneOutlined, ReloadOutlined, ShoppingOutlined, TeamOutlined} from "@ant-design/icons"
 import type {ColumnsType} from "antd/es/table"
 import {useState} from "react"
 import PageHeading from "../components/PageHeading.tsx"
@@ -38,6 +38,21 @@ const renderClientTabEmpty = (title: string, description: string) => (
     />
 )
 
+const renderClientTabWarning = (messageText: string, error: unknown, onRetry: () => void) => (
+    <Alert
+        type="warning"
+        showIcon
+        style={{marginBottom: 12}}
+        message={messageText}
+        description={(
+            <Space direction="vertical" size={8}>
+                <Typography.Text>{getNestErrorMessage(error)}</Typography.Text>
+                <Button size="small" icon={<ReloadOutlined />} onClick={onRetry}>Повторить</Button>
+            </Space>
+        )}
+    />
+)
+
 type ClientStatusFilter = "all" | "active" | "blocked"
 
 const ClientsPage = () => {
@@ -58,16 +73,36 @@ const ClientsPage = () => {
         page: filters.page,
         pageSize: filters.pageSize
     })
-    const {data: clientDetails, isFetching: isClientLoading} = useGetClientByIdQuery(selectedClientId ?? 0, {
+    const {
+        data: clientDetails,
+        isFetching: isClientLoading,
+        error: clientDetailsError,
+        refetch: refetchClientDetails
+    } = useGetClientByIdQuery(selectedClientId ?? 0, {
         skip: !selectedClientId
     })
-    const {data: clientOrders, isFetching: isClientOrdersLoading} = useGetClientOrdersQuery(selectedClientId ?? 0, {
+    const {
+        data: clientOrders,
+        isFetching: isClientOrdersLoading,
+        error: clientOrdersError,
+        refetch: refetchClientOrders
+    } = useGetClientOrdersQuery(selectedClientId ?? 0, {
         skip: !selectedClientId
     })
-    const {data: clientAddresses, isFetching: isClientAddressesLoading} = useGetClientAddressesQuery(selectedClientId ?? 0, {
+    const {
+        data: clientAddresses,
+        isFetching: isClientAddressesLoading,
+        error: clientAddressesError,
+        refetch: refetchClientAddresses
+    } = useGetClientAddressesQuery(selectedClientId ?? 0, {
         skip: !selectedClientId
     })
-    const {data: clientBonusTransactions, isFetching: isClientBonusLoading} = useGetClientBonusTransactionsQuery(selectedClientId ?? 0, {
+    const {
+        data: clientBonusTransactions,
+        isFetching: isClientBonusLoading,
+        error: clientBonusError,
+        refetch: refetchClientBonus
+    } = useGetClientBonusTransactionsQuery(selectedClientId ?? 0, {
         skip: !selectedClientId
     })
     const [blockClient] = useBlockClientMutation()
@@ -298,7 +333,34 @@ const ClientsPage = () => {
                 open={Boolean(selectedClientId)}
                 onClose={() => setSelectedClientId(null)}
             >
-                {isClientLoading && <Typography.Text type="secondary">Загрузка...</Typography.Text>}
+                {isClientLoading && <Typography.Text type="secondary">Загружаем карточку клиента, историю заказов и данные для поддержки...</Typography.Text>}
+                {!isClientLoading && clientDetailsError && !clientDetails && (
+                    <Alert
+                        type="warning"
+                        showIcon
+                        message="Карточка клиента не загрузилась"
+                        description={(
+                            <Space direction="vertical" size={8}>
+                                <Typography.Text>{getNestErrorMessage(clientDetailsError)}</Typography.Text>
+                                <Typography.Text type="secondary">Не меняйте статус клиента, пока профиль не открыт: история заказов и контакты могут быть неполными.</Typography.Text>
+                                <Button icon={<ReloadOutlined />} onClick={() => refetchClientDetails()}>
+                                    Повторить загрузку
+                                </Button>
+                            </Space>
+                        )}
+                    />
+                )}
+                {!isClientLoading && !clientDetailsError && !clientDetails && selectedClientId && (
+                    <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description={(
+                            <Space direction="vertical" size={4}>
+                                <Typography.Text strong>Клиент не найден</Typography.Text>
+                                <Typography.Text type="secondary">Профиль мог быть удалён или недоступен для вашей роли. Вернитесь к списку и обновите поиск.</Typography.Text>
+                            </Space>
+                        )}
+                    />
+                )}
                 {!isClientLoading && clientDetails && (
                     <Space orientation="vertical" size={16} style={{width: "100%"}}>
                         <Descriptions className="profile-summary" bordered size="small" column={2}>
@@ -327,65 +389,74 @@ const ClientsPage = () => {
                                     key: "orders",
                                     label: `Заказы (${clientOrders?.total ?? 0})`,
                                     children: (
-                                        <Table<AdminClientOrder>
-                                            rowKey="id"
-                                            loading={isClientOrdersLoading}
-                                            columns={orderColumns}
-                                            dataSource={clientOrders?.items || []}
-                                            pagination={false}
-                                            size="small"
-                                            scroll={{x: 560}}
-                                            locale={{
-                                                emptyText: renderClientTabEmpty(
-                                                    "Заказов пока нет",
-                                                    "Когда клиент оформит заказ, здесь появятся сумма, дата и статусы для поддержки."
-                                                )
-                                            }}
-                                        />
+                                        <>
+                                            {clientOrdersError && renderClientTabWarning("История заказов загрузилась не полностью", clientOrdersError, refetchClientOrders)}
+                                            <Table<AdminClientOrder>
+                                                rowKey="id"
+                                                loading={isClientOrdersLoading}
+                                                columns={orderColumns}
+                                                dataSource={clientOrders?.items || []}
+                                                pagination={false}
+                                                size="small"
+                                                scroll={{x: 560}}
+                                                locale={{
+                                                    emptyText: renderClientTabEmpty(
+                                                        "Заказов пока нет",
+                                                        "Когда клиент оформит заказ, здесь появятся сумма, дата и статусы для поддержки."
+                                                    )
+                                                }}
+                                            />
+                                        </>
                                     )
                                 },
                                 {
                                     key: "addresses",
                                     label: `Адреса (${clientAddresses?.length ?? 0})`,
                                     children: (
-                                        <Table
-                                            rowKey="id"
-                                            loading={isClientAddressesLoading}
-                                            dataSource={clientAddresses || []}
-                                            pagination={false}
-                                            size="small"
-                                            scroll={{x: 420}}
-                                            locale={{
-                                                emptyText: renderClientTabEmpty(
-                                                    "Адреса не сохранены",
-                                                    "Попросите клиента уточнить адрес при следующем заказе или звонке."
-                                                )
-                                            }}
-                                            columns={[
-                                                {title: "Адрес", dataIndex: "address", render: (value?: string) => value || "—"}
-                                            ]}
-                                        />
+                                        <>
+                                            {clientAddressesError && renderClientTabWarning("Адреса клиента загрузились не полностью", clientAddressesError, refetchClientAddresses)}
+                                            <Table
+                                                rowKey="id"
+                                                loading={isClientAddressesLoading}
+                                                dataSource={clientAddresses || []}
+                                                pagination={false}
+                                                size="small"
+                                                scroll={{x: 420}}
+                                                locale={{
+                                                    emptyText: renderClientTabEmpty(
+                                                        "Адреса не сохранены",
+                                                        "Попросите клиента уточнить адрес при следующем заказе или звонке."
+                                                    )
+                                                }}
+                                                columns={[
+                                                    {title: "Адрес", dataIndex: "address", render: (value?: string) => value || "—"}
+                                                ]}
+                                            />
+                                        </>
                                     )
                                 },
                                 {
                                     key: "bonuses",
                                     label: `Бонусы (${clientBonusTransactions?.length ?? 0})`,
                                     children: (
-                                        <Table<AdminClientBonusTransaction>
-                                            rowKey="id"
-                                            loading={isClientBonusLoading}
-                                            columns={bonusColumns}
-                                            dataSource={clientBonusTransactions || []}
-                                            pagination={false}
-                                            size="small"
-                                            scroll={{x: 560}}
-                                            locale={{
-                                                emptyText: renderClientTabEmpty(
-                                                    "Бонусных операций нет",
-                                                    "Начисления, списания и ручные корректировки появятся здесь после первой операции."
-                                                )
-                                            }}
-                                        />
+                                        <>
+                                            {clientBonusError && renderClientTabWarning("Бонусная история загрузилась не полностью", clientBonusError, refetchClientBonus)}
+                                            <Table<AdminClientBonusTransaction>
+                                                rowKey="id"
+                                                loading={isClientBonusLoading}
+                                                columns={bonusColumns}
+                                                dataSource={clientBonusTransactions || []}
+                                                pagination={false}
+                                                size="small"
+                                                scroll={{x: 560}}
+                                                locale={{
+                                                    emptyText: renderClientTabEmpty(
+                                                        "Бонусных операций нет",
+                                                        "Начисления, списания и ручные корректировки появятся здесь после первой операции."
+                                                    )
+                                                }}
+                                            />
+                                        </>
                                     )
                                 }
                             ]}
