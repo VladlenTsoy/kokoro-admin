@@ -8,6 +8,7 @@ import {
     DatePicker,
     Descriptions,
     Drawer,
+    Empty,
     Form,
     Input,
     InputNumber,
@@ -248,6 +249,7 @@ const OrdersPage = () => {
             : currentItems.find((order) => order.id === currentActionOrderId),
         [currentActionOrderId, currentItems, selectedOrder]
     )
+    const selectedOrderHistory = orderHistory || selectedOrder?.histories || []
 
     useEffect(() => {
         localStorage.setItem(LIVE_ALERT_STORAGE_KEY, liveAlertsEnabled ? "1" : "0")
@@ -829,18 +831,29 @@ const OrdersPage = () => {
                                         title="История событий"
                                         extra={canUpdateOrders ? <Button onClick={() => setCommentModalOpen(true)}>Добавить комментарий</Button> : null}
                                     >
-                                        <Timeline
-                                            items={(orderHistory || selectedOrder.histories || []).map((item) => ({
-                                                children: (
-                                                    <div>
-                                                        <Typography.Text>{getHistoryDate(item) ? dayjs(getHistoryDate(item)).format("DD.MM.YYYY HH:mm") : "—"}</Typography.Text>
-                                                        <div>{getHistoryStatusTitle(item, "from")} → {getHistoryStatusTitle(item, "to")}</div>
-                                                        {item.changedBy && <Typography.Text type="secondary">{item.changedBy}</Typography.Text>}
-                                                        {item.comment && <div><Typography.Text type="secondary">{item.comment}</Typography.Text></div>}
-                                                    </div>
-                                                )
-                                            }))}
-                                        />
+                                        {selectedOrderHistory.length ? (
+                                            <Timeline
+                                                items={selectedOrderHistory.map((item) => ({
+                                                    children: (
+                                                        <div>
+                                                            <Typography.Text>{getHistoryDate(item) ? dayjs(getHistoryDate(item)).format("DD.MM.YYYY HH:mm") : "—"}</Typography.Text>
+                                                            <div>{getHistoryStatusTitle(item, "from")} → {getHistoryStatusTitle(item, "to")}</div>
+                                                            {item.changedBy && <Typography.Text type="secondary">{item.changedBy}</Typography.Text>}
+                                                            {item.comment && <div><Typography.Text type="secondary">{item.comment}</Typography.Text></div>}
+                                                        </div>
+                                                    )
+                                                }))}
+                                            />
+                                        ) : (
+                                            <Empty
+                                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                                description="История пока пуста"
+                                            >
+                                                <Typography.Text type="secondary">
+                                                    После смены статуса или комментария здесь появится журнал действий, чтобы менеджер видел контекст передачи заказа.
+                                                </Typography.Text>
+                                            </Empty>
+                                        )}
                                     </Card>
                                 </Space>
                             </Col>
@@ -1005,17 +1018,25 @@ const OrdersPage = () => {
                 onOk={handleStatusSubmit}
                 confirmLoading={isUpdatingStatus}
             >
-                <Form form={statusForm} layout="vertical">
-                    <Form.Item name="statusId" label="Новый статус" rules={[{required: true, message: "Выберите статус"}]}>
-                        <Select options={statuses?.map((status) => ({label: status.title, value: status.id}))} />
-                    </Form.Item>
-                    <Form.Item name="comment" label="Комментарий">
-                        <Input.TextArea rows={3} />
-                    </Form.Item>
-                    <Form.Item name="visibleForClient" valuePropName="checked">
-                        <Checkbox>Показывать клиенту</Checkbox>
-                    </Form.Item>
-                </Form>
+                <Space orientation="vertical" size={12} style={{width: "100%"}}>
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Проверьте следующий шаг перед сменой статуса"
+                        description={editingOrder ? `Заказ ${editingOrder.orderNumber || `#${editingOrder.id}`}: ${getNextActionLabel(editingOrder)}. Клиенту показывайте только понятный и безопасный комментарий.` : "Смена статуса влияет на очередь Today Order Desk и может быть видна клиенту."}
+                    />
+                    <Form form={statusForm} layout="vertical">
+                        <Form.Item name="statusId" label="Новый статус" rules={[{required: true, message: "Выберите статус"}]}>
+                            <Select options={statuses?.map((status) => ({label: status.title, value: status.id}))} />
+                        </Form.Item>
+                        <Form.Item name="comment" label="Комментарий">
+                            <Input.TextArea rows={3} placeholder="Например: согласовано с клиентом, передано на сборку" />
+                        </Form.Item>
+                        <Form.Item name="visibleForClient" valuePropName="checked">
+                            <Checkbox>Показывать клиенту</Checkbox>
+                        </Form.Item>
+                    </Form>
+                </Space>
             </Modal>
 
             <Modal
@@ -1025,11 +1046,19 @@ const OrdersPage = () => {
                 onOk={handleCancelSubmit}
                 confirmLoading={isCancelling}
             >
-                <Form form={cancelForm} layout="vertical">
-                    <Form.Item name="reason" label="Причина отмены" rules={[{required: true, message: "Укажите причину отмены"}]}>
-                        <Input.TextArea rows={3} />
-                    </Form.Item>
-                </Form>
+                <Space orientation="vertical" size={12} style={{width: "100%"}}>
+                    <Alert
+                        type={editingOrder?.paymentStatus === "paid" ? "warning" : "info"}
+                        showIcon
+                        message={editingOrder?.paymentStatus === "paid" ? "Заказ оплачен — проверьте возврат" : "Отмена влияет на операционную очередь"}
+                        description="Перед отменой укажите причину: она поможет поддержке, курьеру и следующему менеджеру быстро понять контекст. Возвраты и клиентские коммуникации выполняйте по внутреннему процессу."
+                    />
+                    <Form form={cancelForm} layout="vertical">
+                        <Form.Item name="reason" label="Причина отмены" rules={[{required: true, message: "Укажите причину отмены"}]}>
+                            <Input.TextArea rows={3} placeholder="Например: клиент отказался, нет товара, дубль заказа" />
+                        </Form.Item>
+                    </Form>
+                </Space>
             </Modal>
 
             <Modal
@@ -1039,14 +1068,22 @@ const OrdersPage = () => {
                 onOk={handleCommentSubmit}
                 confirmLoading={isCreatingComment}
             >
-                <Form form={commentForm} layout="vertical">
-                    <Form.Item name="message" label="Комментарий" rules={[{required: true, message: "Введите комментарий"}]}>
-                        <Input.TextArea rows={4} />
-                    </Form.Item>
-                    <Form.Item name="visibleForClient" valuePropName="checked">
-                        <Checkbox>Показывать клиенту</Checkbox>
-                    </Form.Item>
-                </Form>
+                <Space orientation="vertical" size={12} style={{width: "100%"}}>
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Фиксируйте только полезный операционный контекст"
+                        description="Комментарий попадёт в историю заказа. Если он виден клиенту, избегайте внутренних пометок, персональных данных сотрудников и технических сокращений."
+                    />
+                    <Form form={commentForm} layout="vertical">
+                        <Form.Item name="message" label="Комментарий" rules={[{required: true, message: "Введите комментарий"}]}>
+                            <Input.TextArea rows={4} placeholder="Например: клиент подтвердил адрес, передано курьеру, нужен повторный звонок" />
+                        </Form.Item>
+                        <Form.Item name="visibleForClient" valuePropName="checked">
+                            <Checkbox>Показывать клиенту</Checkbox>
+                        </Form.Item>
+                    </Form>
+                </Space>
             </Modal>
         </Space>
     )
