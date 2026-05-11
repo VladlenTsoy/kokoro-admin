@@ -29,12 +29,20 @@ const useStyles = createStyles(({token, css}) => ({
     },
     extra: css`
         flex-shrink: 0;
+        justify-content: flex-end;
 
         @media (max-width: ${token.screenSM}px) {
             width: 100%;
+            justify-content: stretch;
 
-            .ant-space-item,
-            .ant-btn {
+            .ant-space-item {
+                flex: 1 1 180px;
+            }
+
+            .ant-btn,
+            .ant-input-search,
+            .ant-select,
+            .ant-picker {
                 width: 100%;
             }
         }
@@ -56,7 +64,7 @@ const PageHeading = ({title, subtitle, extra}: PageHeadingProps) => {
                     </Typography.Text>
                 )}
             </div>
-            {extra ? <Space className={styles.extra}>{extra}</Space> : null}
+            {extra ? <Space className={styles.extra} wrap>{extra}</Space> : null}
         </div>
     )
 }
