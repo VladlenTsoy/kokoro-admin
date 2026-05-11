@@ -1,5 +1,5 @@
-import React, {useState} from "react"
-import {Alert, Button, Empty, Form, Input, InputNumber, Modal, Popconfirm, Space, Switch, Table, Tag} from "antd"
+import React, {useMemo, useState} from "react"
+import {Alert, Button, Empty, Form, Input, InputNumber, Modal, Popconfirm, Space, Switch, Table, Tag, Typography, message} from "antd"
 import type {ColumnsType} from "antd/es/table"
 import {
     useCreateProductVariantStatusMutation,
@@ -9,28 +9,57 @@ import {
 } from "../../features/product-variant-status/productVariantStatusApi.ts"
 import type {ProductVariantStatusType} from "../../features/product-variant-status/ProductVariantStatusType.ts"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
+import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 
 const ProductVariantStatusPage: React.FC = () => {
     const {data, isLoading, isError, refetch} = useGetProductVariantStatusesQuery()
-    const [createProductVariantStatus] = useCreateProductVariantStatusMutation()
-    const [updateProductVariantStatus] = useUpdateProductVariantStatusMutation()
-    const [deleteProductVariantStatus] = useDeleteProductVariantStatusMutation()
+    const [createProductVariantStatus, {isLoading: isCreating}] = useCreateProductVariantStatusMutation()
+    const [updateProductVariantStatus, {isLoading: isUpdating}] = useUpdateProductVariantStatusMutation()
+    const [deleteProductVariantStatus, {isLoading: isDeleting}] = useDeleteProductVariantStatusMutation()
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingProductVariantStatus, setEditingProductVariantStatus] = useState<ProductVariantStatusType | null>(null)
 
     const [form] = Form.useForm()
 
-    const handleSubmit = async () => {
-        const values = await form.validateFields()
-        if (editingProductVariantStatus) {
-            await updateProductVariantStatus({id: editingProductVariantStatus.id, body: values})
-        } else {
-            await createProductVariantStatus(values)
+    const statusSummary = useMemo(() => {
+        const items = data ?? []
+        return {
+            total: items.length,
+            defaultCount: items.filter((item) => item.is_default).length,
+            withoutPosition: items.filter((item) => item.position === null || item.position === undefined).length
         }
+    }, [data])
+
+    const closeModal = () => {
         setIsModalOpen(false)
         setEditingProductVariantStatus(null)
         form.resetFields()
+    }
+
+    const handleSubmit = async () => {
+        try {
+            const values = await form.validateFields()
+            if (editingProductVariantStatus) {
+                await updateProductVariantStatus({id: editingProductVariantStatus.id, body: values}).unwrap()
+                message.success("Статус варианта обновлён")
+            } else {
+                await createProductVariantStatus(values).unwrap()
+                message.success("Статус варианта создан")
+            }
+            closeModal()
+        } catch (error) {
+            message.error(getNestErrorMessage(error))
+        }
+    }
+
+    const handleDelete = async (id: number) => {
+        try {
+            await deleteProductVariantStatus(id).unwrap()
+            message.success("Статус варианта удалён")
+        } catch (error) {
+            message.error(getNestErrorMessage(error))
+        }
     }
 
     const columns: ColumnsType<ProductVariantStatusType> = [
@@ -70,12 +99,13 @@ const ProductVariantStatusPage: React.FC = () => {
                     </Button>
                     <Popconfirm
                         title="Удалить статус варианта?"
-                        description="Перед удалением убедитесь, что этот статус не используется в активных вариантах товара и фильтрах каталога."
+                        description="Перед удалением убедитесь, что этот статус не используется в активных вариантах товара и фильтрах каталога. Действие нельзя отменить из админки."
                         okText="Удалить"
                         cancelText="Отмена"
-                        onConfirm={() => deleteProductVariantStatus(record.id)}
+                        onConfirm={() => handleDelete(record.id)}
+                        okButtonProps={{loading: isDeleting}}
                     >
-                        <Button type="link" danger>
+                        <Button type="link" danger loading={isDeleting}>
                             Удалить
                         </Button>
                     </Popconfirm>
@@ -106,13 +136,29 @@ const ProductVariantStatusPage: React.FC = () => {
                         style={{margin: 16}}
                     />
                 )}
-                <Alert
-                    type="info"
-                    showIcon
-                    message="Подсказка для менеджеров каталога"
-                    description="Статус по умолчанию подставляется новым вариантам. Меняйте порядок и основной статус аккуратно: это влияет на скорость публикации и фильтрацию товаров."
-                    style={{margin: 16}}
-                />
+                <Space direction="vertical" size={12} style={{width: "100%", padding: "16px 16px 0"}}>
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Подсказка для менеджеров каталога"
+                        description="Статус по умолчанию подставляется новым вариантам. Меняйте порядок и основной статус аккуратно: это влияет на скорость публикации и фильтрацию товаров."
+                    />
+                    {!isLoading && !isError ? (
+                        <Alert
+                            type={statusSummary.defaultCount === 1 && statusSummary.withoutPosition === 0 ? "success" : "warning"}
+                            showIcon
+                            message="Сводка справочника статусов вариантов"
+                            description={(
+                                <Space direction="vertical" size={2}>
+                                    <Typography.Text>Всего статусов: {statusSummary.total}; по умолчанию: {statusSummary.defaultCount}; без позиции: {statusSummary.withoutPosition}.</Typography.Text>
+                                    <Typography.Text type="secondary">
+                                        Для предсказуемой работы каталога держите ровно один основной статус и задавайте позиции всем рабочим статусам.
+                                    </Typography.Text>
+                                </Space>
+                            )}
+                        />
+                    ) : null}
+                </Space>
                 <Table<ProductVariantStatusType>
                     loading={isLoading}
                     dataSource={data || []}
@@ -133,10 +179,11 @@ const ProductVariantStatusPage: React.FC = () => {
             <Modal
                 title={editingProductVariantStatus ? "Изменить статус варианта" : "Создать статус варианта"}
                 open={isModalOpen}
-                onCancel={() => setIsModalOpen(false)}
+                onCancel={closeModal}
                 onOk={handleSubmit}
                 okText={editingProductVariantStatus ? "Сохранить" : "Создать"}
                 cancelText="Отмена"
+                confirmLoading={isCreating || isUpdating}
             >
                 <Alert
                     type="warning"
