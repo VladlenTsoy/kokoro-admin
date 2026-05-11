@@ -1,4 +1,4 @@
-import {Button, Card, Col, Descriptions, Drawer, Form, Input, Modal, Row, Space, Statistic, Table, Tabs, Tag, Typography, message} from "antd"
+import {Button, Card, Col, Descriptions, Drawer, Empty, Form, Input, Modal, Row, Space, Statistic, Table, Tabs, Tag, Typography, message} from "antd"
 import {CrownOutlined, PhoneOutlined, ShoppingOutlined, TeamOutlined} from "@ant-design/icons"
 import type {ColumnsType} from "antd/es/table"
 import {useState} from "react"
@@ -25,6 +25,18 @@ const formatSignedBonusAmount = (value?: number) => {
     const prefix = value > 0 ? "+" : ""
     return `${prefix}${value}`
 }
+
+const renderClientTabEmpty = (title: string, description: string) => (
+    <Empty
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description={(
+            <Space orientation="vertical" size={4}>
+                <Typography.Text strong>{title}</Typography.Text>
+                <Typography.Text type="secondary">{description}</Typography.Text>
+            </Space>
+        )}
+    />
+)
 
 const ClientsPage = () => {
     const [filters, setFilters] = useState<{search?: string; page: number; pageSize: number}>({
@@ -272,6 +284,13 @@ const ClientsPage = () => {
                                             dataSource={clientOrders?.items || []}
                                             pagination={false}
                                             size="small"
+                                            scroll={{x: 560}}
+                                            locale={{
+                                                emptyText: renderClientTabEmpty(
+                                                    "Заказов пока нет",
+                                                    "Когда клиент оформит заказ, здесь появятся сумма, дата и статусы для поддержки."
+                                                )
+                                            }}
                                         />
                                     )
                                 },
@@ -285,6 +304,13 @@ const ClientsPage = () => {
                                             dataSource={clientAddresses || []}
                                             pagination={false}
                                             size="small"
+                                            scroll={{x: 420}}
+                                            locale={{
+                                                emptyText: renderClientTabEmpty(
+                                                    "Адреса не сохранены",
+                                                    "Попросите клиента уточнить адрес при следующем заказе или звонке."
+                                                )
+                                            }}
                                             columns={[
                                                 {title: "Адрес", dataIndex: "address", render: (value?: string) => value || "—"}
                                             ]}
@@ -302,6 +328,13 @@ const ClientsPage = () => {
                                             dataSource={clientBonusTransactions || []}
                                             pagination={false}
                                             size="small"
+                                            scroll={{x: 560}}
+                                            locale={{
+                                                emptyText: renderClientTabEmpty(
+                                                    "Бонусных операций нет",
+                                                    "Начисления, списания и ручные корректировки появятся здесь после первой операции."
+                                                )
+                                            }}
                                         />
                                     )
                                 }
