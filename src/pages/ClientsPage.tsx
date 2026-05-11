@@ -72,6 +72,7 @@ const ClientsPage = () => {
     })
     const [selectedClientId, setSelectedClientId] = useState<number | null>(() => getPositiveClientIdFromSearch(searchParams))
     const [editingClientId, setEditingClientId] = useState<number | null>(null)
+    const [statusChangingClientId, setStatusChangingClientId] = useState<number | null>(null)
     const [isEditModalOpen, setEditModalOpen] = useState(false)
     const [editForm] = Form.useForm<{name?: string; phone?: string}>()
 
@@ -149,6 +150,7 @@ const ClientsPage = () => {
     }
 
     const handleBlockToggle = async (client: AdminClient) => {
+        setStatusChangingClientId(client.id)
         try {
             if (client.isActive) {
                 await blockClient(client.id).unwrap()
@@ -159,6 +161,8 @@ const ClientsPage = () => {
             }
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setStatusChangingClientId(null)
         }
     }
 
@@ -261,7 +265,12 @@ const ClientsPage = () => {
                     <Button onClick={() => updateSelectedClientId(client.id)}>Открыть</Button>
                     {canUpdateClients && <Button onClick={() => openEdit(client)}>Редактировать</Button>}
                     {canDeleteClients && (
-                        <Button danger={client.isActive} onClick={() => handleBlockToggle(client)}>
+                        <Button
+                            danger={client.isActive}
+                            disabled={Boolean(statusChangingClientId && statusChangingClientId !== client.id)}
+                            loading={statusChangingClientId === client.id}
+                            onClick={() => handleBlockToggle(client)}
+                        >
                             {client.isActive ? "Блок" : "Разблок"}
                         </Button>
                     )}
