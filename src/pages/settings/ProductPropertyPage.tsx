@@ -6,7 +6,7 @@ import {
     useGetProductPropertiesQuery,
     useUpdateProductPropertyMutation
 } from "../../features/settings/product-property/productPropertyApi.ts"
-import {DeleteOutlined, EditOutlined, PlusOutlined} from "@ant-design/icons"
+import {DeleteOutlined, EditOutlined, LoadingOutlined, PlusOutlined} from "@ant-design/icons"
 import type {ProductPropertyType} from "../../features/settings/product-property/ProductPropertyTypes.ts"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 import {useCan} from "../../features/auth/permissions.ts"
@@ -27,11 +27,12 @@ const ProductPropertyPage = () => {
     )
     const [createProductProperty, {isLoading: isCreating}] = useCreateProductPropertyMutation()
     const [updateProductProperty, {isLoading: isUpdating}] = useUpdateProductPropertyMutation()
-    const [deleteProductProperty, {isLoading: isDeleting}] = useDeleteProductPropertyMutation()
+    const [deleteProductProperty] = useDeleteProductPropertyMutation()
     const [form] = Form.useForm<ProductPropertyFormValues>()
     const [editingProperty, setEditingProperty] = useState<ProductPropertyType | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [searchText, setSearchText] = useState("")
+    const [deletingPropertyId, setDeletingPropertyId] = useState<number | null>(null)
     const canCreate = useCan("catalog.create")
     const canUpdate = useCan("catalog.update")
     const canDelete = useCan("catalog.delete")
@@ -106,42 +107,61 @@ const ProductPropertyPage = () => {
     }
 
     const handleDelete = async (id: number) => {
+        setDeletingPropertyId(id)
         try {
             await deleteProductProperty(id).unwrap()
             message.success("Свойство удалено")
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setDeletingPropertyId(null)
         }
     }
 
-    const genExtra = (property: ProductPropertyType) => <Space size="middle" wrap>
-        {canUpdate && (
-            <EditOutlined
-                aria-label={`Редактировать свойство ${property.title}`}
-                onClick={(event) => {
-                    event.stopPropagation()
-                    openEdit(property)
-                }}
-            />
-        )}
-        {canDelete && (
-            <Popconfirm
-                title="Удалить свойство?"
-                description="Проверьте, что свойство не используется в карточках товаров или на витрине. Действие нельзя отменить из админки."
-                okText="Удалить"
-                cancelText="Отмена"
-                onConfirm={() => handleDelete(property.id)}
-                okButtonProps={{loading: isDeleting}}
-            >
-                <DeleteOutlined
-                    aria-label={`Удалить свойство ${property.title}`}
+    const genExtra = (property: ProductPropertyType) => {
+        const isDeletingCurrentProperty = deletingPropertyId === property.id
+        const isAnotherPropertyDeleting = deletingPropertyId !== null && !isDeletingCurrentProperty
+
+        return <Space size="middle" wrap>
+            {canUpdate && (
+                <Button
+                    type="text"
+                    size="small"
+                    icon={<EditOutlined />}
+                    aria-label={`Редактировать свойство ${property.title}`}
+                    disabled={deletingPropertyId !== null}
                     onClick={(event) => {
                         event.stopPropagation()
+                        openEdit(property)
                     }}
                 />
-            </Popconfirm>
-        )}
-    </Space>
+            )}
+            {canDelete && (
+                <Popconfirm
+                    title="Удалить свойство?"
+                    description="Проверьте, что свойство не используется в карточках товаров или на витрине. Действие нельзя отменить из админки."
+                    okText="Удалить"
+                    cancelText="Отмена"
+                    onConfirm={() => handleDelete(property.id)}
+                    okButtonProps={{loading: isDeletingCurrentProperty, danger: true}}
+                    disabled={isAnotherPropertyDeleting}
+                >
+                    <Button
+                        type="text"
+                        size="small"
+                        danger
+                        icon={isDeletingCurrentProperty ? <LoadingOutlined /> : <DeleteOutlined />}
+                        aria-label={isDeletingCurrentProperty ? `Удаляем свойство ${property.title}` : `Удалить свойство ${property.title}`}
+                        loading={isDeletingCurrentProperty}
+                        disabled={isAnotherPropertyDeleting}
+                        onClick={(event) => {
+                            event.stopPropagation()
+                        }}
+                    />
+                </Popconfirm>
+            )}
+        </Space>
+    }
 
     const propertyItems = filteredProperties.map(item => ({
         key: item.id,
