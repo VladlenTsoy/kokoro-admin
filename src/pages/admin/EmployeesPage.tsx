@@ -109,6 +109,7 @@ const EmployeesPage = () => {
     const [rolesEmployee, setRolesEmployee] = useState<EmployeeSafe | null>(null)
     const [employeeSearch, setEmployeeSearch] = useState("")
     const [statusFilter, setStatusFilter] = useState<EmployeeStatusFilter>("all")
+    const [deletingEmployeeId, setDeletingEmployeeId] = useState<number | null>(null)
     const [form] = Form.useForm<EmployeeFormValues>()
     const [rolesForm] = Form.useForm<RolesOnlyFormValues>()
     const editedEmployeeIsActive = Form.useWatch("isActive", form)
@@ -261,11 +262,15 @@ const EmployeesPage = () => {
     }
 
     const handleDelete = async (id: number) => {
+        setDeletingEmployeeId(id)
+
         try {
             await deleteEmployee(id).unwrap()
             message.success("Сотрудник удалён")
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setDeletingEmployeeId(null)
         }
     }
 
@@ -306,22 +311,29 @@ const EmployeesPage = () => {
                 title: "Действия",
                 key: "actions",
                 width: 320,
-                render: (_: unknown, employee: EmployeeSafe) => (
-                    <Space>
-                        <Button onClick={() => openEdit(employee)}>Редактировать</Button>
-                        <Button onClick={() => openRolesOnly(employee)}>Только роли</Button>
-                        <Popconfirm
-                            title="Удалить сотрудника?"
-                            description="Перед удалением проверьте, что у сотрудника нет активной смены, заказов или незавершённой передачи клиенту. Если нужно только закрыть вход, безопаснее сначала выключить активность."
-                            onConfirm={() => handleDelete(employee.id)}
-                            okText="Удалить"
-                            cancelText="Отмена"
-                            okButtonProps={{loading: isDeleting}}
-                        >
-                            <Button danger>Удалить</Button>
-                        </Popconfirm>
-                    </Space>
-                )
+                render: (_: unknown, employee: EmployeeSafe) => {
+                    const isCurrentEmployeeDeleting = deletingEmployeeId === employee.id
+                    const isAnotherEmployeeDeleting = isDeleting && deletingEmployeeId !== null && !isCurrentEmployeeDeleting
+
+                    return (
+                        <Space wrap>
+                            <Button disabled={isDeleting} onClick={() => openEdit(employee)}>Редактировать</Button>
+                            <Button disabled={isDeleting} onClick={() => openRolesOnly(employee)}>Только роли</Button>
+                            <Popconfirm
+                                title="Удалить сотрудника?"
+                                description="Перед удалением проверьте, что у сотрудника нет активной смены, заказов или незавершённой передачи клиенту. Если нужно только закрыть вход, безопаснее сначала выключить активность."
+                                onConfirm={() => handleDelete(employee.id)}
+                                okText="Удалить"
+                                cancelText="Отмена"
+                                okButtonProps={{loading: isCurrentEmployeeDeleting}}
+                            >
+                                <Button danger loading={isCurrentEmployeeDeleting} disabled={isAnotherEmployeeDeleting}>
+                                    {isCurrentEmployeeDeleting ? "Удаляем" : "Удалить"}
+                                </Button>
+                            </Popconfirm>
+                        </Space>
+                    )
+                }
             } satisfies ColumnsType<EmployeeSafe>[number]]
             : [])
     ]
@@ -342,6 +354,7 @@ const EmployeesPage = () => {
                 <Space size={28}>
                     <Statistic title="Всего сотрудников" value={employees.length} />
                     <Statistic title="Активные" value={employees.filter((employee) => employee.isActive).length} />
+                    <Statistic title="Без ролей" value={employees.filter((employee) => employee.roles.length === 0).length} />
                     <Statistic title="Ролей в системе" value={roles.length} />
                     <Statistic title="Модулей доступа" value={permissionCatalog?.length ?? 0} loading={isPermissionCatalogLoading} />
                 </Space>
