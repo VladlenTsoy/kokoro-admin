@@ -108,6 +108,18 @@ body[data-theme="dark"] .ant-layout-footer {
     margin-top: 6px;
 }
 
+.dashboard-focus-action {
+    height: auto;
+    min-height: 58px;
+    padding: 9px 12px;
+    text-align: left;
+    white-space: normal;
+}
+
+.dashboard-focus-action .ant-space-item {
+    width: 100%;
+}
+
 .metric-card {
     min-height: 128px;
     border: 1px solid rgba(54, 58, 66, 0.08);

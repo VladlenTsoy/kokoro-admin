@@ -16,6 +16,26 @@ const HomePage = () => {
     const hasProblems = problemCount > 0
 
     const openOrders = (params?: string) => navigate(params ? `/orders?${params}` : "/orders")
+    const nextActionShortcuts = [
+        {
+            title: "Оплаченные без обработки",
+            description: "Первый риск смены: деньги уже пришли, заказ ещё не принят.",
+            query: "paymentStatus=paid&deliveryStatus=pending",
+            danger: true
+        },
+        {
+            title: "Проблемная очередь",
+            description: "Просрочки, отмены после оплаты и другие заказы, где нужен менеджер.",
+            query: "problemOnly=1",
+            danger: hasProblems
+        },
+        {
+            title: "Готовые к выдаче",
+            description: "Заказы, которые можно быстрее закрыть или передать клиенту/курьеру.",
+            query: "deliveryStatus=ready",
+            danger: false
+        }
+    ]
 
     const columns: ColumnsType<OrdersSummaryActivityItem> = [
         {
@@ -142,10 +162,22 @@ const HomePage = () => {
                                     ? "Сначала разберите проблемные заказы: просроченные новые, оплаченные без обработки, неуспешную оплату или оплаченные отмены."
                                     : "Критичных проблем по заказам сегодня не видно. Держите фокус на новых и готовых заказах."}
                             </Typography.Text>
-                            <Button danger={hasProblems} type={hasProblems ? "primary" : "default"} onClick={() => openOrders("problemOnly=1")}>
-                                Открыть очередь проблем
-                            </Button>
-                            <Button onClick={() => openOrders("deliveryStatus=ready")}>Проверить готовые к выдаче</Button>
+                            <Space orientation="vertical" size={8} style={{width: "100%"}}>
+                                {nextActionShortcuts.map((shortcut) => (
+                                    <Button
+                                        key={shortcut.query}
+                                        block
+                                        className="dashboard-focus-action"
+                                        danger={shortcut.danger}
+                                        onClick={() => openOrders(shortcut.query)}
+                                    >
+                                        <Space orientation="vertical" size={0} style={{width: "100%"}}>
+                                            <Typography.Text strong>{shortcut.title}</Typography.Text>
+                                            <Typography.Text type="secondary">{shortcut.description}</Typography.Text>
+                                        </Space>
+                                    </Button>
+                                ))}
+                            </Space>
                         </Space>
                     </Card>
                 </Col>
