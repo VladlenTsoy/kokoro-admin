@@ -1,5 +1,5 @@
-import {Button, Card, Col, Empty, Row, Space, Statistic, Table, Tag, Typography} from "antd"
-import {AlertOutlined, CheckCircleOutlined, ClockCircleOutlined, FireOutlined, ShoppingOutlined, SwapRightOutlined, ThunderboltOutlined} from "@ant-design/icons"
+import {Alert, Button, Card, Col, Empty, Row, Space, Statistic, Table, Tag, Typography} from "antd"
+import {AlertOutlined, CheckCircleOutlined, ClockCircleOutlined, FireOutlined, ReloadOutlined, ShoppingOutlined, SwapRightOutlined, ThunderboltOutlined} from "@ant-design/icons"
 import type {ColumnsType} from "antd/es/table"
 import PageHeading from "../components/PageHeading.tsx"
 import {useGetOrdersSummaryQuery} from "../features/orders/orderApi.ts"
@@ -11,7 +11,7 @@ import dayjs from "dayjs"
 
 const HomePage = () => {
     const navigate = useNavigate()
-    const {data: summary, isLoading} = useGetOrdersSummaryQuery(undefined, {refetchOnMountOrArgChange: true})
+    const {data: summary, isLoading, isFetching, error: summaryError, refetch} = useGetOrdersSummaryQuery(undefined, {refetchOnMountOrArgChange: true})
     const problemCount = summary?.problemToday ?? 0
     const hasProblems = problemCount > 0
 
@@ -81,6 +81,25 @@ const HomePage = () => {
                 </div>
             </Card>
 
+            {summaryError && (
+                <Alert
+                    type="warning"
+                    showIcon
+                    message="Не удалось обновить операционную сводку"
+                    description="Показатели смены могут быть неполными. Перед решениями по проблемным заказам обновите сводку или откройте журнал заказов."
+                    action={(
+                        <Space wrap>
+                            <Button size="small" icon={<ReloadOutlined />} loading={isFetching} onClick={() => refetch()}>
+                                Повторить
+                            </Button>
+                            <Button size="small" type="primary" onClick={() => openOrders()}>
+                                Открыть заказы
+                            </Button>
+                        </Space>
+                    )}
+                />
+            )}
+
             <Row gutter={[16, 16]}>
                 <Col xs={24} md={12} xl={4}>
                     <Card className="metric-card metric-card--lime" hoverable onClick={() => openOrders()}>
@@ -132,18 +151,31 @@ const HomePage = () => {
                 </Col>
                 <Col xs={24} xl={16}>
                     <Card className="admin-table-card" title="Последние события по заказам">
-                        {(summary?.recentActivity?.length ?? 0) > 0 ? (
+                        {summaryError && !summary?.recentActivity?.length ? (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="Историю событий сейчас не удалось загрузить"
+                            >
+                                <Space wrap>
+                                    <Button icon={<ReloadOutlined />} loading={isFetching} onClick={() => refetch()}>
+                                        Повторить загрузку
+                                    </Button>
+                                    <Button type="primary" onClick={() => openOrders()}>Открыть журнал заказов</Button>
+                                </Space>
+                            </Empty>
+                        ) : (summary?.recentActivity?.length ?? 0) > 0 ? (
                             <Table<OrdersSummaryActivityItem>
                                 rowKey="id"
                                 columns={columns}
                                 dataSource={summary?.recentActivity || []}
                                 pagination={false}
                                 size="middle"
+                                loading={isLoading}
                                 scroll={{x: 720}}
                             />
                         ) : (
-                            <Empty description="Пока нет событий по заказам">
-                                <Button onClick={() => openOrders()}>Открыть журнал заказов</Button>
+                            <Empty description={isLoading ? "Загружаем последние события смены..." : "Пока нет событий по заказам"}>
+                                {!isLoading && <Button onClick={() => openOrders()}>Открыть журнал заказов</Button>}
                             </Empty>
                         )}
                     </Card>
