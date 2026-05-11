@@ -1,4 +1,4 @@
-import {Button, Card, Col, Descriptions, Drawer, Empty, Form, Input, Modal, Row, Space, Statistic, Table, Tabs, Tag, Typography, message} from "antd"
+import {Button, Card, Col, Descriptions, Drawer, Empty, Form, Input, Modal, Row, Segmented, Space, Statistic, Table, Tabs, Tag, Typography, message} from "antd"
 import {CrownOutlined, PhoneOutlined, ShoppingOutlined, TeamOutlined} from "@ant-design/icons"
 import type {ColumnsType} from "antd/es/table"
 import {useState} from "react"
@@ -38,9 +38,12 @@ const renderClientTabEmpty = (title: string, description: string) => (
     />
 )
 
+type ClientStatusFilter = "all" | "active" | "blocked"
+
 const ClientsPage = () => {
-    const [filters, setFilters] = useState<{search?: string; page: number; pageSize: number}>({
+    const [filters, setFilters] = useState<{search?: string; status: ClientStatusFilter; page: number; pageSize: number}>({
         search: "",
+        status: "all",
         page: 1,
         pageSize: 20
     })
@@ -51,6 +54,7 @@ const ClientsPage = () => {
 
     const {data, isLoading} = useGetClientsQuery({
         search: filters.search || undefined,
+        isActive: filters.status === "all" ? undefined : filters.status === "active" ? "true" : "false",
         page: filters.page,
         pageSize: filters.pageSize
     })
@@ -75,6 +79,9 @@ const ClientsPage = () => {
     const activeClientsOnPage = clients.filter((client) => client.isActive).length
     const buyersOnPage = clients.filter((client) => (client.ordersCount ?? 0) > 0).length
     const totalSpentOnPage = clients.reduce((sum, client) => sum + Number(client.totalSpent || 0), 0)
+    const hasActiveFilters = Boolean(filters.search) || filters.status !== "all"
+
+    const resetClientFilters = () => setFilters((prev) => ({...prev, search: "", status: "all", page: 1}))
 
     const handleBlockToggle = async (client: AdminClient) => {
         try {
@@ -217,13 +224,37 @@ const ClientsPage = () => {
             </Row>
 
             <Card className="filter-card">
-                <Input.Search
-                    placeholder="Поиск по имени или телефону"
-                    allowClear
-                    enterButton="Найти"
-                    onSearch={(search) => setFilters((prev) => ({...prev, search, page: 1}))}
-                    style={{maxWidth: 440}}
-                />
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
+                    <Space wrap align="center" size={[12, 12]}>
+                        <Input.Search
+                            placeholder="Поиск по имени или телефону"
+                            allowClear
+                            enterButton="Найти"
+                            value={filters.search}
+                            onChange={(event) => setFilters((prev) => ({...prev, search: event.target.value}))}
+                            onSearch={(search) => setFilters((prev) => ({...prev, search, page: 1}))}
+                            style={{width: 360, maxWidth: "100%"}}
+                        />
+                        <Segmented<ClientStatusFilter>
+                            value={filters.status}
+                            onChange={(status) => setFilters((prev) => ({...prev, status, page: 1}))}
+                            options={[
+                                {label: "Все", value: "all"},
+                                {label: "Активные", value: "active"},
+                                {label: "Заблокированные", value: "blocked"}
+                            ]}
+                        />
+                        {hasActiveFilters && <Button onClick={resetClientFilters}>Сбросить фильтры</Button>}
+                    </Space>
+                    <Space wrap size={[8, 8]}>
+                        <Tag color={hasActiveFilters ? "blue" : "default"}>
+                            {hasActiveFilters ? "Показаны отфильтрованные клиенты" : "Показаны все клиенты"}
+                        </Tag>
+                        <Typography.Text type="secondary">
+                            {data?.total ?? 0} совпадений; на странице {clients.length}, активных {activeClientsOnPage}, с покупками {buyersOnPage}.
+                        </Typography.Text>
+                    </Space>
+                </Space>
             </Card>
 
             <Card className="admin-table-card clients-table-card">
@@ -237,6 +268,25 @@ const ClientsPage = () => {
                         pageSize: data?.pageSize || filters.pageSize,
                         total: data?.total || 0,
                         onChange: (page, pageSize) => setFilters((prev) => ({...prev, page, pageSize}))
+                    }}
+                    locale={{
+                        emptyText: hasActiveFilters ? (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description={(
+                                    <Space direction="vertical" size={4}>
+                                        <Typography.Text strong>Клиенты не найдены</Typography.Text>
+                                        <Typography.Text type="secondary">Сбросьте поиск или статус, чтобы не пропустить нужного клиента перед блокировкой или поддержкой.</Typography.Text>
+                                        <Button size="small" onClick={resetClientFilters}>Сбросить фильтры</Button>
+                                    </Space>
+                                )}
+                            />
+                        ) : (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="Клиенты появятся здесь после регистрации или первого заказа."
+                            />
+                        )
                     }}
                 />
             </Card>
