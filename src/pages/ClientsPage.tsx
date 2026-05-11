@@ -221,7 +221,7 @@ const ClientsPage = () => {
             key: "actions",
             width: 280,
             render: (_, client) => (
-                <Space>
+                <Space wrap size={[8, 8]}>
                     <Button onClick={() => setSelectedClientId(client.id)}>Открыть</Button>
                     {canUpdateClients && <Button onClick={() => openEdit(client)}>Редактировать</Button>}
                     {canDeleteClients && (
@@ -471,15 +471,33 @@ const ClientsPage = () => {
                 onCancel={closeEdit}
                 onOk={saveEdit}
                 confirmLoading={isUpdating}
+                okText="Сохранить клиента"
+                cancelText="Отмена"
             >
-                <Form form={editForm} layout="vertical">
-                    <Form.Item name="name" label="Имя">
-                        <Input />
-                    </Form.Item>
-                    <Form.Item name="phone" label="Телефон">
-                        <Input />
-                    </Form.Item>
-                </Form>
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Проверьте данные перед сохранением"
+                        description="Имя и телефон видны в CRM, заказах и поддержке. Не очищайте телефон без подтверждения: менеджеры могут потерять быстрый контакт для звонка или доставки."
+                    />
+                    <Form form={editForm} layout="vertical">
+                        <Form.Item
+                            name="name"
+                            label="Имя"
+                            extra="Используйте понятное имя клиента для поиска и поддержки. Если клиент не назвал имя, оставьте поле пустым."
+                        >
+                            <Input autoComplete="name" placeholder="Например: Анна" />
+                        </Form.Item>
+                        <Form.Item
+                            name="phone"
+                            label="Телефон"
+                            extra="Лучше сохранять телефон в международном формате. Это снижает ошибки при поиске клиента и передаче заказа курьеру."
+                        >
+                            <Input inputMode="tel" autoComplete="tel" placeholder="Например: +998 90 123 45 67" />
+                        </Form.Item>
+                    </Form>
+                </Space>
             </Modal>
         </Space>
     )
