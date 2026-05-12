@@ -60,7 +60,8 @@ const ProductTagsPage = () => {
         colorPalettes: tags.filter((tag) => tag.type === "color_palette").length
     }), [tags])
     const hasActiveFilters = Boolean(filters.search || filters.type || filters.isActive)
-    const isTagMutationInFlight = isCreating || isUpdating || isDeleting
+    const isSavingTag = isCreating || isUpdating
+    const isTagMutationInFlight = isSavingTag || isDeleting
     const isTagListUnavailable = isError
     const areTagActionsBlocked = isTagMutationInFlight || isTagListUnavailable
 
@@ -122,6 +123,10 @@ const ProductTagsPage = () => {
 
             closeModal()
         } catch (error) {
+            if (typeof error === "object" && error !== null && "errorFields" in error) {
+                return
+            }
+
             message.error(getNestErrorMessage(error))
         }
     }
@@ -362,9 +367,17 @@ const ProductTagsPage = () => {
             <Modal
                 title={editingTag ? "Редактировать тег" : "Создать тег"}
                 open={isModalOpen}
-                onCancel={closeModal}
+                onCancel={() => {
+                    if (!isSavingTag) {
+                        closeModal()
+                    }
+                }}
                 onOk={handleSubmit}
-                confirmLoading={isCreating || isUpdating}
+                okText={isSavingTag ? "Сохраняем…" : editingTag ? "Сохранить тег" : "Создать тег"}
+                cancelButtonProps={{disabled: isSavingTag}}
+                maskClosable={!isSavingTag}
+                keyboard={!isSavingTag}
+                confirmLoading={isSavingTag}
             >
                 <Alert
                     type="info"
@@ -380,13 +393,13 @@ const ProductTagsPage = () => {
                         extra="Короткое имя, которое менеджеры увидят в каталоге и фильтрах."
                         rules={[{required: true, message: "Введите название"}, {max: 120, message: "Максимум 120 символов"}]}
                     >
-                        <Input placeholder="Пастель" maxLength={120} showCount />
+                        <Input placeholder="Пастель" maxLength={120} showCount disabled={isSavingTag} />
                     </Form.Item>
                     <Form.Item name="type" label="Тип тега" extra="Тип помогает не смешивать сезон, стиль, фандом и цветовые палитры.">
-                        <Select options={PRODUCT_TAG_TYPE_OPTIONS} />
+                        <Select options={PRODUCT_TAG_TYPE_OPTIONS} disabled={isSavingTag} />
                     </Form.Item>
                     <Form.Item name="slug" label="Slug" extra="Можно оставить пустым: backend сгенерирует slug сам. Меняйте существующий slug осторожно — он может использоваться в ссылках или фильтрах.">
-                        <Input placeholder="pastel" />
+                        <Input placeholder="pastel" disabled={isSavingTag} />
                     </Form.Item>
                     {selectedType === "color_palette" && (
                         <Form.Item
@@ -395,14 +408,14 @@ const ProductTagsPage = () => {
                             extra="Например #F4C6D7. Цвет нужен для быстрой визуальной проверки палитры."
                             rules={[{pattern: /^#([0-9A-Fa-f]{6})$/, message: "Неверный HEX код"}]}
                         >
-                            <Input type="color" />
+                            <Input type="color" disabled={isSavingTag} />
                         </Form.Item>
                     )}
                     <Form.Item name="sortOrder" label="Порядок сортировки" extra="Меньшее число поднимает тег выше в списках.">
-                        <InputNumber min={0} style={{width: "100%"}} />
+                        <InputNumber min={0} style={{width: "100%"}} disabled={isSavingTag} />
                     </Form.Item>
                     <Form.Item name="isActive" label="Активен" valuePropName="checked" extra="Отключите тег, если он больше не должен использоваться в новых фильтрах и подборках.">
-                        <Switch checkedChildren="Да" unCheckedChildren="Нет" />
+                        <Switch checkedChildren="Да" unCheckedChildren="Нет" disabled={isSavingTag} />
                     </Form.Item>
                 </Form>
             </Modal>
