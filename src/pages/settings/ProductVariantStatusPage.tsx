@@ -19,6 +19,7 @@ const ProductVariantStatusPage: React.FC = () => {
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingProductVariantStatus, setEditingProductVariantStatus] = useState<ProductVariantStatusType | null>(null)
+    const [deletingStatusId, setDeletingStatusId] = useState<number | null>(null)
 
     const [form] = Form.useForm()
 
@@ -54,11 +55,14 @@ const ProductVariantStatusPage: React.FC = () => {
     }
 
     const handleDelete = async (id: number) => {
+        setDeletingStatusId(id)
         try {
             await deleteProductVariantStatus(id).unwrap()
             message.success("Статус варианта удалён")
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setDeletingStatusId(null)
         }
     }
 
@@ -85,32 +89,37 @@ const ProductVariantStatusPage: React.FC = () => {
         {
             title: "Действия",
             width: 220,
-            render: (_: unknown, record: ProductVariantStatusType) => (
-                <Space wrap>
-                    <Button
-                        type="link"
-                        onClick={() => {
-                            setEditingProductVariantStatus(record)
-                            form.setFieldsValue(record)
-                            setIsModalOpen(true)
-                        }}
-                    >
-                        Редактировать
-                    </Button>
-                    <Popconfirm
-                        title="Удалить статус варианта?"
-                        description="Перед удалением убедитесь, что этот статус не используется в активных вариантах товара и фильтрах каталога. Действие нельзя отменить из админки."
-                        okText="Удалить"
-                        cancelText="Отмена"
-                        onConfirm={() => handleDelete(record.id)}
-                        okButtonProps={{loading: isDeleting}}
-                    >
-                        <Button type="link" danger loading={isDeleting}>
-                            Удалить
+            render: (_: unknown, record: ProductVariantStatusType) => {
+                const isCurrentStatusDeleting = deletingStatusId === record.id
+
+                return (
+                    <Space wrap>
+                        <Button
+                            type="link"
+                            disabled={isDeleting}
+                            onClick={() => {
+                                setEditingProductVariantStatus(record)
+                                form.setFieldsValue(record)
+                                setIsModalOpen(true)
+                            }}
+                        >
+                            Редактировать
                         </Button>
-                    </Popconfirm>
-                </Space>
-            )
+                        <Popconfirm
+                            title="Удалить статус варианта?"
+                            description="Перед удалением убедитесь, что этот статус не используется в активных вариантах товара и фильтрах каталога. Действие нельзя отменить из админки."
+                            okText={isCurrentStatusDeleting ? "Удаляем..." : "Удалить"}
+                            cancelText="Отмена"
+                            onConfirm={() => handleDelete(record.id)}
+                            okButtonProps={{loading: isCurrentStatusDeleting}}
+                        >
+                            <Button type="link" danger loading={isCurrentStatusDeleting} disabled={isDeleting && !isCurrentStatusDeleting}>
+                                {isCurrentStatusDeleting ? "Удаляем..." : "Удалить"}
+                            </Button>
+                        </Popconfirm>
+                    </Space>
+                )
+            }
         }
     ]
 
