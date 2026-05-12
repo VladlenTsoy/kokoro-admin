@@ -1,4 +1,4 @@
-import {Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag, message} from "antd"
+import {Alert, Button, Empty, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Typography, message} from "antd"
 import type {ColumnsType} from "antd/es/table"
 import {useMemo, useState} from "react"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
@@ -26,9 +26,14 @@ const ACTIVE_OPTIONS = [
     {label: "Неактивные", value: "false"}
 ]
 
+const ACTIVE_FILTER_LABELS: Record<NonNullable<ProductVariantTagFilters["isActive"]>, string> = {
+    true: "Только активные",
+    false: "Только неактивные"
+}
+
 const ProductTagsPage = () => {
     const [filters, setFilters] = useState<ProductVariantTagFilters>({})
-    const {data, isLoading} = useGetAllTagsQuery(filters)
+    const {data, isLoading, isError, refetch} = useGetAllTagsQuery(filters)
     const [createTag, {isLoading: isCreating}] = useCreateTagMutation()
     const [updateTag, {isLoading: isUpdating}] = useUpdateTagMutation()
     const [deleteTag, {isLoading: isDeleting}] = useDeleteTagMutation()
@@ -41,11 +46,26 @@ const ProductTagsPage = () => {
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingTag, setEditingTag] = useState<ProductVariantTagType | null>(null)
+    const [activeToggleTagId, setActiveToggleTagId] = useState<number | null>(null)
+    const [deletingTagId, setDeletingTagId] = useState<number | null>(null)
 
     const tags = useMemo(
         () => [...(data ?? [])].sort((a, b) => a.sortOrder - b.sortOrder || b.id - a.id),
         [data]
     )
+    const tagSummary = useMemo(() => ({
+        total: tags.length,
+        active: tags.filter((tag) => tag.isActive).length,
+        inactive: tags.filter((tag) => !tag.isActive).length,
+        colorPalettes: tags.filter((tag) => tag.type === "color_palette").length
+    }), [tags])
+    const hasActiveFilters = Boolean(filters.search || filters.type || filters.isActive)
+    const isSavingTag = isCreating || isUpdating
+    const isTagMutationInFlight = isSavingTag || isDeleting
+    const isTagListUnavailable = isError
+    const areTagActionsBlocked = isTagMutationInFlight || isTagListUnavailable
+
+    const resetFilters = () => setFilters({})
 
     const closeModal = () => {
         setIsModalOpen(false)
@@ -103,91 +123,135 @@ const ProductTagsPage = () => {
 
             closeModal()
         } catch (error) {
+            if (typeof error === "object" && error !== null && "errorFields" in error) {
+                return
+            }
+
             message.error(getNestErrorMessage(error))
         }
     }
 
     const handleToggleActive = async (tag: ProductVariantTagType, isActive: boolean) => {
+        setActiveToggleTagId(tag.id)
+
         try {
             await updateTag({id: tag.id, body: {isActive}}).unwrap()
             message.success(isActive ? "Тег активирован" : "Тег деактивирован")
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setActiveToggleTagId(null)
         }
     }
 
-    const handleDelete = async (id: number) => {
+    const handleDelete = async (tag: ProductVariantTagType) => {
+        setDeletingTagId(tag.id)
+
         try {
-            await deleteTag(id).unwrap()
-            message.success("Тег удалён")
+            await deleteTag(tag.id).unwrap()
+            message.success(`Тег «${tag.title}» удалён`)
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setDeletingTagId(null)
         }
     }
 
     const columns: ColumnsType<ProductVariantTagType> = [
         {
-            title: "title",
+            title: "Тег",
             dataIndex: "title",
             render: (title: string, tag) => (
-                <Space>
-                    {tag.type === "color_palette" && tag.colorHex && (
-                        <span
-                            style={{
-                                width: 18,
-                                height: 18,
-                                borderRadius: 6,
-                                border: "1px solid rgba(0,0,0,0.18)",
-                                background: tag.colorHex,
-                                display: "inline-block"
-                            }}
-                        />
-                    )}
-                    {title}
+                <Space direction="vertical" size={2}>
+                    <Space>
+                        {tag.type === "color_palette" && tag.colorHex && (
+                            <span
+                                style={{
+                                    width: 18,
+                                    height: 18,
+                                    borderRadius: 6,
+                                    border: "1px solid rgba(0,0,0,0.18)",
+                                    background: tag.colorHex,
+                                    display: "inline-block"
+                                }}
+                            />
+                        )}
+                        <Typography.Text strong>{title}</Typography.Text>
+                    </Space>
+                    <Space size={6} wrap>
+                        <Tag color="blue">ID {tag.id}</Tag>
+                        <Typography.Text type="secondary">{tag.slug ? `slug: ${tag.slug}` : "slug создаст backend"}</Typography.Text>
+                    </Space>
                 </Space>
             )
         },
-        {title: "slug", dataIndex: "slug"},
         {
-            title: "type",
+            title: "Тип",
             dataIndex: "type",
             render: (type: ProductTagType) => <Tag>{PRODUCT_TAG_TYPE_LABELS[type]}</Tag>
         },
         {
-            title: "colorHex",
+            title: "Цвет",
             dataIndex: "colorHex",
-            render: (colorHex?: string | null) => colorHex || "—"
+            render: (colorHex?: string | null) => colorHex ? (
+                <Space>
+                    <span
+                        style={{
+                            width: 18,
+                            height: 18,
+                            borderRadius: 6,
+                            border: "1px solid rgba(0,0,0,0.18)",
+                            background: colorHex,
+                            display: "inline-block"
+                        }}
+                    />
+                    {colorHex}
+                </Space>
+            ) : <Typography.Text type="secondary">Не задан</Typography.Text>
         },
         {
-            title: "isActive",
+            title: "Статус",
             dataIndex: "isActive",
             render: (isActive: boolean, tag) => (
-                <Switch
-                    checked={isActive}
-                    disabled={!canUpdate}
-                    onChange={(checked) => handleToggleActive(tag, checked)}
-                />
+                <Space direction="vertical" size={4}>
+                    <Tag color={isActive ? "green" : "default"}>{isActive ? "Активен" : "Скрыт"}</Tag>
+                    <Switch
+                        checked={isActive}
+                        disabled={!canUpdate || isTagListUnavailable || (isTagMutationInFlight && activeToggleTagId !== tag.id)}
+                        loading={activeToggleTagId === tag.id}
+                        checkedChildren="Вкл"
+                        unCheckedChildren="Выкл"
+                        onChange={(checked) => handleToggleActive(tag, checked)}
+                    />
+                    {!canUpdate && <Typography.Text type="secondary">Нет прав на изменение</Typography.Text>}
+                    {canUpdate && isTagListUnavailable && (
+                        <Typography.Text type="secondary">Сначала повторите загрузку списка</Typography.Text>
+                    )}
+                </Space>
             )
         },
-        {title: "sortOrder", dataIndex: "sortOrder", sorter: (a, b) => a.sortOrder - b.sortOrder},
+        {title: "Сортировка", dataIndex: "sortOrder", sorter: (a, b) => a.sortOrder - b.sortOrder},
         {
-            title: "actions",
+            title: "Действия",
             key: "actions",
             render: (_, tag) => (
                 <Space>
                     {canUpdate && (
-                        <Button type="link" onClick={() => openEdit(tag)}>
+                        <Button type="link" disabled={areTagActionsBlocked} onClick={() => openEdit(tag)}>
                             Редактировать
                         </Button>
                     )}
                     {canDelete && (
                         <Popconfirm
                             title="Удалить тег?"
-                            onConfirm={() => handleDelete(tag.id)}
-                            okButtonProps={{loading: isDeleting}}
+                            description="Проверьте, что тег не используется в активных товарах, фильтрах или промо-подборках. Действие нельзя отменить из админки."
+                            okText={deletingTagId === tag.id ? "Удаляем…" : "Удалить"}
+                            cancelText="Отмена"
+                            onConfirm={() => handleDelete(tag)}
+                            okButtonProps={{loading: deletingTagId === tag.id}}
                         >
-                            <Button type="link" danger>
-                                Удалить
+                            <Button type="link" danger loading={deletingTagId === tag.id} disabled={isTagListUnavailable || (isTagMutationInFlight && deletingTagId !== tag.id)}>
+                                {deletingTagId === tag.id ? "Удаляем…" : "Удалить"}
                             </Button>
                         </Popconfirm>
                     )}
@@ -203,74 +267,155 @@ const ProductTagsPage = () => {
                 subtitle="Управляемый словарь тегов для фильтров, мерчандайзинга и карточек товаров."
                 addButtonText="Создать тег"
                 onAdd={openCreate}
-                canAdd={canCreate}
+                canAdd={canCreate && !areTagActionsBlocked}
             >
-                <Space style={{padding: 16}} wrap>
-                    <Input.Search
-                        placeholder="Поиск по title или slug"
-                        allowClear
-                        onSearch={(search) => setFilters((prev) => ({...prev, search: search || undefined}))}
-                        style={{width: 280}}
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
+                    {deletingTagId ? (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            style={{margin: "16px 16px 0"}}
+                            message="Удаляем тег каталога"
+                            description="Пока запрос выполняется, создание, редактирование и соседние удаления заблокированы, чтобы не смешать изменения фильтров и подборок."
+                        />
+                    ) : null}
+                    {isError ? (
+                        <Alert
+                            type="error"
+                            showIcon
+                            message="Не удалось загрузить теги товаров"
+                            description="Не меняйте теги вслепую: они влияют на фильтры, подборки и карточки товаров. Создание, редактирование, активация и удаление заблокированы до успешной повторной загрузки."
+                            action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
+                        />
+                    ) : null}
+                    <Alert
+                        type="info"
+                        showIcon
+                        style={{margin: "16px 16px 0"}}
+                        message="Контекст словаря тегов"
+                        description={(
+                            <Space size={8} wrap>
+                                <Tag color="blue">Показано: {tagSummary.total}</Tag>
+                                <Tag color="green">Активные: {tagSummary.active}</Tag>
+                                <Tag>Скрытые: {tagSummary.inactive}</Tag>
+                                <Tag color="purple">Цветовые палитры: {tagSummary.colorPalettes}</Tag>
+                                <Typography.Text type="secondary">
+                                    Перед созданием нового тега проверьте поиск и тип, чтобы не плодить дубли в фильтрах и подборках.
+                                </Typography.Text>
+                            </Space>
+                        )}
                     />
-                    <Select
-                        allowClear
-                        placeholder="Тип"
-                        options={PRODUCT_TAG_TYPE_OPTIONS}
-                        style={{width: 210}}
-                        onChange={(type) => setFilters((prev) => ({...prev, type}))}
-                    />
-                    <Select
-                        allowClear
-                        placeholder="Активность"
-                        options={ACTIVE_OPTIONS}
-                        style={{width: 170}}
-                        onChange={(isActive) => setFilters((prev) => ({...prev, isActive}))}
+                    <Space style={{padding: 16, paddingBottom: 0}} wrap>
+                        <Input.Search
+                            placeholder="Поиск по названию или slug"
+                            allowClear
+                            value={filters.search}
+                            onChange={(event) => setFilters((prev) => ({...prev, search: event.target.value || undefined}))}
+                            onSearch={(search) => setFilters((prev) => ({...prev, search: search || undefined}))}
+                            style={{width: 280}}
+                        />
+                        <Select
+                            allowClear
+                            placeholder="Тип тега"
+                            options={PRODUCT_TAG_TYPE_OPTIONS}
+                            value={filters.type}
+                            style={{width: 210}}
+                            onChange={(type) => setFilters((prev) => ({...prev, type}))}
+                        />
+                        <Select
+                            allowClear
+                            placeholder="Активность"
+                            options={ACTIVE_OPTIONS}
+                            value={filters.isActive}
+                            style={{width: 170}}
+                            onChange={(isActive) => setFilters((prev) => ({...prev, isActive}))}
+                        />
+                        {hasActiveFilters && <Button onClick={resetFilters}>Сбросить фильтры</Button>}
+                    </Space>
+                    {hasActiveFilters ? (
+                        <Space style={{padding: "0 16px"}} size={6} wrap>
+                            <Typography.Text type="secondary">Показаны теги по фильтрам:</Typography.Text>
+                            {filters.search && <Tag>Поиск: {filters.search}</Tag>}
+                            {filters.type && <Tag>{PRODUCT_TAG_TYPE_LABELS[filters.type]}</Tag>}
+                            {filters.isActive && <Tag>{ACTIVE_FILTER_LABELS[filters.isActive]}</Tag>}
+                        </Space>
+                    ) : null}
+                    <Table<ProductVariantTagType>
+                        rowKey="id"
+                        loading={isLoading}
+                        dataSource={tags}
+                        columns={columns}
+                        scroll={{x: 1000}}
+                        locale={{
+                            emptyText: (
+                                <Empty
+                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                    description={hasActiveFilters ? "Теги по выбранным фильтрам не найдены" : "Теги товаров ещё не созданы"}
+                                >
+                                    {hasActiveFilters ? (
+                                        <Button onClick={resetFilters}>Сбросить фильтры</Button>
+                                    ) : (
+                                        canCreate && <Button type="primary" onClick={openCreate}>Создать первый тег</Button>
+                                    )}
+                                </Empty>
+                            )
+                        }}
                     />
                 </Space>
-                <Table<ProductVariantTagType>
-                    rowKey="id"
-                    loading={isLoading}
-                    dataSource={tags}
-                    columns={columns}
-                    scroll={{x: 1000}}
-                />
             </SettingsTableSection>
 
             <Modal
                 title={editingTag ? "Редактировать тег" : "Создать тег"}
                 open={isModalOpen}
-                onCancel={closeModal}
+                onCancel={() => {
+                    if (!isSavingTag) {
+                        closeModal()
+                    }
+                }}
                 onOk={handleSubmit}
-                confirmLoading={isCreating || isUpdating}
+                okText={isSavingTag ? "Сохраняем…" : editingTag ? "Сохранить тег" : "Создать тег"}
+                cancelButtonProps={{disabled: isSavingTag}}
+                maskClosable={!isSavingTag}
+                keyboard={!isSavingTag}
+                confirmLoading={isSavingTag}
             >
+                <Alert
+                    type="info"
+                    showIcon
+                    style={{marginBottom: 16}}
+                    message="Теги помогают менеджерам быстро собирать фильтры и подборки"
+                    description="Используйте понятное название, выбирайте точный тип и меняйте slug только если понимаете, где он уже используется. Для цветовой гаммы укажите HEX, чтобы тег легко узнавался в таблице."
+                />
                 <Form<ProductTagFormValues> form={form} layout="vertical" initialValues={{type: "custom", isActive: true, sortOrder: 100}}>
                     <Form.Item
                         name="title"
-                        label="title"
-                        rules={[{required: true, message: "Введите title"}]}
+                        label="Название"
+                        extra="Короткое имя, которое менеджеры увидят в каталоге и фильтрах."
+                        rules={[{required: true, message: "Введите название"}, {max: 120, message: "Максимум 120 символов"}]}
                     >
-                        <Input placeholder="Pastel" />
+                        <Input placeholder="Пастель" maxLength={120} showCount disabled={isSavingTag} />
                     </Form.Item>
-                    <Form.Item name="type" label="type">
-                        <Select options={PRODUCT_TAG_TYPE_OPTIONS} />
+                    <Form.Item name="type" label="Тип тега" extra="Тип помогает не смешивать сезон, стиль, фандом и цветовые палитры.">
+                        <Select options={PRODUCT_TAG_TYPE_OPTIONS} disabled={isSavingTag} />
                     </Form.Item>
-                    <Form.Item name="slug" label="slug" extra="Можно оставить пустым: backend сгенерирует slug сам.">
-                        <Input placeholder="pastel" />
+                    <Form.Item name="slug" label="Slug" extra="Можно оставить пустым: backend сгенерирует slug сам. Меняйте существующий slug осторожно — он может использоваться в ссылках или фильтрах.">
+                        <Input placeholder="pastel" disabled={isSavingTag} />
                     </Form.Item>
                     {selectedType === "color_palette" && (
                         <Form.Item
                             name="colorHex"
-                            label="colorHex"
+                            label="HEX цвет"
+                            extra="Например #F4C6D7. Цвет нужен для быстрой визуальной проверки палитры."
                             rules={[{pattern: /^#([0-9A-Fa-f]{6})$/, message: "Неверный HEX код"}]}
                         >
-                            <Input type="color" />
+                            <Input type="color" disabled={isSavingTag} />
                         </Form.Item>
                     )}
-                    <Form.Item name="sortOrder" label="sortOrder">
-                        <InputNumber min={0} style={{width: "100%"}} />
+                    <Form.Item name="sortOrder" label="Порядок сортировки" extra="Меньшее число поднимает тег выше в списках.">
+                        <InputNumber min={0} style={{width: "100%"}} disabled={isSavingTag} />
                     </Form.Item>
-                    <Form.Item name="isActive" label="isActive" valuePropName="checked">
-                        <Switch />
+                    <Form.Item name="isActive" label="Активен" valuePropName="checked" extra="Отключите тег, если он больше не должен использоваться в новых фильтрах и подборках.">
+                        <Switch checkedChildren="Да" unCheckedChildren="Нет" disabled={isSavingTag} />
                     </Form.Item>
                 </Form>
             </Modal>

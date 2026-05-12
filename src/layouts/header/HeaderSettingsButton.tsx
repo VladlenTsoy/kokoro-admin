@@ -16,9 +16,11 @@ const HeaderSettingsButton = () => {
     return (
         <Tooltip title="Настройки">
             <Button
+                aria-label={isSettingsPage ? "Настройки: текущий раздел" : "Открыть настройки админки"}
                 size="large"
                 shape="circle"
                 type={isSettingsPage ? "primary" : "default"}
+                title="Открыть настройки админки"
                 icon={<SettingOutlined />}
                 onClick={() => navigate("/settings")}
             />

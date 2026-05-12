@@ -25,7 +25,7 @@ export const productVariantStatusApi = createApi({
         }>({
             query: ({id, body}) => ({
                 url: `/product-variant-status/${id}`,
-                method: "PUT",
+                method: "PATCH",
                 body
             }),
             invalidatesTags: ["ProductVariantStatus"]

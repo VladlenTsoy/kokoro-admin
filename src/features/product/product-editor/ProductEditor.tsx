@@ -1,4 +1,4 @@
-import {Col, Form, type FormProps, message, Row, type SelectProps} from "antd"
+import {Alert, Button, Col, Form, type FormProps, message, Row, type SelectProps} from "antd"
 import BaseSection from "./content/BaseSection.tsx"
 import PriceSection from "./content/PriceSection.tsx"
 import QtySection from "./content/QtySection.tsx"
@@ -11,7 +11,7 @@ import {createStyles} from "antd-style"
 import {useCreateProductMutation, useGetProductByIdQuery, useUpdateProductMutation} from "../productApi.ts"
 import type {ProductFormValuesType, ProductSizeMapType} from "../ProductType.ts"
 import type {ProductTemporaryImageType} from "../../file-uploader/product-image-uploader/ProductImageUploaderType.ts"
-import {useCallback, useEffect, useMemo, useState} from "react"
+import {type SetStateAction, useCallback, useEffect, useMemo, useState} from "react"
 import dayjs from "dayjs"
 import type {CreateProductType} from "../CreateProductType.ts"
 import {domainUrlForImage} from "../../../utils/appApiConfig.ts"
@@ -32,7 +32,13 @@ interface Props {
 
 const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
     const [form] = Form.useForm<ProductFormValuesType>()
-    const {data, isLoading} = useGetProductByIdQuery(productId, {
+    const {
+        data,
+        isError: isProductLoadError,
+        isFetching: isProductFetching,
+        isLoading,
+        refetch: refetchProduct
+    } = useGetProductByIdQuery(productId, {
         refetchOnMountOrArgChange: true,
         refetchOnReconnect: true,
         refetchOnFocus: true,
@@ -43,11 +49,16 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
     const {styles} = useStyles()
     const navigate = useNavigate()
     const isSaving = isCreating || isUpdating
+    const isSaveBlocked = isLoading || Boolean(productId && isProductLoadError)
+    const saveBlockedReason = isLoading
+        ? "Дождитесь загрузки карточки товара, чтобы сохранить актуальные данные по цене, остаткам и публикации."
+        : "Карточка товара не загрузилась полностью. Повторите загрузку перед сохранением, чтобы не перезаписать актуальные данные пустой или устаревшей формой."
 
     // ---------- Состояния ----------
     const [selectedSizes, setSelectedSizes] = useState<{id: number; title: string}[]>([])
     const [images, setImages] = useState<ProductTemporaryImageType[]>([])
     const [discountMode, setDiscountMode] = useState(false)
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
     const parentProductId = useMemo(() => data?.product?.id, [data])
 
@@ -142,6 +153,21 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
     // ---------- Watchers ----------
     const discountValue = Form.useWatch(["discount", "percent"], form) as number | undefined
 
+    useEffect(() => {
+        if (!hasUnsavedChanges || isSaving) return
+
+        const beforeUnloadHandler = (event: BeforeUnloadEvent) => {
+            event.preventDefault()
+            event.returnValue = ""
+        }
+
+        window.addEventListener("beforeunload", beforeUnloadHandler)
+
+        return () => {
+            window.removeEventListener("beforeunload", beforeUnloadHandler)
+        }
+    }, [hasUnsavedChanges, isSaving])
+
     // ---------- Handlers ----------
     const onSelectSizesHandler = useCallback<NonNullable<SelectProps<number[]>["onChange"]>>(
         (value, option) => {
@@ -165,6 +191,11 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
 
     const onChangeDiscountModeHandler = useCallback((mode: boolean) => {
         setDiscountMode(!mode)
+    }, [])
+
+    const onImagesChangeHandler = useCallback((value: SetStateAction<ProductTemporaryImageType[]>) => {
+        setHasUnsavedChanges(true)
+        setImages(value)
     }, [])
 
     // Сброс полей скидки при выключении
@@ -228,10 +259,12 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
                     data: payload
                 }).unwrap()
                 hideLoading()
+                setHasUnsavedChanges(false)
                 message.success("Товар обновлён")
             } else {
                 await create(payload).unwrap()
                 hideLoading()
+                setHasUnsavedChanges(false)
                 message.success(isColor ? "Цвет товара создан" : "Товар создан")
                 navigate("/products")
             }
@@ -250,8 +283,16 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
     // ---------- Memoized Left/Right blocks ----------
     const leftBlock = useMemo(() => <LeftBlock />, [])
     const rightBlock = useMemo(
-        () => <RightBlock imageUrls={images} setImageUrl={setImages} isSaving={isSaving} />,
-        [images, isSaving]
+        () => (
+            <RightBlock
+                imageUrls={images}
+                setImageUrl={onImagesChangeHandler}
+                isSaving={isSaving}
+                saveDisabled={isSaveBlocked}
+                saveDisabledReason={saveBlockedReason}
+            />
+        ),
+        [images, isSaveBlocked, isSaving, onImagesChangeHandler, saveBlockedReason]
     )
 
     // ---------- Render ----------
@@ -261,6 +302,20 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
                 {leftBlock}
             </Col>
             <Col xl={12} md={12} xs={24}>
+                {isProductLoadError && productId && (
+                    <Alert
+                        type="warning"
+                        showIcon
+                        message="Не удалось загрузить карточку товара"
+                        description="Проверьте соединение и повторите загрузку перед изменением цены, остатков или публикации. Так менеджер не сохранит форму поверх неполных данных."
+                        action={
+                            <Button size="small" onClick={() => refetchProduct()} loading={isProductFetching}>
+                                Повторить
+                            </Button>
+                        }
+                        style={{marginBottom: 12}}
+                    />
+                )}
                 <Form
                     layout="vertical"
                     size="large"
@@ -269,8 +324,17 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
                     onFinishFailed={onFinishFailedHandler}
                     id="editor-product"
                     className={styles.content}
-                    disabled={isLoading || isSaving}
+                    disabled={isLoading || isSaving || isProductLoadError}
+                    onValuesChange={() => setHasUnsavedChanges(true)}
                 >
+                    {hasUnsavedChanges && !isSaving && (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            message="Есть несохранённые изменения"
+                            description="Сохраните товар перед закрытием вкладки или обновлением страницы, чтобы не потерять правки каталога."
+                        />
+                    )}
                     <Element name="basic">
                         <BaseSection onSelectSizesChange={onSelectSizesHandler} />
                     </Element>

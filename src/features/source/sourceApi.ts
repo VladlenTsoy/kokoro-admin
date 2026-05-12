@@ -22,7 +22,7 @@ export const sourceApi = createApi({
         updateSource: builder.mutation<SourceType, {id: number; body: Partial<SourceType>}>({
             query: ({id, body}) => ({
                 url: `/sources/${id}`,
-                method: "PUT",
+                method: "PATCH",
                 body
             }),
             invalidatesTags: ["Source"]

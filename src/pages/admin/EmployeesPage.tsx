@@ -1,11 +1,14 @@
 import {
+    Alert,
     Button,
     Card,
     Checkbox,
+    Empty,
     Form,
     Input,
     Modal,
     Popconfirm,
+    Radio,
     Space,
     Statistic,
     Switch,
@@ -41,11 +44,20 @@ interface EmployeeFormValues {
     isActive: boolean
 }
 
+type EmployeeStatusFilter = "all" | "active" | "inactive" | "noRoles"
+
 interface RolesOnlyFormValues {
     roleIds: number[]
 }
 
 const PERMISSION_ACTIONS: PermissionAction[] = ["read", "create", "update", "delete", "manage"]
+
+const EMPLOYEE_STATUS_FILTERS: {label: string; value: EmployeeStatusFilter}[] = [
+    {label: "Все", value: "all"},
+    {label: "Активные", value: "active"},
+    {label: "Отключены", value: "inactive"},
+    {label: "Без ролей", value: "noRoles"}
+]
 
 function summarizePermissions(permissions: PermissionCode[], catalog?: PermissionCatalogModule[]) {
     if (!permissions.length) {
@@ -73,12 +85,18 @@ function summarizePermissions(permissions: PermissionCode[], catalog?: Permissio
 }
 
 const EmployeesPage = () => {
-    const {data: employeesData, isLoading: isEmployeesLoading, error: employeesError} = useGetEmployeesQuery()
-    const {data: rolesData, isLoading: isRolesLoading, error: rolesError} = useGetRolesQuery()
+    const {
+        data: employeesData,
+        isLoading: isEmployeesLoading,
+        error: employeesError,
+        refetch: refetchEmployees
+    } = useGetEmployeesQuery()
+    const {data: rolesData, isLoading: isRolesLoading, error: rolesError, refetch: refetchRoles} = useGetRolesQuery()
     const {
         data: permissionCatalog,
         isLoading: isPermissionCatalogLoading,
-        error: permissionCatalogError
+        error: permissionCatalogError,
+        refetch: refetchPermissionCatalog
     } = useGetRolePermissionsQuery()
     const [createEmployee, {isLoading: isCreating}] = useCreateEmployeeMutation()
     const [updateEmployee, {isLoading: isUpdating}] = useUpdateEmployeeMutation()
@@ -89,15 +107,52 @@ const EmployeesPage = () => {
     const [isRolesModalOpen, setIsRolesModalOpen] = useState(false)
     const [editingEmployee, setEditingEmployee] = useState<EmployeeSafe | null>(null)
     const [rolesEmployee, setRolesEmployee] = useState<EmployeeSafe | null>(null)
+    const [employeeSearch, setEmployeeSearch] = useState("")
+    const [statusFilter, setStatusFilter] = useState<EmployeeStatusFilter>("all")
+    const [deletingEmployeeId, setDeletingEmployeeId] = useState<number | null>(null)
     const [form] = Form.useForm<EmployeeFormValues>()
     const [rolesForm] = Form.useForm<RolesOnlyFormValues>()
+    const editedEmployeeIsActive = Form.useWatch("isActive", form)
     const canManageStaff = useCan("staff.manage")
+    const isSavingEmployee = isCreating || isUpdating
+    const isSavingRoles = isUpdatingRoles
 
     const employees = useMemo(
         () => (employeesData ? [...employeesData].sort((a, b) => b.id - a.id) : []),
         [employeesData]
     )
     const roles = useMemo(() => (rolesData ? [...rolesData].sort((a, b) => b.id - a.id) : []), [rolesData])
+    const normalizedSearch = employeeSearch.trim().toLowerCase()
+    const filteredEmployees = useMemo(
+        () => employees.filter((employee) => {
+            const matchesStatus =
+                statusFilter === "all" ||
+                (statusFilter === "active" && employee.isActive) ||
+                (statusFilter === "inactive" && !employee.isActive) ||
+                (statusFilter === "noRoles" && employee.roles.length === 0)
+
+            if (!matchesStatus) {
+                return false
+            }
+
+            if (!normalizedSearch) {
+                return true
+            }
+
+            const searchable = [
+                employee.email,
+                employee.firstName,
+                employee.lastName,
+                employee.phone ?? "",
+                ...employee.roles.map((role) => role.code),
+                String(employee.id)
+            ].join(" ").toLowerCase()
+
+            return searchable.includes(normalizedSearch)
+        }),
+        [employees, normalizedSearch, statusFilter]
+    )
+    const hasEmployeeFilters = Boolean(normalizedSearch) || statusFilter !== "all"
 
     if (
         getApiStatusCode(employeesError) === 403 ||
@@ -158,6 +213,18 @@ const EmployeesPage = () => {
         rolesForm.resetFields()
     }
 
+    const handleEditModalCancel = () => {
+        if (isSavingEmployee) return
+        closeEditModal()
+    }
+
+    const handleRolesModalCancel = () => {
+        if (isSavingRoles) return
+        closeRolesModal()
+    }
+
+    const isFormValidationError = (error: unknown) => Boolean(error && typeof error === "object" && "errorFields" in error)
+
     const handleSubmit = async () => {
         try {
             const values = await form.validateFields()
@@ -189,6 +256,7 @@ const EmployeesPage = () => {
 
             closeEditModal()
         } catch (error) {
+            if (isFormValidationError(error)) return
             message.error(getNestErrorMessage(error))
         }
     }
@@ -204,16 +272,21 @@ const EmployeesPage = () => {
             message.success("Роли сотрудника обновлены")
             closeRolesModal()
         } catch (error) {
+            if (isFormValidationError(error)) return
             message.error(getNestErrorMessage(error))
         }
     }
 
     const handleDelete = async (id: number) => {
+        setDeletingEmployeeId(id)
+
         try {
             await deleteEmployee(id).unwrap()
             message.success("Сотрудник удалён")
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setDeletingEmployeeId(null)
         }
     }
 
@@ -236,11 +309,11 @@ const EmployeesPage = () => {
             key: "roles",
             render: (_, employee) => (
                 <Space wrap>
-                    {employee.roles.map((role) => (
+                    {employee.roles.length ? employee.roles.map((role) => (
                         <Tag key={role.id} color={role.isActive ? "blue" : "default"}>
                             {role.code}
                         </Tag>
-                    ))}
+                    )) : <Tag color="warning">Роль не назначена</Tag>}
                 </Space>
             )
         },
@@ -254,30 +327,40 @@ const EmployeesPage = () => {
                 title: "Действия",
                 key: "actions",
                 width: 320,
-                render: (_: unknown, employee: EmployeeSafe) => (
-                    <Space>
-                        <Button onClick={() => openEdit(employee)}>Редактировать</Button>
-                        <Button onClick={() => openRolesOnly(employee)}>Только роли</Button>
-                        <Popconfirm
-                            title="Удалить сотрудника?"
-                            onConfirm={() => handleDelete(employee.id)}
-                            okButtonProps={{loading: isDeleting}}
-                        >
-                            <Button danger>Удалить</Button>
-                        </Popconfirm>
-                    </Space>
-                )
+                render: (_: unknown, employee: EmployeeSafe) => {
+                    const isCurrentEmployeeDeleting = deletingEmployeeId === employee.id
+                    const isAnotherEmployeeDeleting = isDeleting && deletingEmployeeId !== null && !isCurrentEmployeeDeleting
+
+                    return (
+                        <Space wrap>
+                            <Button disabled={isDeleting || isSavingEmployee || isSavingRoles} onClick={() => openEdit(employee)}>Редактировать</Button>
+                            <Button disabled={isDeleting || isSavingEmployee || isSavingRoles} onClick={() => openRolesOnly(employee)}>Только роли</Button>
+                            <Popconfirm
+                                title="Удалить сотрудника?"
+                                description="Перед удалением проверьте, что у сотрудника нет активной смены, заказов или незавершённой передачи клиенту. Если нужно только закрыть вход, безопаснее сначала выключить активность."
+                                onConfirm={() => handleDelete(employee.id)}
+                                okText="Удалить"
+                                cancelText="Отмена"
+                                okButtonProps={{loading: isCurrentEmployeeDeleting}}
+                            >
+                                <Button danger loading={isCurrentEmployeeDeleting} disabled={isAnotherEmployeeDeleting}>
+                                    {isCurrentEmployeeDeleting ? "Удаляем" : "Удалить"}
+                                </Button>
+                            </Popconfirm>
+                        </Space>
+                    )
+                }
             } satisfies ColumnsType<EmployeeSafe>[number]]
             : [])
     ]
 
     return (
-        <Space orientation="vertical" size={16} style={{width: "100%"}}>
+        <Space direction="vertical" size={16} style={{width: "100%"}}>
             <PageHeading
                 title="Сотрудники"
                 subtitle="Команда админки, статусы активности и распределение ролей."
                 extra={canManageStaff ? (
-                    <Button type="primary" onClick={openCreate}>
+                    <Button type="primary" disabled={isSavingEmployee || isSavingRoles || isDeleting} onClick={openCreate}>
                         Добавить сотрудника
                     </Button>
                 ) : null}
@@ -287,31 +370,115 @@ const EmployeesPage = () => {
                 <Space size={28}>
                     <Statistic title="Всего сотрудников" value={employees.length} />
                     <Statistic title="Активные" value={employees.filter((employee) => employee.isActive).length} />
+                    <Statistic title="Без ролей" value={employees.filter((employee) => employee.roles.length === 0).length} />
                     <Statistic title="Ролей в системе" value={roles.length} />
                     <Statistic title="Модулей доступа" value={permissionCatalog?.length ?? 0} loading={isPermissionCatalogLoading} />
                 </Space>
             </Card>
 
-            <Card>
-                <Table<EmployeeSafe>
-                    rowKey="id"
-                    loading={isEmployeesLoading || isRolesLoading || isPermissionCatalogLoading}
-                    columns={columns}
-                    dataSource={employees}
-                    pagination={false}
-                    scroll={{x: 1100}}
+            {(employeesError || rolesError || permissionCatalogError) && (
+                <Alert
+                    showIcon
+                    type="warning"
+                    message="Данные по сотрудникам загружены не полностью"
+                    description={getNestErrorMessage(employeesError || rolesError || permissionCatalogError)}
+                    action={(
+                        <Button
+                            size="small"
+                            onClick={() => {
+                                refetchEmployees()
+                                refetchRoles()
+                                refetchPermissionCatalog()
+                            }}
+                        >
+                            Повторить
+                        </Button>
+                    )}
                 />
+            )}
+
+            <Card>
+                <Space direction="vertical" size={16} style={{width: "100%"}}>
+                    <Space wrap style={{width: "100%", justifyContent: "space-between"}}>
+                        <Space direction="vertical" size={4}>
+                            <Typography.Text strong>Операционный список доступа</Typography.Text>
+                            <Typography.Text type="secondary">
+                                Найдите сотрудника по имени, email, телефону, ID или роли перед изменением доступа.
+                            </Typography.Text>
+                        </Space>
+                        <Button disabled={!hasEmployeeFilters} onClick={() => {
+                            setEmployeeSearch("")
+                            setStatusFilter("all")
+                        }}>
+                            Сбросить фильтры
+                        </Button>
+                    </Space>
+
+                    <Space wrap>
+                        <Input.Search
+                            allowClear
+                            value={employeeSearch}
+                            placeholder="Поиск: имя, email, телефон, ID или роль"
+                            style={{width: 360, maxWidth: "100%"}}
+                            onChange={(event) => setEmployeeSearch(event.target.value)}
+                        />
+                        <Radio.Group
+                            optionType="button"
+                            buttonStyle="solid"
+                            options={EMPLOYEE_STATUS_FILTERS}
+                            value={statusFilter}
+                            onChange={(event) => setStatusFilter(event.target.value)}
+                        />
+                    </Space>
+
+                    <Typography.Text type="secondary">
+                        Показано {filteredEmployees.length} из {employees.length}. Сотрудники без ролей отмечены отдельно — им нужно назначить доступ или отключить вход.
+                    </Typography.Text>
+
+                    <Table<EmployeeSafe>
+                        rowKey="id"
+                        loading={isEmployeesLoading || isRolesLoading || isPermissionCatalogLoading}
+                        columns={columns}
+                        dataSource={filteredEmployees}
+                        pagination={false}
+                        scroll={{x: 1100}}
+                        locale={{
+                            emptyText: (
+                                <Empty
+                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                    description={hasEmployeeFilters ? "По текущим фильтрам сотрудники не найдены" : "Сотрудники ещё не заведены"}
+                                >
+                                    {hasEmployeeFilters ? (
+                                        <Button onClick={() => {
+                                            setEmployeeSearch("")
+                                            setStatusFilter("all")
+                                        }}>
+                                            Сбросить фильтры
+                                        </Button>
+                                    ) : canManageStaff ? (
+                                        <Button type="primary" onClick={openCreate}>Добавить сотрудника</Button>
+                                    ) : null}
+                                </Empty>
+                            )
+                        }}
+                    />
+                </Space>
             </Card>
 
             <Modal
                 title={editingEmployee ? "Редактирование сотрудника" : "Создание сотрудника"}
                 open={isEditModalOpen}
-                onCancel={closeEditModal}
+                onCancel={handleEditModalCancel}
                 onOk={handleSubmit}
-                confirmLoading={isCreating || isUpdating}
+                confirmLoading={isSavingEmployee}
+                okText={isSavingEmployee ? "Сохраняем доступ…" : undefined}
+                cancelButtonProps={{disabled: isSavingEmployee}}
+                closable={!isSavingEmployee}
+                keyboard={!isSavingEmployee}
+                maskClosable={!isSavingEmployee}
                 width={700}
             >
-                <Form<EmployeeFormValues> form={form} layout="vertical" initialValues={{isActive: true, roleIds: []}}>
+                <Form<EmployeeFormValues> form={form} layout="vertical" disabled={isSavingEmployee} initialValues={{isActive: true, roleIds: []}}>
                     <Form.Item
                         name="email"
                         label="Email"
@@ -345,16 +512,25 @@ const EmployeesPage = () => {
                     <Form.Item
                         name="phone"
                         label="Телефон"
+                        extra="Используйте рабочий номер в международном формате, чтобы менеджера было легче найти в смене."
                         rules={[
                             {required: true, message: "Введите телефон"},
                             {max: 30, message: "Максимум 30 символов"}
                         ]}
                     >
-                        <Input placeholder="+998901112233" />
+                        <Input autoComplete="tel" placeholder="+998 90 111 22 33" />
                     </Form.Item>
+                    <Alert
+                        showIcon
+                        type="info"
+                        style={{marginBottom: 16}}
+                        message={editingEmployee ? "Оставьте поле пароля пустым, если доступ менять не нужно" : "Передайте первичный пароль сотруднику по безопасному каналу"}
+                        description="Не используйте примеры из интерфейса как реальные пароли. После создания проверьте роли сотрудника и отключите доступ, если он не должен входить в админку."
+                    />
                     <Form.Item
                         name="password"
                         label={editingEmployee ? "Новый пароль (опционально)" : "Пароль"}
+                        extra={editingEmployee ? "Заполняйте только при сбросе доступа сотрудника." : "Минимум 8 символов; лучше использовать уникальную фразу или пароль из менеджера паролей."}
                         rules={
                             editingEmployee
                                 ? [
@@ -368,7 +544,7 @@ const EmployeesPage = () => {
                                 ]
                         }
                     >
-                        <Input.Password placeholder="StrongPassword123" />
+                        <Input.Password autoComplete="new-password" placeholder="Введите временный пароль" />
                     </Form.Item>
                     <Form.Item
                         name="roleIds"
@@ -378,22 +554,43 @@ const EmployeesPage = () => {
                         <Checkbox.Group options={roleOptions} />
                     </Form.Item>
                     <Form.Item name="isActive" label="Активен" valuePropName="checked">
-                        <Switch />
+                        <Switch checkedChildren="Вход открыт" unCheckedChildren="Вход закрыт" />
                     </Form.Item>
+                    {editingEmployee && editedEmployeeIsActive === false && (
+                        <Alert
+                            showIcon
+                            type="warning"
+                            style={{marginBottom: 16}}
+                            message="Вы закрываете сотруднику вход в админку"
+                            description="Перед сохранением убедитесь, что его текущие заказы, обращения клиентов и сменные задачи переданы другому менеджеру. Это UI-действие не подтверждает автоматический отзыв всех сессий или операционных обязанностей."
+                        />
+                    )}
                 </Form>
             </Modal>
 
             <Modal
                 title={`Роли: ${rolesEmployee?.firstName ?? ""} ${rolesEmployee?.lastName ?? ""}`.trim()}
                 open={isRolesModalOpen}
-                onCancel={closeRolesModal}
+                onCancel={handleRolesModalCancel}
                 onOk={handleRolesSubmit}
-                confirmLoading={isUpdatingRoles}
+                confirmLoading={isSavingRoles}
+                okText={isSavingRoles ? "Сохраняем роли…" : undefined}
+                cancelButtonProps={{disabled: isSavingRoles}}
+                closable={!isSavingRoles}
+                keyboard={!isSavingRoles}
+                maskClosable={!isSavingRoles}
             >
                 <Typography.Paragraph type="secondary">
                     Быстрое обновление ролей через endpoint PATCH /employees/:id/roles
                 </Typography.Paragraph>
-                <Form<RolesOnlyFormValues> form={rolesForm} layout="vertical">
+                <Alert
+                    showIcon
+                    type="info"
+                    style={{marginBottom: 16}}
+                    message="Проверьте состав ролей перед сохранением"
+                    description="Во время сохранения список ролей блокируется, чтобы не отправить случайно изменённый или частичный набор доступов. Удаление ролей может сразу ограничить рабочие сценарии менеджера."
+                />
+                <Form<RolesOnlyFormValues> form={rolesForm} layout="vertical" disabled={isSavingRoles}>
                     <Form.Item
                         name="roleIds"
                         label="Роли"

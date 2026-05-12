@@ -1,4 +1,4 @@
-import {Navigate, Outlet} from "react-router-dom"
+import {Navigate, Outlet, useLocation} from "react-router-dom"
 import {Spin} from "antd"
 import {setEmployee, useSelectedAuthData} from "../features/auth/authSlice.ts"
 import {useGetMeQuery} from "../features/admin/authApi.ts"
@@ -14,6 +14,7 @@ interface PermissionGuardProps {
 
 const PermissionGuard = ({permission, anyOf}: PermissionGuardProps) => {
     const dispatch = useDispatch()
+    const location = useLocation()
     const {accessToken, employee} = useSelectedAuthData()
     const hasPermissionSnapshot = Array.isArray(employee?.permissions)
     const {data, isLoading} = useGetMeQuery(undefined, {
@@ -29,7 +30,13 @@ const PermissionGuard = ({permission, anyOf}: PermissionGuardProps) => {
     const currentEmployee = employee ?? data
 
     if (!accessToken) {
-        return <Navigate to="/login" replace />
+        return (
+            <Navigate
+                to="/login"
+                replace
+                state={{returnTo: `${location.pathname}${location.search}${location.hash}`}}
+            />
+        )
     }
 
     if ((!currentEmployee || !Array.isArray(currentEmployee.permissions)) && isLoading) {
@@ -40,7 +47,13 @@ const PermissionGuard = ({permission, anyOf}: PermissionGuardProps) => {
         (permission && !can(currentEmployee?.permissions, permission)) ||
         (anyOf && !canAny(currentEmployee?.permissions, anyOf))
     ) {
-        return <Navigate to="/forbidden" replace />
+        return (
+            <Navigate
+                to="/forbidden"
+                replace
+                state={{from: location.pathname + location.search, permission, anyOf}}
+            />
+        )
     }
 
     return <Outlet />

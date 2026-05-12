@@ -1,5 +1,5 @@
 import type {MenuProps} from "antd"
-import {Card, Input, Menu, Space, Tag, Typography} from "antd"
+import {Alert, Button, Card, Empty, Input, Menu, Space, Tag, Typography} from "antd"
 import {createStyles} from "antd-style"
 import {Outlet, useLocation, useNavigate} from "react-router-dom"
 import {useSelectedAuthData} from "../features/auth/authSlice.ts"
@@ -109,6 +109,12 @@ const useStyles = createStyles(({token}) => ({
     },
     summary: {
         marginBottom: 12
+    },
+    emptyState: {
+        padding: "16px 0"
+    },
+    noAccessAlert: {
+        marginTop: 12
     }
 }))
 
@@ -155,6 +161,9 @@ const SettingsLayout = () => {
     }, [filteredGroups])
 
     const allChildrenCount = groups.reduce((acc, group) => acc + group.children.length, 0)
+    const filteredChildrenCount = filteredGroups.reduce((acc, group) => acc + group.children.length, 0)
+    const hasSettingsAccess = allChildrenCount > 0
+    const hasSearchResults = filteredChildrenCount > 0
 
     // Определяем текущий активный ключ из pathname
     const selectedKey = location.pathname.split("/")[2]
@@ -162,6 +171,8 @@ const SettingsLayout = () => {
     const onClickHandler: MenuProps["onClick"] = (e) => {
         navigate(`/settings/${e.key}`)
     }
+
+    const clearSearch = () => setQuery("")
 
     return (
         <div>
@@ -184,13 +195,39 @@ const SettingsLayout = () => {
                             allowClear
                         />
                     </div>
-                    <Menu
-                        className={styles.menu}
-                        onClick={onClickHandler}
-                        mode="inline"
-                        items={items}
-                        selectedKeys={[selectedKey]}
-                    />
+                    {!hasSettingsAccess && (
+                        <Alert
+                            className={styles.noAccessAlert}
+                            type="warning"
+                            showIcon
+                            message="Нет доступных разделов настроек"
+                            description="Попросите администратора проверить роли и права доступа к настройкам магазина."
+                        />
+                    )}
+                    {hasSettingsAccess && !hasSearchResults && (
+                        <Empty
+                            className={styles.emptyState}
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                            description={(
+                                <Space direction="vertical" size={8}>
+                                    <Typography.Text>По запросу «{query.trim()}» ничего не найдено.</Typography.Text>
+                                    <Typography.Text type="secondary">
+                                        Попробуйте название справочника, например «Платежи», «Склады» или «Роли».
+                                    </Typography.Text>
+                                    <Button type="link" onClick={clearSearch}>Сбросить поиск</Button>
+                                </Space>
+                            )}
+                        />
+                    )}
+                    {hasSettingsAccess && hasSearchResults && (
+                        <Menu
+                            className={styles.menu}
+                            onClick={onClickHandler}
+                            mode="inline"
+                            items={items}
+                            selectedKeys={[selectedKey]}
+                        />
+                    )}
                 </Card>
                 <Card className={styles.contentCard}>
                     <Outlet />

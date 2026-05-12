@@ -41,7 +41,7 @@ export const countriesApi = createApi({
         updateCountry: builder.mutation<CountryType, Partial<CountryType> & {id: number}>({
             query: ({id, ...patch}) => ({
                 url: `countries/${id}`,
-                method: "PUT", // или PATCH если на сервере так принято
+                method: "PATCH",
                 body: patch
             }),
             invalidatesTags: (_result, _error, arg) => [
@@ -64,9 +64,9 @@ export const countriesApi = createApi({
         // === Cities ===
         createCity: builder.mutation<CityType, {countryId: number; city: Omit<CityType, "id">}>({
             query: ({countryId, city}) => ({
-                url: `countries/${countryId}/cities`,
+                url: "cities",
                 method: "POST",
-                body: city
+                body: {...city, countryId}
             }),
             // инвалидация самой страны (чтобы обновить список городов), можно добавить City tag если нужно
             invalidatesTags: (_result, _error, {countryId}) => [{type: "Country", id: countryId}]
@@ -76,9 +76,9 @@ export const countriesApi = createApi({
             CityType,
             {countryId: number; cityId: number; data: Partial<CityType>}
         >({
-            query: ({countryId, cityId, data}) => ({
-                url: `countries/${countryId}/cities/${cityId}`,
-                method: "PUT", // или PATCH
+            query: ({cityId, data}) => ({
+                url: `cities/${cityId}`,
+                method: "PATCH",
                 body: data
             }),
             invalidatesTags: (_result, _error, {countryId, cityId}) => [
@@ -91,8 +91,8 @@ export const countriesApi = createApi({
             {success: boolean; cityId: number},
             {countryId: number; cityId: number}
         >({
-            query: ({countryId, cityId}) => ({
-                url: `countries/${countryId}/cities/${cityId}`,
+            query: ({cityId}) => ({
+                url: `cities/${cityId}`,
                 method: "DELETE"
             }),
             invalidatesTags: (_result, _error, {countryId, cityId}) => [

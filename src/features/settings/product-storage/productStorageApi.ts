@@ -22,7 +22,7 @@ export const productStorageApi = createApi({
         updateStorage: builder.mutation<ProductStorageType, {id: number; body: Partial<ProductStorageType>}>({
             query: ({id, body}) => ({
                 url: `/product-storages/${id}`,
-                method: "PUT",
+                method: "PATCH",
                 body
             }),
             invalidatesTags: ["ProductStorage"]

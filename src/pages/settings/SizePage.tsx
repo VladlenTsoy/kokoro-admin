@@ -1,5 +1,6 @@
-import React, {useState} from "react"
-import {Table, Button, Modal, Form, Input, Space, Popconfirm, Tag} from "antd"
+import React, {useMemo, useState} from "react"
+import {Table, Button, Modal, Form, Input, Space, Popconfirm, Tag, Alert, Empty, Typography, message, Segmented} from "antd"
+import {createStyles} from "antd-style"
 import {
     useGetSizesQuery,
     useCreateSizeMutation,
@@ -8,27 +9,105 @@ import {
 } from "../../features/settings/size/sizeApi.ts"
 import type {SizeType} from "../../features/settings/size/SizeTypes.ts"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
+import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
+
+const {Text} = Typography
+const {Search} = Input
+
+type SizeStatusFilter = "all" | "active" | "archived"
+
+const useStyles = createStyles(({token}) => ({
+    summary: {
+        display: "flex",
+        flexWrap: "wrap",
+        gap: token.marginSM,
+        marginBottom: token.marginMD
+    },
+    filterBar: {
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: token.marginSM,
+        marginBottom: token.marginMD
+    },
+    filterControls: {
+        display: "flex",
+        flexWrap: "wrap",
+        gap: token.marginSM
+    },
+    formHint: {
+        display: "block",
+        marginTop: token.marginXXS
+    }
+}))
 
 const SizePage: React.FC = () => {
-    const {data: sizes, isLoading} = useGetSizesQuery()
-    const [createSize] = useCreateSizeMutation()
-    const [updateSize] = useUpdateSizeMutation()
-    const [deleteSize] = useDeleteSizeMutation()
+    const {styles} = useStyles()
+    const {data: sizes = [], isLoading, isError, refetch} = useGetSizesQuery()
+    const [createSize, {isLoading: isCreating}] = useCreateSizeMutation()
+    const [updateSize, {isLoading: isUpdating}] = useUpdateSizeMutation()
+    const [deleteSize, {isLoading: isDeleting}] = useDeleteSizeMutation()
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingSize, setEditingSize] = useState<SizeType | null>(null)
+    const [deletingSizeId, setDeletingSizeId] = useState<number | null>(null)
+    const [searchValue, setSearchValue] = useState("")
+    const [statusFilter, setStatusFilter] = useState<SizeStatusFilter>("all")
     const [form] = Form.useForm()
 
+    const isSaving = isCreating || isUpdating
+    const isMutationLocked = isSaving || isDeleting
+    const activeCount = sizes.filter((size) => !size.deleted_at).length
+    const archivedCount = sizes.length - activeCount
+    const normalizedSearch = searchValue.trim().toLowerCase()
+    const filteredSizes = useMemo(() => sizes.filter((size) => {
+        const matchesStatus = statusFilter === "all"
+            || (statusFilter === "active" && !size.deleted_at)
+            || (statusFilter === "archived" && Boolean(size.deleted_at))
+        const matchesSearch = !normalizedSearch
+            || size.title.toLowerCase().includes(normalizedSearch)
+            || String(size.id).includes(normalizedSearch)
+
+        return matchesStatus && matchesSearch
+    }), [normalizedSearch, sizes, statusFilter])
+
+    const resetFilters = () => {
+        setSearchValue("")
+        setStatusFilter("all")
+    }
+
     const handleSave = async () => {
-        const values = await form.validateFields()
-        if (editingSize) {
-            await updateSize({id: editingSize.id, data: values})
-        } else {
-            await createSize(values)
+        try {
+            const values = await form.validateFields()
+            if (editingSize) {
+                await updateSize({id: editingSize.id, data: values}).unwrap()
+                message.success("Размер обновлён")
+            } else {
+                await createSize(values).unwrap()
+                message.success("Размер создан")
+            }
+            setIsModalOpen(false)
+            setEditingSize(null)
+            form.resetFields()
+        } catch (error) {
+            if (typeof error === "object" && error !== null && "errorFields" in error) {
+                return
+            }
+            message.error(getNestErrorMessage(error))
         }
-        setIsModalOpen(false)
-        setEditingSize(null)
-        form.resetFields()
+    }
+
+    const handleDelete = async (id: number) => {
+        setDeletingSizeId(id)
+        try {
+            await deleteSize(id).unwrap()
+            message.success("Размер удалён")
+        } catch (error) {
+            message.error(getNestErrorMessage(error))
+        } finally {
+            setDeletingSizeId(null)
+        }
     }
 
     const columns = [
@@ -44,25 +123,38 @@ const SizePage: React.FC = () => {
         {
             title: "Действия",
             key: "actions",
-            render: (_: unknown, record: SizeType) => (
-                <Space>
-                    <Button
-                        type="link"
-                        onClick={() => {
-                            setEditingSize(record)
-                            form.setFieldsValue(record)
-                            setIsModalOpen(true)
-                        }}
-                    >
-                        Редактировать
-                    </Button>
-                    <Popconfirm title="Удалить?" onConfirm={() => deleteSize(record.id)}>
-                        <Button type="link" danger>
-                            Удалить
+            render: (_: unknown, record: SizeType) => {
+                const isCurrentDeleting = deletingSizeId === record.id
+
+                return (
+                    <Space>
+                        <Button
+                            type="link"
+                            disabled={isMutationLocked}
+                            onClick={() => {
+                                setEditingSize(record)
+                                form.setFieldsValue(record)
+                                setIsModalOpen(true)
+                            }}
+                        >
+                            Редактировать
                         </Button>
-                    </Popconfirm>
-                </Space>
-            )
+                        <Popconfirm
+                            title="Удалить размер?"
+                            description="Проверьте, что размер не используется в активных товарах. Удаление может убрать вариант из выбора менеджеров и карточек заказа."
+                            okText={isCurrentDeleting ? "Удаляем…" : "Удалить"}
+                            cancelText="Отмена"
+                            onConfirm={() => handleDelete(record.id)}
+                            okButtonProps={{loading: isCurrentDeleting}}
+                            cancelButtonProps={{disabled: isCurrentDeleting}}
+                        >
+                            <Button type="link" danger loading={isCurrentDeleting} disabled={isMutationLocked && !isCurrentDeleting}>
+                                {isCurrentDeleting ? "Удаляем…" : "Удалить"}
+                            </Button>
+                        </Popconfirm>
+                    </Space>
+                )
+            }
         }
     ]
 
@@ -70,36 +162,128 @@ const SizePage: React.FC = () => {
         <>
             <SettingsTableSection
                 title="Размеры"
-                subtitle="Справочник размеров для карточек товаров."
+                subtitle="Управляйте размерной сеткой каталога: названия должны быть короткими, единообразными и понятными менеджерам при подборе товара."
                 addButtonText="Добавить размер"
+                addButtonDisabled={isMutationLocked}
                 onAdd={() => {
                     setEditingSize(null)
                     form.resetFields()
                     setIsModalOpen(true)
                 }}
             >
+                <div className={styles.summary}>
+                    <Tag color="blue">Всего: {sizes.length}</Tag>
+                    <Tag color="green">Активные: {activeCount}</Tag>
+                    <Tag color="red">Удалённые: {archivedCount}</Tag>
+                    <Tag color={filteredSizes.length === sizes.length ? "default" : "gold"}>Показано: {filteredSizes.length}</Tag>
+                </div>
+                <div className={styles.filterBar}>
+                    <Text type="secondary">
+                        Быстро найдите размер перед созданием нового, чтобы не завести дубль в размерной сетке.
+                    </Text>
+                    <div className={styles.filterControls}>
+                        <Search
+                            allowClear
+                            placeholder="Поиск по названию или ID"
+                            value={searchValue}
+                            onChange={(event) => setSearchValue(event.target.value)}
+                            style={{width: 260}}
+                        />
+                        <Segmented<SizeStatusFilter>
+                            value={statusFilter}
+                            onChange={setStatusFilter}
+                            options={[
+                                {label: "Все", value: "all"},
+                                {label: "Активные", value: "active"},
+                                {label: "Удалённые", value: "archived"}
+                            ]}
+                        />
+                        <Button disabled={!searchValue && statusFilter === "all"} onClick={resetFilters}>
+                            Сбросить
+                        </Button>
+                    </div>
+                </div>
+                {isDeleting && deletingSizeId !== null && (
+                    <Alert
+                        type="warning"
+                        showIcon
+                        message="Удаляем размер"
+                        description="Дождитесь завершения операции: редактирование и другие удаления временно заблокированы, чтобы не смешать изменения в размерной сетке."
+                    />
+                )}
+                {isError && (
+                    <Alert
+                        type="error"
+                        showIcon
+                        message="Не удалось загрузить размеры"
+                        description="Проверьте подключение или повторите загрузку, чтобы менеджеры не работали со старым справочником."
+                        action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
+                    />
+                )}
                 <Table
                     rowKey="id"
                     loading={isLoading}
-                    dataSource={sizes}
+                    dataSource={filteredSizes}
                     columns={columns}
+                    scroll={{x: 640}}
+                    pagination={{pageSize: 20, showSizeChanger: true}}
+                    locale={{
+                        emptyText: searchValue || statusFilter !== "all" ? (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="По выбранным фильтрам размеров нет"
+                            >
+                                <Button onClick={resetFilters}>Сбросить фильтры</Button>
+                            </Empty>
+                        ) : (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="Размеры пока не добавлены"
+                            >
+                                <Button
+                                    type="primary"
+                                    disabled={isMutationLocked}
+                                    onClick={() => {
+                                        setEditingSize(null)
+                                        form.resetFields()
+                                        setIsModalOpen(true)
+                                    }}
+                                >
+                                    Добавить первый размер
+                                </Button>
+                            </Empty>
+                        )
+                    }}
                 />
             </SettingsTableSection>
 
             <Modal
                 open={isModalOpen}
                 title={editingSize ? "Редактировать размер" : "Добавить размер"}
-                onCancel={() => setIsModalOpen(false)}
+                onCancel={() => {
+                    if (!isSaving) {
+                        setIsModalOpen(false)
+                    }
+                }}
                 onOk={handleSave}
+                okText={isSaving ? "Сохраняем…" : editingSize ? "Сохранить размер" : "Добавить размер"}
+                cancelButtonProps={{disabled: isSaving}}
+                maskClosable={!isSaving}
+                keyboard={!isSaving}
+                confirmLoading={isSaving}
             >
                 <Form form={form} layout="vertical">
                     <Form.Item
                         label="Название"
                         name="title"
+                        extra="Используйте формат, который менеджер сразу узнает в карточке товара и заказе: XS, S, M, 42, One Size."
                         rules={[{required: true, message: "Введите название"}]}
                     >
-                        <Input />
+                        <Input placeholder="Например: M" disabled={isSaving} />
                     </Form.Item>
+                    <Text type="secondary" className={styles.formHint}>
+                        Перед сохранением проверьте единый стиль написания: дубли вроде «M» и «m» усложняют подбор размера и учет остатков.
+                    </Text>
                 </Form>
             </Modal>
         </>

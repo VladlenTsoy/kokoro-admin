@@ -8,6 +8,7 @@ import {
     DatePicker,
     Descriptions,
     Drawer,
+    Empty,
     Form,
     Input,
     InputNumber,
@@ -24,7 +25,7 @@ import {
     message
 } from "antd"
 import type {ColumnsType} from "antd/es/table"
-import {AlertOutlined, CheckCircleOutlined, ClockCircleOutlined, FireOutlined, ShoppingOutlined, ThunderboltOutlined} from "@ant-design/icons"
+import {AlertOutlined, CheckCircleOutlined, ClockCircleOutlined, CopyOutlined, FireOutlined, ShoppingOutlined, ThunderboltOutlined} from "@ant-design/icons"
 import {useEffect, useMemo, useRef, useState} from "react"
 import dayjs from "dayjs"
 import PageHeading from "../components/PageHeading.tsx"
@@ -53,7 +54,9 @@ import {useGetSourcesQuery} from "../features/source/sourceApi.ts"
 import {useGetEmployeesQuery} from "../features/admin/employeeApi.ts"
 import {formatMoney} from "../utils/formatters.ts"
 import {useCan} from "../features/auth/permissions.ts"
-import {useSearchParams} from "react-router-dom"
+import {useNavigate, useSearchParams} from "react-router-dom"
+import {deliveryStatusMeta, paymentStatusMeta} from "../utils/adminStatusMeta.ts"
+import {isAntdFormValidationError} from "../utils/isAntdFormValidationError.ts"
 
 const todayFilters = (): GetAdminOrdersParams => ({
     page: 1,
@@ -62,8 +65,10 @@ const todayFilters = (): GetAdminOrdersParams => ({
     to: dayjs().format("YYYY-MM-DD")
 })
 
+const paymentStatusValues: OrderPaymentStatus[] = ["pending", "paid", "failed", "refunded"]
 const deliveryStatusValues: OrderDeliveryStatus[] = ["pending", "preparing", "ready", "delivering", "delivered", "cancelled"]
 const LIVE_ALERT_POLLING_INTERVAL_MS = 30_000
+const STALE_REFRESH_WARNING_MS = LIVE_ALERT_POLLING_INTERVAL_MS * 3
 const LIVE_ALERT_STORAGE_KEY = "kokoro.orders.liveAlertsEnabled"
 
 const slaThresholdMinutes: Partial<Record<OrderDeliveryStatus, number>> = {
@@ -73,37 +78,15 @@ const slaThresholdMinutes: Partial<Record<OrderDeliveryStatus, number>> = {
     delivering: 60
 }
 
-const paymentStatusOptions: Array<{label: string; value: OrderPaymentStatus}> = [
-    {label: "pending", value: "pending"},
-    {label: "paid", value: "paid"},
-    {label: "failed", value: "failed"},
-    {label: "refunded", value: "refunded"}
-]
+const paymentStatusOptions: Array<{label: string; value: OrderPaymentStatus}> = Object.entries(paymentStatusMeta).map(([value, meta]) => ({
+    label: meta.label,
+    value: value as OrderPaymentStatus
+}))
 
-const deliveryStatusOptions: Array<{label: string; value: OrderDeliveryStatus}> = [
-    {label: "pending", value: "pending"},
-    {label: "preparing", value: "preparing"},
-    {label: "ready", value: "ready"},
-    {label: "delivering", value: "delivering"},
-    {label: "delivered", value: "delivered"},
-    {label: "cancelled", value: "cancelled"}
-]
-
-const paymentStatusColor: Record<OrderPaymentStatus, string> = {
-    pending: "orange",
-    paid: "green",
-    failed: "red",
-    refunded: "purple"
-}
-
-const deliveryStatusColor: Record<OrderDeliveryStatus, string> = {
-    pending: "orange",
-    preparing: "blue",
-    ready: "cyan",
-    delivering: "geekblue",
-    delivered: "green",
-    cancelled: "red"
-}
+const deliveryStatusOptions: Array<{label: string; value: OrderDeliveryStatus}> = Object.entries(deliveryStatusMeta).map(([value, meta]) => ({
+    label: meta.label,
+    value: value as OrderDeliveryStatus
+}))
 
 type StatusIntent = "accept" | "ready" | "delivered" | "cancelled"
 
@@ -118,6 +101,50 @@ const statusIntentKeywords: Record<StatusIntent, string[]> = {
     ready: ["ready", "готов"],
     delivered: ["deliver", "complete", "done", "выдан", "достав", "заверш"],
     cancelled: ["cancel", "отмен"]
+}
+
+const getPositiveOrderIdFromSearch = (searchParams: URLSearchParams) => {
+    const orderId = Number(searchParams.get("orderId"))
+    return Number.isInteger(orderId) && orderId > 0 ? orderId : null
+}
+
+const getOrderSearchFromSearch = (searchParams: URLSearchParams) => {
+    const search = searchParams.get("search")?.trim()
+    return search || undefined
+}
+
+const getPositiveNumberFromSearch = (searchParams: URLSearchParams, key: string) => {
+    const value = Number(searchParams.get(key))
+    return Number.isInteger(value) && value > 0 ? value : undefined
+}
+
+const getPaymentStatusFromSearch = (searchParams: URLSearchParams) => {
+    const paymentStatus = searchParams.get("paymentStatus")
+    return paymentStatusValues.includes(paymentStatus as OrderPaymentStatus) ? paymentStatus as OrderPaymentStatus : undefined
+}
+
+const getDeliveryStatusFromSearch = (searchParams: URLSearchParams) => {
+    const deliveryStatus = searchParams.get("deliveryStatus")
+    return deliveryStatusValues.includes(deliveryStatus as OrderDeliveryStatus) ? deliveryStatus as OrderDeliveryStatus : undefined
+}
+
+const getDateFromSearch = (searchParams: URLSearchParams, key: string) => {
+    const value = searchParams.get(key)
+    return value && /^\d{4}-\d{2}-\d{2}$/.test(value) && dayjs(value).format("YYYY-MM-DD") === value ? value : undefined
+}
+
+const getInitialOrderFiltersFromSearch = (searchParams: URLSearchParams): GetAdminOrdersParams => {
+    const from = getDateFromSearch(searchParams, "from")
+    const to = getDateFromSearch(searchParams, "to")
+
+    return {
+        ...todayFilters(),
+        search: getOrderSearchFromSearch(searchParams),
+        statusId: getPositiveNumberFromSearch(searchParams, "statusId"),
+        paymentStatus: getPaymentStatusFromSearch(searchParams),
+        deliveryStatus: getDeliveryStatusFromSearch(searchParams),
+        ...(from && to ? {from, to} : {})
+    }
 }
 
 const getOrderAgeMinutes = (createdAt?: string) => {
@@ -155,6 +182,28 @@ const getFallbackSlaSnapshot = (order: AdminOrder): OrderSlaSnapshot => {
 
 const getOrderSlaSnapshot = (order: AdminOrder) => order.sla || getFallbackSlaSnapshot(order)
 
+const buildOrderHandoffText = (order: AdminOrder, phone?: string | null) => {
+    const clientName = order.client?.name || order.clientName || "Клиент не указан"
+    const address = order.clientAddress?.address || "Адрес не указан"
+    const payment = order.paymentMethod?.title || (order.paymentStatus ? paymentStatusMeta[order.paymentStatus].label : "Оплата не указана")
+    const delivery = order.deliveryType?.title || (order.deliveryStatus ? deliveryStatusMeta[order.deliveryStatus].label : "Доставка не указана")
+    const assignedEmployee = order.assignedEmployee
+        ? `${order.assignedEmployee.firstName} ${order.assignedEmployee.lastName}`
+        : "Не назначен"
+
+    return [
+        `Заказ #${order.orderNumber || order.id}`,
+        `Клиент: ${clientName}`,
+        `Телефон: ${phone || "Не указан"}`,
+        `Адрес: ${address}`,
+        `Следующий шаг: ${getNextActionLabel(order)}`,
+        `Оплата: ${payment}`,
+        `Доставка: ${delivery}`,
+        `Ответственный: ${assignedEmployee}`,
+        `Итого к оплате: ${formatMoney(order.total)}`
+    ].join("\n")
+}
+
 const getOrderBadges = (order: AdminOrder) => {
     const badges: Array<{label: string; color: string}> = []
     const age = getOrderAgeMinutes(order.createdAt)
@@ -168,7 +217,7 @@ const getOrderBadges = (order: AdminOrder) => {
     if (sla.state === "stuck") badges.push({label: `Завис ${sla.ageMinutes} мин`, color: "volcano"})
     if (order.deliveryStatus === "ready") badges.push({label: "Готов", color: "cyan"})
     if (order.deliveryStatus === "cancelled" && order.paymentStatus === "paid") {
-        badges.push({label: "Paid + Cancelled", color: "volcano"})
+        badges.push({label: "Оплачен + отменён", color: "volcano"})
     }
 
     return badges
@@ -207,19 +256,20 @@ const getHistoryStatusTitle = (item: OrderHistoryItem, side: "from" | "to") => {
 }
 
 const OrdersPage = () => {
-    const [searchParams] = useSearchParams()
-    const initialDeliveryStatus = searchParams.get("deliveryStatus")
-    const [filters, setFilters] = useState<GetAdminOrdersParams>(() => ({
-        ...todayFilters(),
-        deliveryStatus: deliveryStatusValues.includes(initialDeliveryStatus as OrderDeliveryStatus)
-            ? initialDeliveryStatus as OrderDeliveryStatus
-            : undefined
-    }))
+    const navigate = useNavigate()
+    const [searchParams, setSearchParams] = useSearchParams()
+    const [filters, setFilters] = useState<GetAdminOrdersParams>(() => getInitialOrderFiltersFromSearch(searchParams))
+    const [searchInput, setSearchInput] = useState(() => getOrderSearchFromSearch(searchParams) || "")
     const [problemOnly, setProblemOnly] = useState(searchParams.get("problemOnly") === "1")
     const [attentionOnly, setAttentionOnly] = useState(searchParams.get("attentionOnly") === "1")
-    const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
+    const [selectedOrderId, setSelectedOrderId] = useState<number | null>(() => getPositiveOrderIdFromSearch(searchParams))
     const [actionOrderId, setActionOrderId] = useState<number | null>(null)
     const [liveAlertsEnabled, setLiveAlertsEnabled] = useState(() => localStorage.getItem(LIVE_ALERT_STORAGE_KEY) !== "0")
+    const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">(() => (
+        canUseBrowserNotifications() ? Notification.permission : "unsupported"
+    ))
+    const [lastSuccessfulRefreshAt, setLastSuccessfulRefreshAt] = useState<string | null>(null)
+    const [refreshClock, setRefreshClock] = useState(() => dayjs())
     const lastSummaryRef = useRef<{newOrders: number; problemToday: number} | null>(null)
     const seenOrderIdsRef = useRef<Set<number>>(new Set())
     const hasPrimedLiveAlertsRef = useRef(false)
@@ -236,17 +286,33 @@ const OrdersPage = () => {
     const {data: statuses} = useGetOrderStatusesQuery()
     const {data: sources} = useGetSourcesQuery()
     const {data: employees} = useGetEmployeesQuery()
-    const {data: summary} = useGetOrdersSummaryQuery(undefined, {
+    const {
+        data: summary,
+        isError: isSummaryError,
+        isFetching: isSummaryFetching,
+        refetch: refetchSummary
+    } = useGetOrdersSummaryQuery(undefined, {
         pollingInterval: LIVE_ALERT_POLLING_INTERVAL_MS,
         refetchOnFocus: true,
         refetchOnMountOrArgChange: true
     })
-    const {data, isLoading, isFetching} = useGetOrdersQuery({...filters, problemOnly, attentionOnly}, {
+    const {
+        data,
+        isLoading,
+        isFetching,
+        isError: isOrdersError,
+        refetch: refetchOrders
+    } = useGetOrdersQuery({...filters, problemOnly, attentionOnly}, {
         pollingInterval: LIVE_ALERT_POLLING_INTERVAL_MS,
         refetchOnFocus: true,
         refetchOnMountOrArgChange: true
     })
-    const {data: selectedOrder, isFetching: isOrderLoading} = useGetOrderByIdQuery(selectedOrderId ?? 0, {
+    const {
+        data: selectedOrder,
+        isFetching: isOrderLoading,
+        isError: isOrderError,
+        refetch: refetchSelectedOrder
+    } = useGetOrderByIdQuery(selectedOrderId ?? 0, {
         skip: !selectedOrderId
     })
     const {data: orderHistory} = useGetOrderHistoryQuery(selectedOrderId ?? 0, {
@@ -258,18 +324,80 @@ const OrdersPage = () => {
     const [createOrderComment, {isLoading: isCreatingComment}] = useCreateOrderCommentMutation()
     const canUpdateOrders = useCan("orders.update")
     const canDeleteOrders = useCan("orders.delete")
+    const isOrderActionSaving = isUpdatingOrder || isUpdatingStatus || isCancelling || isCreatingComment
     const currentActionOrderId = actionOrderId ?? selectedOrderId
     const currentItems = useMemo(() => data?.items || [], [data?.items])
+    const activeOrderFilterLabels = useMemo(() => {
+        const labels: string[] = []
+
+        if (filters.search) labels.push(`поиск: ${filters.search}`)
+        if (filters.statusId) {
+            labels.push(`статус: ${statuses?.find((status) => status.id === filters.statusId)?.title || filters.statusId}`)
+        }
+        if (filters.paymentStatus) labels.push(`оплата: ${paymentStatusMeta[filters.paymentStatus]?.label || filters.paymentStatus}`)
+        if (filters.deliveryStatus) labels.push(`доставка: ${deliveryStatusMeta[filters.deliveryStatus]?.label || filters.deliveryStatus}`)
+        if (filters.from && filters.to) labels.push(`период: ${dayjs(filters.from).format("DD.MM")}–${dayjs(filters.to).format("DD.MM")}`)
+        if (problemOnly) labels.push("только проблемные")
+        if (attentionOnly) labels.push("требуют внимания")
+
+        return labels
+    }, [attentionOnly, filters, problemOnly, statuses])
+    const hasActiveOrderFilters = activeOrderFilterLabels.length > 0
     const editingOrder = useMemo(
         () => selectedOrder?.id === currentActionOrderId
             ? selectedOrder
             : currentItems.find((order) => order.id === currentActionOrderId),
         [currentActionOrderId, currentItems, selectedOrder]
     )
+    const selectedOrderHistory = orderHistory || selectedOrder?.histories || []
 
     useEffect(() => {
         localStorage.setItem(LIVE_ALERT_STORAGE_KEY, liveAlertsEnabled ? "1" : "0")
     }, [liveAlertsEnabled])
+
+    useEffect(() => {
+        const orderIdFromUrl = getPositiveOrderIdFromSearch(searchParams)
+        setSelectedOrderId((currentOrderId) => currentOrderId === orderIdFromUrl ? currentOrderId : orderIdFromUrl)
+    }, [searchParams])
+
+    useEffect(() => {
+        setSearchParams((previousParams) => {
+            const nextParams = new URLSearchParams()
+            const orderId = getPositiveOrderIdFromSearch(previousParams) ?? selectedOrderId
+
+            if (orderId) nextParams.set("orderId", String(orderId))
+            if (filters.search) nextParams.set("search", filters.search)
+            if (filters.statusId) nextParams.set("statusId", String(filters.statusId))
+            if (filters.paymentStatus) nextParams.set("paymentStatus", filters.paymentStatus)
+            if (filters.deliveryStatus) nextParams.set("deliveryStatus", filters.deliveryStatus)
+            if (filters.from && filters.to) {
+                nextParams.set("from", filters.from)
+                nextParams.set("to", filters.to)
+            }
+            if (problemOnly) nextParams.set("problemOnly", "1")
+            if (attentionOnly) nextParams.set("attentionOnly", "1")
+
+            return nextParams.toString() === previousParams.toString() ? previousParams : nextParams
+        }, {replace: true})
+    }, [attentionOnly, filters.deliveryStatus, filters.from, filters.paymentStatus, filters.search, filters.statusId, filters.to, problemOnly, selectedOrderId, setSearchParams])
+
+    useEffect(() => {
+        const timer = window.setInterval(() => setRefreshClock(dayjs()), 15_000)
+        return () => window.clearInterval(timer)
+    }, [])
+
+    useEffect(() => {
+        if (!isFetching && (data || summary)) {
+            setLastSuccessfulRefreshAt(dayjs().toISOString())
+        }
+    }, [data, isFetching, summary])
+
+    const lastRefreshAgeSeconds = lastSuccessfulRefreshAt ? refreshClock.diff(dayjs(lastSuccessfulRefreshAt), "second") : null
+    const isRefreshStale = lastRefreshAgeSeconds !== null && lastRefreshAgeSeconds * 1000 > STALE_REFRESH_WARNING_MS
+    const isQueueActionBlocked = isOrdersError || isRefreshStale
+    const queueActionBlockReason = isOrdersError
+        ? "Очередь не обновилась — повторите загрузку перед изменением заказа."
+        : "Данные очереди устарели — дождитесь успешного обновления перед изменением заказа."
 
     useEffect(() => {
         if (!summary) return
@@ -324,7 +452,13 @@ const OrdersPage = () => {
 
     const handleLiveAlertsChange = async (enabled: boolean) => {
         if (enabled && canUseBrowserNotifications() && Notification.permission === "default") {
-            await Notification.requestPermission()
+            const permission = await Notification.requestPermission()
+            setNotificationPermission(permission)
+            if (permission === "denied") {
+                message.warning("Desktop-уведомления запрещены в браузере — звуковой сигнал останется, но всплывающих уведомлений не будет.")
+            }
+        } else {
+            setNotificationPermission(canUseBrowserNotifications() ? Notification.permission : "unsupported")
         }
         setLiveAlertsEnabled(enabled)
     }
@@ -336,7 +470,21 @@ const OrdersPage = () => {
             .find((status) => keywords.some((keyword) => status.title.toLowerCase().includes(keyword)))
     }
 
-    const openOrder = (id: number) => setSelectedOrderId(id)
+    const updateSelectedOrderId = (id: number | null) => {
+        setSelectedOrderId(id)
+        setSearchParams((previousParams) => {
+            const nextParams = new URLSearchParams(previousParams)
+            if (id) {
+                nextParams.set("orderId", String(id))
+            } else {
+                nextParams.delete("orderId")
+            }
+            return nextParams
+        }, {replace: !id})
+    }
+
+    const openOrder = (id: number) => updateSelectedOrderId(id)
+    const closeOrderDrawer = () => updateSelectedOrderId(null)
     const selectedPhone = selectedOrder?.client?.phone || selectedOrder?.phone
 
     const openStatusModal = (id: number) => {
@@ -381,24 +529,28 @@ const OrdersPage = () => {
     }
 
     const closeStatusModal = () => {
+        if (isUpdatingStatus) return
         setStatusModalOpen(false)
         setActionOrderId(null)
         statusForm.resetFields()
     }
 
     const closeCancelModal = () => {
+        if (isCancelling) return
         setCancelModalOpen(false)
         setActionOrderId(null)
         cancelForm.resetFields()
     }
 
     const closeCommentModal = () => {
+        if (isCreatingComment) return
         setCommentModalOpen(false)
         setActionOrderId(null)
         commentForm.resetFields()
     }
 
     const closeEditModal = () => {
+        if (isUpdatingOrder) return
         setEditModalOpen(false)
         setActionOrderId(null)
         editForm.resetFields()
@@ -407,11 +559,13 @@ const OrdersPage = () => {
     const setTodayFilters = () => {
         setProblemOnly(false)
         setAttentionOnly(false)
+        setSearchInput("")
         setFilters(todayFilters())
     }
     const setAllFilters = () => {
         setProblemOnly(false)
         setAttentionOnly(false)
+        setSearchInput("")
         setFilters({page: 1, pageSize: 20})
     }
     const setDeliveryFilter = (deliveryStatus?: OrderDeliveryStatus) => {
@@ -430,6 +584,27 @@ const OrdersPage = () => {
         }
     }
 
+    const copyOrderHandoff = async (order: AdminOrder) => {
+        try {
+            await navigator.clipboard.writeText(buildOrderHandoffText(order, selectedPhone))
+            message.success("Сводка для передачи скопирована")
+        } catch {
+            message.error("Не удалось скопировать сводку")
+        }
+    }
+
+    const openClientProfile = (clientId: number) => {
+        navigate(`/clients?clientId=${clientId}`)
+    }
+
+    const notificationPermissionMessage = notificationPermission === "granted"
+        ? "Desktop-уведомления разрешены: браузер покажет короткий безопасный alert без ФИО и телефона."
+        : notificationPermission === "denied"
+            ? "Desktop-уведомления запрещены в браузере: оставляем только звук и обновление стола заказов."
+            : notificationPermission === "unsupported"
+                ? "Браузер не поддерживает desktop-уведомления: Live Ops Alert работает через звук и автообновление."
+                : "Desktop-уведомления ещё не разрешены: при включении браузер попросит доступ."
+
     const handleEditSubmit = async () => {
         if (!currentActionOrderId) return
         try {
@@ -445,6 +620,9 @@ const OrdersPage = () => {
             message.success("Данные заказа обновлены")
             closeEditModal()
         } catch (error) {
+            if (isAntdFormValidationError(error)) {
+                return
+            }
             message.error(getNestErrorMessage(error))
         }
     }
@@ -464,6 +642,9 @@ const OrdersPage = () => {
             message.success("Статус заказа обновлён")
             closeStatusModal()
         } catch (error) {
+            if (isAntdFormValidationError(error)) {
+                return
+            }
             message.error(getNestErrorMessage(error))
         }
     }
@@ -476,6 +657,9 @@ const OrdersPage = () => {
             message.success("Заказ отменён")
             closeCancelModal()
         } catch (error) {
+            if (isAntdFormValidationError(error)) {
+                return
+            }
             message.error(getNestErrorMessage(error))
         }
     }
@@ -494,6 +678,9 @@ const OrdersPage = () => {
             message.success("Комментарий добавлен")
             closeCommentModal()
         } catch (error) {
+            if (isAntdFormValidationError(error)) {
+                return
+            }
             message.error(getNestErrorMessage(error))
         }
     }
@@ -504,7 +691,7 @@ const OrdersPage = () => {
                 key: "orderNumber",
                 width: 130,
                 render: (_, order) => (
-                    <Space orientation="vertical" size={0}>
+                    <Space direction="vertical" size={0}>
                         <Typography.Text strong>{order.orderNumber || `#${order.id}`}</Typography.Text>
                         <Typography.Text type="secondary">{dayjs(order.createdAt).format("HH:mm")}</Typography.Text>
                     </Space>
@@ -532,7 +719,7 @@ const OrdersPage = () => {
                 render: (_, order) => {
                     const phone = order.client?.phone || order.phone
                     return (
-                        <Space orientation="vertical" size={0}>
+                        <Space direction="vertical" size={0}>
                             <Typography.Text>{order.client?.name || order.clientName || "—"}</Typography.Text>
                             <Typography.Text copyable={Boolean(phone)} type="secondary">{phone || "—"}</Typography.Text>
                         </Space>
@@ -552,8 +739,8 @@ const OrdersPage = () => {
                 render: (_, order) => (
                     <Space wrap size={[0, 4]}>
                         {order.status?.title && <Tag color="blue">{order.status.title}</Tag>}
-                        {order.paymentStatus && <Tag color={paymentStatusColor[order.paymentStatus]}>{order.paymentStatus}</Tag>}
-                        {order.deliveryStatus && <Tag color={deliveryStatusColor[order.deliveryStatus]}>{order.deliveryStatus}</Tag>}
+                        {order.paymentStatus && <Tag color={paymentStatusMeta[order.paymentStatus]?.color}>{paymentStatusMeta[order.paymentStatus]?.label}</Tag>}
+                        {order.deliveryStatus && <Tag color={deliveryStatusMeta[order.deliveryStatus]?.color}>{deliveryStatusMeta[order.deliveryStatus]?.label}</Tag>}
                     </Space>
                 )
             },
@@ -588,15 +775,53 @@ const OrdersPage = () => {
             {
                 title: "Действия",
                 key: "actions",
-                width: 300,
+                width: 320,
                 fixed: "right",
                 render: (_, order) => (
-                    <Space>
-                        <Button onClick={() => openOrder(order.id)}>Открыть</Button>
-                        {canUpdateOrders && <Button type="primary" onClick={() => openNextActionModal(order)}>{getNextActionLabel(order)}</Button>}
-                        {canUpdateOrders && <Button onClick={() => openEditModal(order)}>Правки</Button>}
-                        {canUpdateOrders && <Button onClick={() => openStatusModal(order.id)}>Статус</Button>}
-                        {canDeleteOrders && <Button danger onClick={() => openCancelModal(order.id)}>Отмена</Button>}
+                    <Space wrap size={[6, 6]} className="order-row-actions">
+                        <Button size="small" onClick={() => openOrder(order.id)}>Открыть</Button>
+                        {canUpdateOrders && (
+                            <Button
+                                size="small"
+                                type="primary"
+                                disabled={isQueueActionBlocked || isOrderActionSaving}
+                                title={isQueueActionBlocked ? queueActionBlockReason : isOrderActionSaving ? "Дождитесь завершения текущего действия" : undefined}
+                                onClick={() => openNextActionModal(order)}
+                            >
+                                {getNextActionLabel(order)}
+                            </Button>
+                        )}
+                        {canUpdateOrders && (
+                            <Button
+                                size="small"
+                                disabled={isQueueActionBlocked || isOrderActionSaving}
+                                title={isQueueActionBlocked ? queueActionBlockReason : isOrderActionSaving ? "Дождитесь завершения текущего действия" : undefined}
+                                onClick={() => openEditModal(order)}
+                            >
+                                Правки
+                            </Button>
+                        )}
+                        {canUpdateOrders && (
+                            <Button
+                                size="small"
+                                disabled={isQueueActionBlocked || isOrderActionSaving}
+                                title={isQueueActionBlocked ? queueActionBlockReason : isOrderActionSaving ? "Дождитесь завершения текущего действия" : undefined}
+                                onClick={() => openStatusModal(order.id)}
+                            >
+                                Статус
+                            </Button>
+                        )}
+                        {canDeleteOrders && (
+                            <Button
+                                size="small"
+                                danger
+                                disabled={isQueueActionBlocked || isOrderActionSaving}
+                                title={isQueueActionBlocked ? queueActionBlockReason : isOrderActionSaving ? "Дождитесь завершения текущего действия" : undefined}
+                                onClick={() => openCancelModal(order.id)}
+                            >
+                                Отмена
+                            </Button>
+                        )}
                     </Space>
                 )
             }
@@ -614,7 +839,7 @@ const OrdersPage = () => {
     ]
 
     return (
-        <Space orientation="vertical" size={18} style={{width: "100%"}}>
+        <Space direction="vertical" size={18} style={{width: "100%"}}>
             <Card className="admin-hero-card orders-hero">
                 <PageHeading
                     title="Today Order Desk"
@@ -622,23 +847,56 @@ const OrdersPage = () => {
                 />
                 <Space wrap className="hero-badges">
                     <Badge status="processing" text="Сегодня по умолчанию" />
-                    <Badge status={(summary?.problemToday ?? 0) > 0 ? "error" : "success"} text={`${summary?.problemToday ?? 0} проблемных`} />
+                    <Badge status={(summary?.problemToday ?? 0) > 0 ? "error" : isSummaryError ? "warning" : "success"} text={isSummaryError ? "Summary требует проверки" : `${summary?.problemToday ?? 0} проблемных`} />
                     <Badge status="warning" text="SLA: новые 10+ мин подсвечиваются" />
-                    <Badge status={isFetching ? "processing" : "success"} text="Live refresh: 30 сек" />
+                    <Badge status={isFetching || isSummaryFetching ? "processing" : "success"} text="Live refresh: 30 сек" />
+                    <Badge
+                        status={lastSuccessfulRefreshAt ? "success" : "default"}
+                        text={lastSuccessfulRefreshAt ? `Обновлено ${dayjs(lastSuccessfulRefreshAt).format("HH:mm:ss")}` : "Ожидаем первое обновление"}
+                    />
                 </Space>
             </Card>
 
             <Card className="filter-card">
-                <Space wrap align="center">
-                    <Badge status={liveAlertsEnabled ? "processing" : "default"} text="Live Ops Alert" />
-                    <Checkbox checked={liveAlertsEnabled} onChange={(event) => handleLiveAlertsChange(event.target.checked)}>
-                        Звук и desktop-уведомления включены
-                    </Checkbox>
-                    <Typography.Text type="secondary">
-                        Заказы и summary обновляются автоматически каждые 30 секунд. Уведомления не содержат ФИО или телефон клиента.
-                    </Typography.Text>
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
+                    <Space wrap align="center">
+                        <Badge status={liveAlertsEnabled ? "processing" : "default"} text="Live Ops Alert" />
+                        <Checkbox checked={liveAlertsEnabled} onChange={(event) => handleLiveAlertsChange(event.target.checked)}>
+                            Звук и desktop-уведомления включены
+                        </Checkbox>
+                        <Typography.Text type="secondary">
+                            Заказы и summary обновляются автоматически каждые 30 секунд. Последнее успешное обновление: {lastSuccessfulRefreshAt ? dayjs(lastSuccessfulRefreshAt).format("DD.MM HH:mm:ss") : "ещё не было"}.
+                        </Typography.Text>
+                        <Typography.Text type="secondary">
+                            Уведомления не содержат ФИО или телефон клиента.
+                        </Typography.Text>
+                    </Space>
+                    <Alert
+                        showIcon
+                        type={notificationPermission === "denied" ? "warning" : "info"}
+                        message="Статус desktop-уведомлений"
+                        description={notificationPermissionMessage}
+                    />
+                    {isRefreshStale && (
+                        <Alert
+                            showIcon
+                            type="warning"
+                            message="Данные давно не обновлялись"
+                            description={`Последнее успешное обновление было ${lastRefreshAgeSeconds} сек. назад. Действия из таблицы временно заблокированы — дождитесь успешного refresh перед изменением заказа.`}
+                        />
+                    )}
                 </Space>
             </Card>
+
+            {isSummaryError && (
+                <Alert
+                    showIcon
+                    type="warning"
+                    message="Не удалось обновить операционный summary"
+                    description="Счётчики Today Desk могут быть неполными. Перед оценкой нагрузки смены обновите summary; список заказов и карточки остаются доступными по отдельной загрузке."
+                    action={<Button size="small" onClick={() => refetchSummary()}>Обновить summary</Button>}
+                />
+            )}
 
             <Row gutter={[16, 16]}>
                 <Col xs={24} sm={12} lg={6} xl={4}>
@@ -662,7 +920,7 @@ const OrdersPage = () => {
             </Row>
 
             <Card className="filter-card">
-                <Space orientation="vertical" size={14} style={{width: "100%"}}>
+                <Space direction="vertical" size={14} style={{width: "100%"}}>
                     <Space wrap>
                         <Button type={filters.from && filters.to ? "primary" : "default"} onClick={setTodayFilters}>Сегодня</Button>
                         <Button onClick={() => setDeliveryFilter("pending")}>Новые</Button>
@@ -686,7 +944,12 @@ const OrdersPage = () => {
                         <Input.Search
                             placeholder="Поиск по номеру, клиенту, телефону"
                             allowClear
-                            onSearch={(search) => setFilters((prev) => ({...prev, search, page: 1}))}
+                            value={searchInput}
+                            onChange={(event) => {
+                                setSearchInput(event.target.value)
+                                if (!event.target.value) setFilters((prev) => ({...prev, search: undefined, page: 1}))
+                            }}
+                            onSearch={(search) => setFilters((prev) => ({...prev, search: search.trim() || undefined, page: 1}))}
                             style={{width: 320}}
                         />
                         <Select
@@ -694,6 +957,7 @@ const OrdersPage = () => {
                             placeholder="Статус заказа"
                             style={{width: 180}}
                             options={statuses?.map((status) => ({label: status.title, value: status.id}))}
+                            value={filters.statusId}
                             onChange={(statusId) => setFilters((prev) => ({...prev, statusId, page: 1}))}
                         />
                         <Select
@@ -701,6 +965,7 @@ const OrdersPage = () => {
                             placeholder="Статус оплаты"
                             style={{width: 180}}
                             options={paymentStatusOptions}
+                            value={filters.paymentStatus}
                             onChange={(paymentStatus) => setFilters((prev) => ({...prev, paymentStatus, page: 1}))}
                         />
                         <Select
@@ -724,10 +989,43 @@ const OrdersPage = () => {
                         />
                         <Button onClick={setTodayFilters}>Сброс к сегодня</Button>
                     </Space>
+                    <Space wrap align="center">
+                        <Typography.Text type="secondary">
+                            {hasActiveOrderFilters ? "Активные фильтры:" : "Фильтры не ограничивают список — показаны все доступные заказы."}
+                        </Typography.Text>
+                        {activeOrderFilterLabels.map((label) => <Tag key={label}>{label}</Tag>)}
+                        {hasActiveOrderFilters && <Button size="small" onClick={setAllFilters}>Очистить всё</Button>}
+                        {hasActiveOrderFilters && (
+                            <Typography.Text type="secondary">
+                                Ссылка сохраняет эти фильтры вместе с поиском — можно безопасно передать очередь смены коллеге.
+                            </Typography.Text>
+                        )}
+                    </Space>
                 </Space>
             </Card>
 
-            <Card className="admin-table-card orders-table-card">
+            <Card
+                className="admin-table-card orders-table-card"
+                extra={(
+                    <Typography.Text type="secondary">
+                        {isFetching
+                            ? "Обновляем список…"
+                            : lastSuccessfulRefreshAt
+                                ? `Данные актуальны на ${dayjs(lastSuccessfulRefreshAt).format("HH:mm:ss")}`
+                                : "После загрузки здесь будет время актуальности"}
+                    </Typography.Text>
+                )}
+            >
+                {isOrdersError && (
+                    <Alert
+                        type="error"
+                        showIcon
+                        message="Не удалось обновить очередь заказов"
+                        description="Действия из таблицы временно заблокированы, чтобы менеджер не менял статус по устаревшему списку. Повторите загрузку или откройте карточку заказа только для просмотра."
+                        action={<Button size="small" onClick={() => refetchOrders()}>Повторить</Button>}
+                        style={{marginBottom: 16}}
+                    />
+                )}
                 <Table<AdminOrder>
                     rowKey="id"
                     loading={isLoading}
@@ -735,6 +1033,19 @@ const OrdersPage = () => {
                     columns={orderColumns}
                     scroll={{x: 1600}}
                     rowClassName={(order) => getOrderBadges(order).some((badge) => badge.color === "red" || badge.color === "volcano") ? "table-row-alert" : ""}
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description={hasActiveOrderFilters
+                                    ? "Заказов по выбранным условиям нет. Проверьте фильтры перед созданием ручного заказа или звонком клиенту."
+                                    : "Заказы пока не поступали. Live Desk обновится автоматически при появлении новых заказов."
+                                }
+                            >
+                                {hasActiveOrderFilters && <Button onClick={setAllFilters}>Показать все заказы</Button>}
+                            </Empty>
+                        )
+                    }}
                     pagination={{
                         current: data?.page || filters.page || 1,
                         pageSize: data?.pageSize || filters.pageSize || 20,
@@ -747,18 +1058,42 @@ const OrdersPage = () => {
             <Drawer
                 title={selectedOrder ? `Заказ ${selectedOrder.orderNumber || `#${selectedOrder.id}`}` : "Карточка заказа"}
                 open={Boolean(selectedOrderId)}
-                onClose={() => setSelectedOrderId(null)}
+                onClose={closeOrderDrawer}
                 width={1100}
                 extra={selectedOrder && canUpdateOrders ? (
-                    <Space>
-                        <Button onClick={() => openEditModal(selectedOrder)}>Правки</Button>
-                        <Button type="primary" onClick={() => openNextActionModal(selectedOrder)}>{getNextActionLabel(selectedOrder)}</Button>
+                    <Space wrap size={[6, 6]} className="order-drawer-actions">
+                        <Button size="small" disabled={isOrderActionSaving} onClick={() => openEditModal(selectedOrder)}>Правки</Button>
+                        <Button size="small" type="primary" disabled={isOrderActionSaving} onClick={() => openNextActionModal(selectedOrder)}>{getNextActionLabel(selectedOrder)}</Button>
                     </Space>
                 ) : null}
             >
-                {isOrderLoading && <Typography.Text type="secondary">Загрузка...</Typography.Text>}
-                {!isOrderLoading && selectedOrder && (
-                    <Space orientation="vertical" size={16} style={{width: "100%"}}>
+                {isOrderLoading && (
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Загружаем карточку заказа"
+                        description="Подтягиваем состав, оплату, доставку и историю — не меняйте статус, пока данные не обновились."
+                    />
+                )}
+                {!isOrderLoading && isOrderError && (
+                    <Alert
+                        type="error"
+                        showIcon
+                        message="Не удалось открыть карточку заказа"
+                        description="Повторите загрузку перед звонком клиенту или изменением статуса, чтобы не работать с неполными данными."
+                        action={<Button size="small" onClick={() => refetchSelectedOrder()}>Повторить</Button>}
+                    />
+                )}
+                {!isOrderLoading && !isOrderError && selectedOrderId && !selectedOrder && (
+                    <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description="Заказ не найден или больше недоступен"
+                    >
+                        <Button onClick={closeOrderDrawer}>Вернуться к списку</Button>
+                    </Empty>
+                )}
+                {!isOrderLoading && !isOrderError && selectedOrder && (
+                    <Space direction="vertical" size={16} style={{width: "100%"}}>
                         <Card className="drawer-command-card">
                             <Row gutter={[16, 16]} align="middle">
                                 <Col xs={24} md={8}>
@@ -768,8 +1103,8 @@ const OrdersPage = () => {
                                 <Col xs={24} md={10}>
                                     <Space wrap>
                                         {selectedOrder.status?.title && <Tag color="blue">{selectedOrder.status.title}</Tag>}
-                                        {selectedOrder.paymentStatus && <Tag color={paymentStatusColor[selectedOrder.paymentStatus]}>{selectedOrder.paymentStatus}</Tag>}
-                                        {selectedOrder.deliveryStatus && <Tag color={deliveryStatusColor[selectedOrder.deliveryStatus]}>{selectedOrder.deliveryStatus}</Tag>}
+                                        {selectedOrder.paymentStatus && <Tag color={paymentStatusMeta[selectedOrder.paymentStatus]?.color}>{paymentStatusMeta[selectedOrder.paymentStatus]?.label}</Tag>}
+                                        {selectedOrder.deliveryStatus && <Tag color={deliveryStatusMeta[selectedOrder.deliveryStatus]?.color}>{deliveryStatusMeta[selectedOrder.deliveryStatus]?.label}</Tag>}
                                         <Tag>{formatOrderAge(selectedOrder.createdAt)}</Tag>
                                         {getOrderBadges(selectedOrder).map((badge) => <Tag key={badge.label} color={badge.color}>{badge.label}</Tag>)}
                                     </Space>
@@ -783,7 +1118,7 @@ const OrdersPage = () => {
 
                         <Row gutter={[16, 16]}>
                             <Col xs={24} lg={15}>
-                                <Space orientation="vertical" size={16} style={{width: "100%"}}>
+                                <Space direction="vertical" size={16} style={{width: "100%"}}>
                                     <Card className="workflow-card" title="Workflow заказа">
                                         <Space wrap>
                                             {["Новый", "Принят", "Собирается", "Готов", "Выдан/доставлен", "Закрыт"].map((step) => <Tag key={step}>{step}</Tag>)}
@@ -805,48 +1140,103 @@ const OrdersPage = () => {
                                         title="История событий"
                                         extra={canUpdateOrders ? <Button onClick={() => setCommentModalOpen(true)}>Добавить комментарий</Button> : null}
                                     >
-                                        <Timeline
-                                            items={(orderHistory || selectedOrder.histories || []).map((item) => ({
-                                                children: (
-                                                    <div>
-                                                        <Typography.Text>{getHistoryDate(item) ? dayjs(getHistoryDate(item)).format("DD.MM.YYYY HH:mm") : "—"}</Typography.Text>
-                                                        <div>{getHistoryStatusTitle(item, "from")} → {getHistoryStatusTitle(item, "to")}</div>
-                                                        {item.changedBy && <Typography.Text type="secondary">{item.changedBy}</Typography.Text>}
-                                                        {item.comment && <div><Typography.Text type="secondary">{item.comment}</Typography.Text></div>}
-                                                    </div>
-                                                )
-                                            }))}
-                                        />
+                                        {selectedOrderHistory.length ? (
+                                            <Timeline
+                                                items={selectedOrderHistory.map((item) => ({
+                                                    children: (
+                                                        <div>
+                                                            <Typography.Text>{getHistoryDate(item) ? dayjs(getHistoryDate(item)).format("DD.MM.YYYY HH:mm") : "—"}</Typography.Text>
+                                                            <div>{getHistoryStatusTitle(item, "from")} → {getHistoryStatusTitle(item, "to")}</div>
+                                                            {item.changedBy && <Typography.Text type="secondary">{item.changedBy}</Typography.Text>}
+                                                            {item.comment && <div><Typography.Text type="secondary">{item.comment}</Typography.Text></div>}
+                                                        </div>
+                                                    )
+                                                }))}
+                                            />
+                                        ) : (
+                                            <Empty
+                                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                                description="История пока пуста"
+                                            >
+                                                <Typography.Text type="secondary">
+                                                    После смены статуса или комментария здесь появится журнал действий, чтобы менеджер видел контекст передачи заказа.
+                                                </Typography.Text>
+                                            </Empty>
+                                        )}
                                     </Card>
                                 </Space>
                             </Col>
 
                             <Col xs={24} lg={9}>
-                                <Space orientation="vertical" size={16} style={{width: "100%"}}>
+                                <Space direction="vertical" size={16} style={{width: "100%"}}>
                                     <Card className="next-action-card" title="Следующее действие">
                                         <Typography.Text strong>{getNextActionLabel(selectedOrder)}</Typography.Text>
                                         <div style={{marginTop: 12}}>
                                             <Space wrap>
-                                                {canUpdateOrders && <Button type="primary" onClick={() => openNextActionModal(selectedOrder)}>{getNextActionLabel(selectedOrder)}</Button>}
-                                                {canUpdateOrders && <Button onClick={() => openEditModal(selectedOrder)}>Операционные правки</Button>}
-                                                {canUpdateOrders && <Button onClick={() => openStatusModal(selectedOrder.id)}>Другой статус</Button>}
+                                                {canUpdateOrders && <Button type="primary" disabled={isOrderActionSaving} onClick={() => openNextActionModal(selectedOrder)}>{getNextActionLabel(selectedOrder)}</Button>}
+                                                {canUpdateOrders && <Button disabled={isOrderActionSaving} onClick={() => openEditModal(selectedOrder)}>Операционные правки</Button>}
+                                                {canUpdateOrders && <Button disabled={isOrderActionSaving} onClick={() => openStatusModal(selectedOrder.id)}>Другой статус</Button>}
                                                 {selectedPhone && <Tooltip title="Скопировать телефон"><Button onClick={() => copyPhone(selectedPhone)}>Телефон</Button></Tooltip>}
-                                                {canDeleteOrders && <Button danger onClick={() => openCancelModal(selectedOrder.id)}>Отменить</Button>}
+                                                {canDeleteOrders && <Button danger disabled={isOrderActionSaving} onClick={() => openCancelModal(selectedOrder.id)}>Отменить</Button>}
                                             </Space>
                                         </div>
+                                    </Card>
+
+                                    <Card
+                                        title="Сводка для передачи"
+                                        extra={(
+                                            <Tooltip title="Скопировать краткую сводку для чата, звонка или курьера">
+                                                <Button icon={<CopyOutlined />} onClick={() => copyOrderHandoff(selectedOrder)}>Скопировать</Button>
+                                            </Tooltip>
+                                        )}
+                                    >
+                                        <Space direction="vertical" size={12} style={{width: "100%"}}>
+                                            <Typography.Text type="secondary">
+                                                Короткий чек-лист перед звонком клиенту, выдачей или передачей курьеру. Кнопка копирования берёт только безопасные операционные поля из карточки.
+                                            </Typography.Text>
+                                            <Descriptions bordered size="small" column={1}>
+                                                <Descriptions.Item label="Следующий шаг">{getNextActionLabel(selectedOrder)}</Descriptions.Item>
+                                                <Descriptions.Item label="Телефон">{selectedPhone || "Не указан"}</Descriptions.Item>
+                                                <Descriptions.Item label="Адрес">{selectedOrder.clientAddress?.address || "Не указан"}</Descriptions.Item>
+                                                <Descriptions.Item label="Оплата">
+                                                    {selectedOrder.paymentMethod?.title || (selectedOrder.paymentStatus ? paymentStatusMeta[selectedOrder.paymentStatus].label : "Не указана")}
+                                                </Descriptions.Item>
+                                                <Descriptions.Item label="Доставка">
+                                                    {selectedOrder.deliveryType?.title || (selectedOrder.deliveryStatus ? deliveryStatusMeta[selectedOrder.deliveryStatus].label : "Не указана")}
+                                                </Descriptions.Item>
+                                                <Descriptions.Item label="Ответственный">
+                                                    {selectedOrder.assignedEmployee
+                                                        ? `${selectedOrder.assignedEmployee.firstName} ${selectedOrder.assignedEmployee.lastName}`
+                                                        : "Не назначен"}
+                                                </Descriptions.Item>
+                                            </Descriptions>
+                                            {(!selectedPhone || (!selectedOrder.clientAddress?.address && selectedOrder.deliveryStatus !== "delivered")) && (
+                                                <Alert
+                                                    type="warning"
+                                                    showIcon
+                                                    message="Проверьте контактные данные перед передачей"
+                                                    description="В заказе не хватает телефона или адреса. Лучше уточнить данные до смены статуса и передачи заказа дальше."
+                                                />
+                                            )}
+                                        </Space>
                                     </Card>
 
                                     <Card title="CRM/клиентские операции">
                                         <Alert
                                             type="info"
                                             showIcon
-                                            message="CRM-действия пока недоступны из карточки заказа"
-                                            description="В API карточки заказа нет безопасных операций для слияния дублей, редактирования адресной книги или истории клиента. Кнопки ниже оставлены как явные placeholders, чтобы не имитировать несуществующее поведение."
+                                            message={selectedOrder.client?.id ? "Можно открыть CRM-карточку клиента" : "CRM-карточка клиента недоступна"}
+                                            description={selectedOrder.client?.id
+                                                ? "Откройте профиль клиента, чтобы проверить историю заказов, адреса и бонусы перед звонком, блокировкой или спорной отменой. Из карточки заказа не выполняем рискованные CRM-операции напрямую."
+                                                : "В карточке заказа нет безопасного clientId для перехода в CRM. Слияние дублей, редактирование адресной книги и история клиента остаются недоступны из заказа, чтобы не имитировать несуществующее поведение."
+                                            }
                                         />
                                         <Space wrap style={{marginTop: 12}}>
+                                            <Button disabled={!selectedOrder.client?.id} onClick={() => selectedOrder.client?.id && openClientProfile(selectedOrder.client.id)}>
+                                                Открыть профиль клиента
+                                            </Button>
                                             <Button disabled>Объединить дубль клиента</Button>
                                             <Button disabled>Редактировать адрес клиента</Button>
-                                            <Button disabled>Открыть историю клиента</Button>
                                         </Space>
                                     </Card>
 
@@ -866,15 +1256,15 @@ const OrdersPage = () => {
                                     </Descriptions>
 
                                     <Descriptions title="Суммы" bordered size="small" column={1}>
-                                        <Descriptions.Item label="Subtotal">{formatMoney(selectedOrder.subtotal ?? 0)}</Descriptions.Item>
-                                        <Descriptions.Item label="Discount">{formatMoney(selectedOrder.discountTotal ?? 0)}</Descriptions.Item>
-                                        <Descriptions.Item label="Promo">{selectedOrder.promoCode || "—"}</Descriptions.Item>
-                                        <Descriptions.Item label="Promo discount">{formatMoney(selectedOrder.promoDiscount ?? 0)}</Descriptions.Item>
-                                        <Descriptions.Item label="Bonus spent">{formatMoney(selectedOrder.bonusSpent ?? 0)}</Descriptions.Item>
-                                        <Descriptions.Item label="Bonus earned">{formatMoney(selectedOrder.bonusEarned ?? 0)}</Descriptions.Item>
-                                        <Descriptions.Item label="Delivery">{formatMoney(selectedOrder.deliveryPrice ?? 0)}</Descriptions.Item>
-                                        <Descriptions.Item label="Total">{formatMoney(selectedOrder.total)}</Descriptions.Item>
-                                        <Descriptions.Item label="Cancel reason">{selectedOrder.cancelReason || "—"}</Descriptions.Item>
+                                        <Descriptions.Item label="Товары до скидок">{formatMoney(selectedOrder.subtotal ?? 0)}</Descriptions.Item>
+                                        <Descriptions.Item label="Скидка по позициям">{formatMoney(selectedOrder.discountTotal ?? 0)}</Descriptions.Item>
+                                        <Descriptions.Item label="Промокод">{selectedOrder.promoCode || "—"}</Descriptions.Item>
+                                        <Descriptions.Item label="Скидка по промокоду">{formatMoney(selectedOrder.promoDiscount ?? 0)}</Descriptions.Item>
+                                        <Descriptions.Item label="Списано бонусов">{formatMoney(selectedOrder.bonusSpent ?? 0)}</Descriptions.Item>
+                                        <Descriptions.Item label="Начислено бонусов">{formatMoney(selectedOrder.bonusEarned ?? 0)}</Descriptions.Item>
+                                        <Descriptions.Item label="Доставка">{formatMoney(selectedOrder.deliveryPrice ?? 0)}</Descriptions.Item>
+                                        <Descriptions.Item label="Итого к оплате"><Typography.Text strong>{formatMoney(selectedOrder.total)}</Typography.Text></Descriptions.Item>
+                                        <Descriptions.Item label="Причина отмены">{selectedOrder.cancelReason || "—"}</Descriptions.Item>
                                     </Descriptions>
                                 </Space>
                             </Col>
@@ -890,9 +1280,12 @@ const OrdersPage = () => {
                 onCancel={closeEditModal}
                 onOk={handleEditSubmit}
                 confirmLoading={isUpdatingOrder}
-                okText="Сохранить"
+                okText={isUpdatingOrder ? "Сохраняем…" : "Сохранить"}
+                cancelButtonProps={{disabled: isUpdatingOrder}}
+                maskClosable={!isUpdatingOrder}
+                keyboard={!isUpdatingOrder}
             >
-                <Space orientation="vertical" size={12} style={{width: "100%"}}>
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Alert
                         type="info"
                         showIcon
@@ -919,11 +1312,12 @@ const OrdersPage = () => {
                             <Typography.Text type="secondary">Тип доставки не меняем без справочника delivery types, чтобы не отправить неверный id.</Typography.Text>
                         </Form.Item>
                         <Form.Item name="deliveryPrice" label="Стоимость доставки">
-                            <InputNumber min={0} precision={0} style={{width: "100%"}} addonAfter="UZS" />
+                            <InputNumber min={0} precision={0} style={{width: "100%"}} addonAfter="UZS" disabled={isUpdatingOrder} />
                         </Form.Item>
                         <Form.Item name="sourceId" label="Источник">
                             <Select
                                 allowClear
+                                disabled={isUpdatingOrder}
                                 placeholder="Выберите источник"
                                 options={sources?.map((source) => ({label: source.title, value: source.id}))}
                             />
@@ -931,6 +1325,7 @@ const OrdersPage = () => {
                         <Form.Item name="assignedEmployeeId" label="Ответственный сотрудник">
                             <Select
                                 allowClear
+                                disabled={isUpdatingOrder}
                                 placeholder="Назначить сотрудника"
                                 options={employees?.filter((employee) => employee.isActive).map((employee) => ({
                                     label: `${employee.firstName} ${employee.lastName}`,
@@ -948,18 +1343,30 @@ const OrdersPage = () => {
                 onCancel={closeStatusModal}
                 onOk={handleStatusSubmit}
                 confirmLoading={isUpdatingStatus}
+                okText={isUpdatingStatus ? "Сохраняем…" : "Сохранить"}
+                cancelButtonProps={{disabled: isUpdatingStatus}}
+                maskClosable={!isUpdatingStatus}
+                keyboard={!isUpdatingStatus}
             >
-                <Form form={statusForm} layout="vertical">
-                    <Form.Item name="statusId" label="Новый статус" rules={[{required: true, message: "Выберите статус"}]}>
-                        <Select options={statuses?.map((status) => ({label: status.title, value: status.id}))} />
-                    </Form.Item>
-                    <Form.Item name="comment" label="Комментарий">
-                        <Input.TextArea rows={3} />
-                    </Form.Item>
-                    <Form.Item name="visibleForClient" valuePropName="checked">
-                        <Checkbox>Показывать клиенту</Checkbox>
-                    </Form.Item>
-                </Form>
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Проверьте следующий шаг перед сменой статуса"
+                        description={editingOrder ? `Заказ ${editingOrder.orderNumber || `#${editingOrder.id}`}: ${getNextActionLabel(editingOrder)}. Клиенту показывайте только понятный и безопасный комментарий.` : "Смена статуса влияет на очередь Today Order Desk и может быть видна клиенту."}
+                    />
+                    <Form form={statusForm} layout="vertical">
+                        <Form.Item name="statusId" label="Новый статус" rules={[{required: true, message: "Выберите статус"}]}>
+                            <Select disabled={isUpdatingStatus} options={statuses?.map((status) => ({label: status.title, value: status.id}))} />
+                        </Form.Item>
+                        <Form.Item name="comment" label="Комментарий">
+                            <Input.TextArea rows={3} disabled={isUpdatingStatus} placeholder="Например: согласовано с клиентом, передано на сборку" />
+                        </Form.Item>
+                        <Form.Item name="visibleForClient" valuePropName="checked">
+                            <Checkbox disabled={isUpdatingStatus}>Показывать клиенту</Checkbox>
+                        </Form.Item>
+                    </Form>
+                </Space>
             </Modal>
 
             <Modal
@@ -968,12 +1375,24 @@ const OrdersPage = () => {
                 onCancel={closeCancelModal}
                 onOk={handleCancelSubmit}
                 confirmLoading={isCancelling}
+                okText={isCancelling ? "Отменяем…" : "Отменить заказ"}
+                cancelButtonProps={{disabled: isCancelling}}
+                maskClosable={!isCancelling}
+                keyboard={!isCancelling}
             >
-                <Form form={cancelForm} layout="vertical">
-                    <Form.Item name="reason" label="Причина отмены" rules={[{required: true, message: "Укажите причину отмены"}]}>
-                        <Input.TextArea rows={3} />
-                    </Form.Item>
-                </Form>
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
+                    <Alert
+                        type={editingOrder?.paymentStatus === "paid" ? "warning" : "info"}
+                        showIcon
+                        message={editingOrder?.paymentStatus === "paid" ? "Заказ оплачен — проверьте возврат" : "Отмена влияет на операционную очередь"}
+                        description="Перед отменой укажите причину: она поможет поддержке, курьеру и следующему менеджеру быстро понять контекст. Возвраты и клиентские коммуникации выполняйте по внутреннему процессу."
+                    />
+                    <Form form={cancelForm} layout="vertical">
+                        <Form.Item name="reason" label="Причина отмены" rules={[{required: true, message: "Укажите причину отмены"}]}>
+                            <Input.TextArea rows={3} disabled={isCancelling} placeholder="Например: клиент отказался, нет товара, дубль заказа" />
+                        </Form.Item>
+                    </Form>
+                </Space>
             </Modal>
 
             <Modal
@@ -982,15 +1401,27 @@ const OrdersPage = () => {
                 onCancel={closeCommentModal}
                 onOk={handleCommentSubmit}
                 confirmLoading={isCreatingComment}
+                okText={isCreatingComment ? "Добавляем…" : "Добавить"}
+                cancelButtonProps={{disabled: isCreatingComment}}
+                maskClosable={!isCreatingComment}
+                keyboard={!isCreatingComment}
             >
-                <Form form={commentForm} layout="vertical">
-                    <Form.Item name="message" label="Комментарий" rules={[{required: true, message: "Введите комментарий"}]}>
-                        <Input.TextArea rows={4} />
-                    </Form.Item>
-                    <Form.Item name="visibleForClient" valuePropName="checked">
-                        <Checkbox>Показывать клиенту</Checkbox>
-                    </Form.Item>
-                </Form>
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Фиксируйте только полезный операционный контекст"
+                        description="Комментарий попадёт в историю заказа. Если он виден клиенту, избегайте внутренних пометок, персональных данных сотрудников и технических сокращений."
+                    />
+                    <Form form={commentForm} layout="vertical">
+                        <Form.Item name="message" label="Комментарий" rules={[{required: true, message: "Введите комментарий"}]}>
+                            <Input.TextArea rows={4} disabled={isCreatingComment} placeholder="Например: клиент подтвердил адрес, передано курьеру, нужен повторный звонок" />
+                        </Form.Item>
+                        <Form.Item name="visibleForClient" valuePropName="checked">
+                            <Checkbox disabled={isCreatingComment}>Показывать клиенту</Checkbox>
+                        </Form.Item>
+                    </Form>
+                </Space>
             </Modal>
         </Space>
     )

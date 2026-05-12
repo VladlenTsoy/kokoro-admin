@@ -8,7 +8,7 @@ interface Props {
     id: number
     image: ProductTemporaryImageType
     index: number
-    removePhoto: (path: string) => void
+    removePhoto: (image: ProductTemporaryImageType) => void
 }
 
 const ProductImageSortableItem: React.FC<Props> = ({id, image, index, removePhoto}) => {
@@ -42,7 +42,8 @@ const ProductImageSortableItem: React.FC<Props> = ({id, image, index, removePhot
                 size={image.size}
                 isFirst={index === 0}
                 isDragging={isDragging}
-                removePhoto={removePhoto}
+                error={image.error}
+                removePhoto={() => removePhoto(image)}
             />
         </div>
     )

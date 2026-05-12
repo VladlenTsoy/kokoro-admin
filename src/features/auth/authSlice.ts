@@ -4,6 +4,8 @@ import type {StoreState} from "../store.ts"
 import type {AuthResponse, EmployeeSafe} from "./authTypes.ts"
 import {can} from "./permissions.ts"
 
+export type AuthNoticeReason = "session_expired" | "manual_logout" | null
+
 interface AuthState {
     accessToken: string | null
     refreshToken: string | null
@@ -11,6 +13,7 @@ interface AuthState {
     expiresInMinutes: number | null
     refreshTokenExpiresInDays: number | null
     employee: EmployeeSafe | null
+    noticeReason: AuthNoticeReason
 }
 
 const initialState: AuthState = {
@@ -19,7 +22,8 @@ const initialState: AuthState = {
     tokenType: "Bearer",
     expiresInMinutes: null,
     refreshTokenExpiresInDays: null,
-    employee: null
+    employee: null,
+    noticeReason: null
 }
 
 const authSlice = createSlice({
@@ -33,17 +37,19 @@ const authSlice = createSlice({
             state.expiresInMinutes = action.payload.expiresInMinutes
             state.refreshTokenExpiresInDays = action.payload.refreshTokenExpiresInDays
             state.employee = action.payload.employee
+            state.noticeReason = null
         },
         setEmployee: (state, action: PayloadAction<EmployeeSafe>) => {
             state.employee = action.payload
         },
-        clearAuthData: (state) => {
+        clearAuthData: (state, action: PayloadAction<AuthNoticeReason | undefined>) => {
             state.accessToken = null
             state.refreshToken = null
             state.tokenType = "Bearer"
             state.expiresInMinutes = null
             state.refreshTokenExpiresInDays = null
             state.employee = null
+            state.noticeReason = action.payload ?? null
         }
     }
 })

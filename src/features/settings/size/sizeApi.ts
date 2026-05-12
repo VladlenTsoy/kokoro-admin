@@ -22,7 +22,7 @@ export const sizeApi = createApi({
         updateSize: builder.mutation<void, {id: number; data: Partial<SizeType>}>({
             query: ({id, data}) => ({
                 url: `/size/${id}`,
-                method: "PUT",
+                method: "PATCH",
                 body: data
             }),
             invalidatesTags: (_res, _err, {id}) => [{type: "Size", id}]

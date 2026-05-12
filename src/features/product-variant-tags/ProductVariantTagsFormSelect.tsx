@@ -1,4 +1,5 @@
-import {Form, Select, Space, Tag, Typography} from "antd"
+import {Alert, Button, Form, Select, Space, Tag, Typography} from "antd"
+import {ReloadOutlined, TagsOutlined} from "@ant-design/icons"
 import {useMemo} from "react"
 import {
     PRODUCT_TAG_TYPE_LABELS,
@@ -15,7 +16,7 @@ function groupTagsByType(tags: ProductVariantTagType[]) {
 }
 
 const ProductVariantTagsFormSelect = () => {
-    const {data, isLoading} = useGetAllTagsQuery({isActive: "true"})
+    const {data, isError, isFetching, isLoading, refetch} = useGetAllTagsQuery({isActive: "true"})
     const selectedTagIds = Form.useWatch("tags") as number[] | undefined
 
     const selectedTagsByType = useMemo(() => {
@@ -38,21 +39,59 @@ const ProductVariantTagsFormSelect = () => {
     }, [data])
 
     const selectedGroups = Object.entries(selectedTagsByType).filter(([, tags]) => tags.length > 0)
+    const hasLoadedTags = (data?.length ?? 0) > 0
 
     return (
         <>
-            <Form.Item label="Теги" name="tags">
+            <Form.Item
+                label="Теги"
+                name="tags"
+                extra="Используйте теги для витринных подборок, фильтров и быстрого поиска товара менеджерами."
+            >
                 <Select
                     mode="multiple"
-                    loading={isLoading}
-                    placeholder="Выберите теги"
+                    loading={isLoading || isFetching}
+                    placeholder={isError ? "Не удалось загрузить теги" : "Выберите теги для витрины и фильтров"}
                     optionFilterProp="label"
                     options={options}
+                    notFoundContent={
+                        <Space direction="vertical" size={4} style={{padding: "8px 0"}}>
+                            <Typography.Text type="secondary">Активные теги не найдены</Typography.Text>
+                            <Typography.Text type="secondary" style={{fontSize: 12}}>
+                                Проверьте настройки тегов перед сохранением карточки товара.
+                            </Typography.Text>
+                        </Space>
+                    }
                     allowClear
+                    disabled={isError && !hasLoadedTags}
                 />
             </Form.Item>
+            {isError && (
+                <Alert
+                    type="warning"
+                    showIcon
+                    style={{marginTop: -12, marginBottom: 20}}
+                    message="Теги товара временно недоступны"
+                    description="Карточку можно сохранить без изменения тегов, но перед публикацией проверьте, что витринные подборки и фильтры не потеряют нужную привязку."
+                    action={
+                        <Button size="small" icon={<ReloadOutlined />} loading={isFetching} onClick={() => refetch()}>
+                            Повторить
+                        </Button>
+                    }
+                />
+            )}
+            {!isLoading && !isError && !hasLoadedTags && (
+                <Alert
+                    type="info"
+                    showIcon
+                    icon={<TagsOutlined />}
+                    style={{marginTop: -12, marginBottom: 20}}
+                    message="Активные теги ещё не настроены"
+                    description="Создайте теги в настройках каталога, чтобы менеджеры могли связывать товары с сезонами, стилями, фандомами и витринными подборками."
+                />
+            )}
             {selectedGroups.length > 0 && (
-                <Space orientation="vertical" size={6} style={{marginTop: -12, marginBottom: 20}}>
+                <Space direction="vertical" size={6} style={{marginTop: -12, marginBottom: 20}}>
                     {selectedGroups.map(([type, tags]) => (
                         <div key={type}>
                             <Typography.Text type="secondary">

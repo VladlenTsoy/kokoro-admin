@@ -8,12 +8,16 @@ const HeaderThemeSwitch = () => {
     const mode = useSelectedTheme()
     const isDark = mode === "dark"
 
+    const label = isDark ? "Переключить на светлую тему" : "Переключить на тёмную тему"
+
     return (
-        <Tooltip title={isDark ? "Переключить на светлую тему" : "Переключить на тёмную тему"}>
+        <Tooltip title={label}>
             <Button
                 size="large"
                 shape="circle"
                 type="default"
+                aria-label={label}
+                title={label}
                 icon={isDark ? <BulbOutlined /> : <MoonOutlined />}
                 onClick={() => dispatch(toggleThemeMode())}
             />

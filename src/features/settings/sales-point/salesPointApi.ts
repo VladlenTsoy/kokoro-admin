@@ -26,7 +26,7 @@ export const salesPointApi = createApi({
         updateSalesPoint: builder.mutation<SalesPointType, {id: number; body: Partial<SalesPointType>}>({
             query: ({id, body}) => ({
                 url: `/sales-points/${id}`,
-                method: "PUT",
+                method: "PATCH",
                 body
             }),
             invalidatesTags: ["SalesPoint", "SalesPointWithStorage"]

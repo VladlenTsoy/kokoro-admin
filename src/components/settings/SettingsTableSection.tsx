@@ -10,6 +10,8 @@ interface SettingsTableSectionProps {
     addButtonText: string
     onAdd: () => void
     canAdd?: boolean
+    addButtonDisabled?: boolean
+    addButtonIcon?: ReactNode
     children: ReactNode
 }
 
@@ -28,17 +30,19 @@ const SettingsTableSection = ({
     addButtonText,
     onAdd,
     canAdd = true,
+    addButtonDisabled = false,
+    addButtonIcon = <PlusOutlined />,
     children
 }: SettingsTableSectionProps) => {
     const {styles} = useStyles()
 
     return (
-        <Space orientation="vertical" size={14} style={{width: "100%"}}>
+        <Space direction="vertical" size={14} style={{width: "100%"}}>
             <PageHeading
                 title={title}
                 subtitle={subtitle}
                 extra={canAdd ? (
-                    <Button type="primary" icon={<PlusOutlined />} onClick={onAdd}>
+                    <Button type="primary" icon={addButtonIcon} onClick={onAdd} disabled={addButtonDisabled}>
                         {addButtonText}
                     </Button>
                 ) : null}

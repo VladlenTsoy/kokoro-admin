@@ -1,4 +1,4 @@
-import {BrowserRouter, Navigate, Route, Routes} from "react-router-dom"
+import {BrowserRouter, Navigate, Route, Routes, useLocation} from "react-router-dom"
 import {lazy, Suspense} from "react"
 import {Spin} from "antd"
 import PrivateLayout from "../layouts/PrivateLayout.tsx"
@@ -47,6 +47,24 @@ const SETTINGS_INDEX_ITEMS: Array<{to: string; permission: PermissionCode}> = [
     {to: "integrations", permission: "integrations.read"}
 ]
 
+const ROUTE_LOADING_LABELS: Array<{match: (pathname: string) => boolean; label: string}> = [
+    {match: (pathname) => pathname === "/", label: "Загружаем рабочий стол менеджера…"},
+    {match: (pathname) => pathname.startsWith("/orders"), label: "Загружаем стол заказов…"},
+    {match: (pathname) => pathname.startsWith("/products/product"), label: "Открываем карточку товара…"},
+    {match: (pathname) => pathname.startsWith("/products"), label: "Загружаем каталог товаров…"},
+    {match: (pathname) => pathname.startsWith("/clients"), label: "Загружаем клиентскую CRM…"},
+    {match: (pathname) => pathname.startsWith("/settings"), label: "Загружаем настройки магазина…"},
+    {match: (pathname) => pathname.startsWith("/search-zero-results"), label: "Загружаем аналитику поиска…"},
+    {match: (pathname) => pathname.startsWith("/login"), label: "Готовим вход в админку…"}
+]
+
+const RouteLoadingFallback = () => {
+    const {pathname} = useLocation()
+    const loadingLabel = ROUTE_LOADING_LABELS.find((item) => item.match(pathname))?.label ?? "Загружаем раздел админки…"
+
+    return <Spin fullscreen tip={loadingLabel} />
+}
+
 const SettingsIndexRedirect = () => {
     const {employee} = useSelectedAuthData()
     const firstAvailable = SETTINGS_INDEX_ITEMS.find((item) => can(employee?.permissions, item.permission))
@@ -57,7 +75,7 @@ const SettingsIndexRedirect = () => {
 export const AppRouter = () => {
     return (
         <BrowserRouter>
-            <Suspense fallback={<Spin fullscreen tip="Загрузка..." />}>
+            <Suspense fallback={<RouteLoadingFallback />}>
                 <Routes>
                     {/* Public */}
                     <Route path="/login" element={<Login />} />
