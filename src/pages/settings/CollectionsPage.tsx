@@ -38,10 +38,12 @@ const CollectionsPage = () => {
         [collections, normalizedSearch]
     )
     const hasSearch = normalizedSearch.length > 0
+    const isSavingCollection = isCreating || isUpdating
     const isDeletingCollection = deletingCollectionId !== null
+    const isCollectionMutationLocked = isSavingCollection || isDeletingCollection
 
     const openCreate = () => {
-        if (isDeletingCollection) {
+        if (isCollectionMutationLocked) {
             return
         }
         setEditing(null)
@@ -50,7 +52,7 @@ const CollectionsPage = () => {
     }
 
     const openEdit = (record: CollectionType) => {
-        if (isDeletingCollection) {
+        if (isCollectionMutationLocked) {
             return
         }
         setEditing(record)
@@ -72,6 +74,9 @@ const CollectionsPage = () => {
             setEditing(null)
             form.resetFields()
         } catch (error) {
+            if (typeof error === "object" && error !== null && "errorFields" in error) {
+                return
+            }
             message.error(getNestErrorMessage(error))
         }
     }
@@ -116,7 +121,7 @@ const CollectionsPage = () => {
             width: 220,
             render: (_, record) => (
                 <Space wrap>
-                    <Button type="link" onClick={() => openEdit(record)} disabled={isDeletingCollection}>
+                    <Button type="link" onClick={() => openEdit(record)} disabled={isCollectionMutationLocked}>
                         Редактировать
                     </Button>
                     <Popconfirm
@@ -148,7 +153,7 @@ const CollectionsPage = () => {
                 subtitle="Группируйте товары в понятные подборки для витрины и промо-сценариев."
                 addButtonText="Добавить коллекцию"
                 onAdd={openCreate}
-                addButtonDisabled={isDeletingCollection}
+                addButtonDisabled={isCollectionMutationLocked}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     {isError ? (
@@ -215,10 +220,27 @@ const CollectionsPage = () => {
             <Modal
                 open={isOpen}
                 title={editing ? "Редактировать коллекцию" : "Создать коллекцию"}
-                onCancel={() => setIsOpen(false)}
+                onCancel={() => {
+                    if (!isSavingCollection) {
+                        setIsOpen(false)
+                    }
+                }}
                 onOk={handleSave}
-                confirmLoading={isCreating || isUpdating}
+                okText={isSavingCollection ? "Сохраняем…" : editing ? "Сохранить коллекцию" : "Создать коллекцию"}
+                cancelButtonProps={{disabled: isSavingCollection}}
+                maskClosable={!isSavingCollection}
+                keyboard={!isSavingCollection}
+                confirmLoading={isSavingCollection}
             >
+                {isSavingCollection ? (
+                    <Alert
+                        type="warning"
+                        showIcon
+                        style={{marginBottom: 16}}
+                        message="Сохраняем коллекцию"
+                        description="Не закрывайте окно и дождитесь ответа API: так название витринной подборки не смешается с повторным редактированием или созданием дубля."
+                    />
+                ) : null}
                 <Alert
                     type="info"
                     showIcon
@@ -236,7 +258,7 @@ const CollectionsPage = () => {
                             {max: 150, message: "Максимум 150 символов"}
                         ]}
                     >
-                        <Input placeholder="Весна 2026" maxLength={150} showCount />
+                        <Input placeholder="Весна 2026" maxLength={150} showCount disabled={isSavingCollection} />
                     </Form.Item>
                 </Form>
             </Modal>
