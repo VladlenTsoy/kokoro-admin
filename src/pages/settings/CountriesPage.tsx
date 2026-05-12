@@ -129,6 +129,9 @@ const CountryCityPage: React.FC = () => {
             }
             closeModal()
         } catch (error) {
+            if (typeof error === "object" && error !== null && "errorFields" in error) {
+                return
+            }
             message.error(getNestErrorMessage(error))
         }
     }
