@@ -1,5 +1,6 @@
 import {Alert, Button, Card, Col, Empty, Row, Space, Statistic, Table, Tag, Typography} from "antd"
 import {AlertOutlined, CheckCircleOutlined, ClockCircleOutlined, EyeOutlined, FireOutlined, ReloadOutlined, ShoppingOutlined, SwapRightOutlined, ThunderboltOutlined} from "@ant-design/icons"
+import type {KeyboardEvent, ReactNode} from "react"
 import type {ColumnsType} from "antd/es/table"
 import PageHeading from "../components/PageHeading.tsx"
 import {useGetOrdersSummaryQuery} from "../features/orders/orderApi.ts"
@@ -15,7 +16,27 @@ const HomePage = () => {
     const problemCount = summary?.problemToday ?? 0
     const hasProblems = problemCount > 0
 
+    const today = dayjs().format("YYYY-MM-DD")
     const openOrders = (params?: string) => navigate(params ? `/orders?${params}` : "/orders")
+    const getMetricCardActionProps = (params?: string) => ({
+        hoverable: true,
+        role: "button",
+        tabIndex: 0,
+        onClick: () => openOrders(params),
+        onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault()
+                openOrders(params)
+            }
+        }
+    })
+    const renderMetricTitle = (label: string, hint: ReactNode) => (
+        <Space direction="vertical" size={2}>
+            <span>{label}</span>
+            <Typography.Text className="metric-card-hint" type={summaryError ? "danger" : "secondary"}>{hint}</Typography.Text>
+        </Space>
+    )
+    const staleMetricHint = summaryError ? "Проверьте перед решением" : "Открыть очередь"
     const nextActionShortcuts = [
         {
             title: "Оплаченные без обработки",
@@ -134,33 +155,33 @@ const HomePage = () => {
 
             <Row gutter={[16, 16]}>
                 <Col xs={24} md={12} xl={4}>
-                    <Card className="metric-card metric-card--lime" hoverable onClick={() => openOrders()}>
-                        <Statistic prefix={<ShoppingOutlined />} title="Заказы сегодня" value={summary?.ordersToday ?? 0} loading={isLoading} />
+                    <Card className="metric-card metric-card--lime" {...getMetricCardActionProps()}>
+                        <Statistic prefix={<ShoppingOutlined />} title={renderMetricTitle("Заказы сегодня", staleMetricHint)} value={summary?.ordersToday ?? 0} loading={isLoading} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={4}>
-                    <Card className="metric-card metric-card--orange" hoverable onClick={() => openOrders("deliveryStatus=pending")}>
-                        <Statistic prefix={<ClockCircleOutlined />} title="Новые" value={summary?.newOrders ?? 0} loading={isLoading} />
+                    <Card className="metric-card metric-card--orange" {...getMetricCardActionProps("deliveryStatus=pending")}>
+                        <Statistic prefix={<ClockCircleOutlined />} title={renderMetricTitle("Новые", "Принять в работу")} value={summary?.newOrders ?? 0} loading={isLoading} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={4}>
-                    <Card className="metric-card metric-card--blue" hoverable onClick={() => openOrders("deliveryStatus=preparing")}>
-                        <Statistic prefix={<ThunderboltOutlined />} title="В работе" value={summary?.inProgressToday ?? 0} loading={isLoading} />
+                    <Card className="metric-card metric-card--blue" {...getMetricCardActionProps("deliveryStatus=preparing")}>
+                        <Statistic prefix={<ThunderboltOutlined />} title={renderMetricTitle("В работе", "Проверить сборку")} value={summary?.inProgressToday ?? 0} loading={isLoading} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={4}>
-                    <Card className="metric-card metric-card--cyan" hoverable onClick={() => openOrders("deliveryStatus=ready")}>
-                        <Statistic prefix={<CheckCircleOutlined />} title="Готовы" value={summary?.readyToday ?? 0} loading={isLoading} />
+                    <Card className="metric-card metric-card--cyan" {...getMetricCardActionProps("deliveryStatus=ready")}>
+                        <Statistic prefix={<CheckCircleOutlined />} title={renderMetricTitle("Готовы", "Выдать клиенту")} value={summary?.readyToday ?? 0} loading={isLoading} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={4}>
-                    <Card className={hasProblems ? "metric-card metric-card--danger" : "metric-card"} hoverable onClick={() => openOrders("problemOnly=1")}>
-                        <Statistic prefix={<AlertOutlined />} title="Проблемные" value={problemCount} loading={isLoading} valueStyle={{color: hasProblems ? "#cf1322" : undefined}} />
+                    <Card className={hasProblems ? "metric-card metric-card--danger" : "metric-card"} {...getMetricCardActionProps("problemOnly=1")}>
+                        <Statistic prefix={<AlertOutlined />} title={renderMetricTitle("Проблемные", hasProblems ? "Разобрать первым" : "Открыть контроль")} value={problemCount} loading={isLoading} valueStyle={{color: hasProblems ? "#cf1322" : undefined}} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={4}>
-                    <Card className="metric-card metric-card--money">
-                        <Statistic prefix={<FireOutlined />} title="Выручка сегодня" value={formatMoney(summary?.revenueToday ?? 0)} loading={isLoading} />
+                    <Card className="metric-card metric-card--money" {...getMetricCardActionProps(`paymentStatus=paid&from=${today}&to=${today}`)}>
+                        <Statistic prefix={<FireOutlined />} title={renderMetricTitle("Выручка сегодня", "Открыть оплаченные")} value={formatMoney(summary?.revenueToday ?? 0)} loading={isLoading} />
                     </Card>
                 </Col>
             </Row>

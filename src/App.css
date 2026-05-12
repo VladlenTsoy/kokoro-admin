@@ -148,6 +148,22 @@ body[data-theme="dark"] .ant-layout-footer {
     text-transform: uppercase;
 }
 
+.metric-card[role="button"] {
+    cursor: pointer;
+}
+
+.metric-card[role="button"]:focus-visible {
+    outline: 3px solid rgba(22, 119, 255, 0.28);
+    outline-offset: 3px;
+}
+
+.metric-card-hint {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
 .metric-card .ant-statistic-content {
     display: flex;
     align-items: center;
