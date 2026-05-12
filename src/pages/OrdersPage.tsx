@@ -380,6 +380,10 @@ const OrdersPage = () => {
 
     const lastRefreshAgeSeconds = lastSuccessfulRefreshAt ? refreshClock.diff(dayjs(lastSuccessfulRefreshAt), "second") : null
     const isRefreshStale = lastRefreshAgeSeconds !== null && lastRefreshAgeSeconds * 1000 > STALE_REFRESH_WARNING_MS
+    const isQueueActionBlocked = isOrdersError || isRefreshStale
+    const queueActionBlockReason = isOrdersError
+        ? "Очередь не обновилась — повторите загрузку перед изменением заказа."
+        : "Данные очереди устарели — дождитесь успешного обновления перед изменением заказа."
 
     useEffect(() => {
         if (!summary) return
@@ -746,10 +750,48 @@ const OrdersPage = () => {
                 render: (_, order) => (
                     <Space wrap size={[6, 6]} className="order-row-actions">
                         <Button size="small" onClick={() => openOrder(order.id)}>Открыть</Button>
-                        {canUpdateOrders && <Button size="small" type="primary" onClick={() => openNextActionModal(order)}>{getNextActionLabel(order)}</Button>}
-                        {canUpdateOrders && <Button size="small" onClick={() => openEditModal(order)}>Правки</Button>}
-                        {canUpdateOrders && <Button size="small" onClick={() => openStatusModal(order.id)}>Статус</Button>}
-                        {canDeleteOrders && <Button size="small" danger onClick={() => openCancelModal(order.id)}>Отмена</Button>}
+                        {canUpdateOrders && (
+                            <Button
+                                size="small"
+                                type="primary"
+                                disabled={isQueueActionBlocked}
+                                title={isQueueActionBlocked ? queueActionBlockReason : undefined}
+                                onClick={() => openNextActionModal(order)}
+                            >
+                                {getNextActionLabel(order)}
+                            </Button>
+                        )}
+                        {canUpdateOrders && (
+                            <Button
+                                size="small"
+                                disabled={isQueueActionBlocked}
+                                title={isQueueActionBlocked ? queueActionBlockReason : undefined}
+                                onClick={() => openEditModal(order)}
+                            >
+                                Правки
+                            </Button>
+                        )}
+                        {canUpdateOrders && (
+                            <Button
+                                size="small"
+                                disabled={isQueueActionBlocked}
+                                title={isQueueActionBlocked ? queueActionBlockReason : undefined}
+                                onClick={() => openStatusModal(order.id)}
+                            >
+                                Статус
+                            </Button>
+                        )}
+                        {canDeleteOrders && (
+                            <Button
+                                size="small"
+                                danger
+                                disabled={isQueueActionBlocked}
+                                title={isQueueActionBlocked ? queueActionBlockReason : undefined}
+                                onClick={() => openCancelModal(order.id)}
+                            >
+                                Отмена
+                            </Button>
+                        )}
                     </Space>
                 )
             }
@@ -810,7 +852,7 @@ const OrdersPage = () => {
                             showIcon
                             type="warning"
                             message="Данные давно не обновлялись"
-                            description={`Последнее успешное обновление было ${lastRefreshAgeSeconds} сек. назад. Проверьте интернет/API перед тем, как принимать решения по очереди заказов.`}
+                            description={`Последнее успешное обновление было ${lastRefreshAgeSeconds} сек. назад. Действия из таблицы временно заблокированы — дождитесь успешного refresh перед изменением заказа.`}
                         />
                     )}
                 </Space>
@@ -939,7 +981,7 @@ const OrdersPage = () => {
                         type="error"
                         showIcon
                         message="Не удалось обновить очередь заказов"
-                        description="Не меняйте статусы по устаревшему списку. Повторите загрузку или откройте сохранённую карточку заказа только после проверки актуальности."
+                        description="Действия из таблицы временно заблокированы, чтобы менеджер не менял статус по устаревшему списку. Повторите загрузку или откройте карточку заказа только для просмотра."
                         action={<Button size="small" onClick={() => refetchOrders()}>Повторить</Button>}
                         style={{marginBottom: 16}}
                     />
