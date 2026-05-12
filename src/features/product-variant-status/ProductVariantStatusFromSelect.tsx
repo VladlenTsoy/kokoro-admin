@@ -1,28 +1,40 @@
 import {ReloadOutlined} from "@ant-design/icons"
-import {Alert, Button, Form, Select, Space, Typography} from "antd"
+import {Alert, Button, Form, Select, Space, Tag, Typography} from "antd"
+import {useMemo} from "react"
 import {useGetProductVariantStatusesQuery} from "./productVariantStatusApi.ts"
 
 const ProductVariantStatusFromSelect = () => {
     const {data, isError, isFetching, isLoading, refetch} = useGetProductVariantStatusesQuery()
     const hasLoadedStatuses = (data?.length ?? 0) > 0
+    const statusOptions = useMemo(() => (
+        [...(data ?? [])]
+            .sort((a, b) => a.position - b.position || a.title.localeCompare(b.title))
+            .map((item) => ({
+                value: item.id,
+                searchLabel: item.title,
+                label: (
+                    <Space size={6} wrap>
+                        <Typography.Text>{item.title}</Typography.Text>
+                        {item.is_default && <Tag color="blue">по умолчанию</Tag>}
+                    </Space>
+                )
+            }))
+    ), [data])
 
     return (
         <>
             <Form.Item
                 label="Статус"
                 name="status_id"
-                extra="Статус SKU влияет на публикацию, фильтры каталога и готовность товара к продаже."
+                extra="Статус SKU влияет на публикацию, фильтры каталога и готовность товара к продаже. Статусы отсортированы по рабочему порядку, значение по умолчанию отмечено отдельно."
                 rules={[{required: true, message: "Выберите статус!"}]}
             >
                 <Select
                     loading={isLoading || isFetching}
                     placeholder={isError ? "Не удалось загрузить статусы" : "Выберите статус SKU"}
-                    optionFilterProp="label"
+                    optionFilterProp="searchLabel"
                     disabled={isError && !hasLoadedStatuses}
-                    options={(data ?? []).map((item) => ({
-                        value: item.id,
-                        label: item.title
-                    }))}
+                    options={statusOptions}
                     notFoundContent={(
                         <Space direction="vertical" size={4} style={{padding: "8px 0"}}>
                             <Typography.Text type="secondary">Статусы SKU не найдены</Typography.Text>
