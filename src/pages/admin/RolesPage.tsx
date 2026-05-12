@@ -67,9 +67,10 @@ interface PermissionMatrixProps {
     catalog?: PermissionCatalogModule[]
     selectedPermissions: PermissionCode[]
     onToggle: (permission: PermissionCode) => void
+    disabled?: boolean
 }
 
-const PermissionMatrix = ({catalog, selectedPermissions, onToggle}: PermissionMatrixProps) => {
+const PermissionMatrix = ({catalog, selectedPermissions, onToggle, disabled = false}: PermissionMatrixProps) => {
     if (!catalog?.length) {
         return (
             <Alert
@@ -121,7 +122,7 @@ const PermissionMatrix = ({catalog, selectedPermissions, onToggle}: PermissionMa
                         return (
                             <Checkbox
                                 checked={selectedPermissions.includes(permission.code) || (action !== "manage" && isManageSelected)}
-                                disabled={action !== "manage" && isManageSelected}
+                                disabled={disabled || (action !== "manage" && isManageSelected)}
                                 onChange={() => onToggle(permission.code)}
                             />
                         )
@@ -151,6 +152,8 @@ const RolesPage = () => {
     const [roleSearch, setRoleSearch] = useState("")
     const [roleStatusFilter, setRoleStatusFilter] = useState<RoleStatusFilter>("all")
     const [form] = Form.useForm<RoleFormValues>()
+    const isSavingRole = isCreating || isUpdating
+    const isRoleMutationInFlight = isSavingRole || Boolean(deletingRoleId)
     const selectedPermissions = Form.useWatch("permissions", form) ?? []
     const selectedManagePermissions = selectedPermissions.filter((permission) => permission.endsWith(".manage"))
     const selectedDeletePermissions = selectedPermissions.filter((permission) => permission.endsWith(".delete"))
@@ -175,6 +178,10 @@ const RolesPage = () => {
     }
 
     const closeDrawer = () => {
+        if (isSavingRole) {
+            return
+        }
+
         setIsDrawerOpen(false)
         setEditingRole(null)
         form.resetFields()
@@ -299,7 +306,7 @@ const RolesPage = () => {
                 title="Роли"
                 subtitle="Управление ролями, статусами и матрицей доступов."
                 extra={canManageStaff ? (
-                    <Button type="primary" onClick={openCreate}>
+                    <Button type="primary" disabled={isRoleMutationInFlight} onClick={openCreate}>
                         Создать роль
                     </Button>
                 ) : null}
@@ -399,16 +406,19 @@ const RolesPage = () => {
                 open={isDrawerOpen}
                 onClose={closeDrawer}
                 width="min(920px, 100vw)"
+                maskClosable={!isSavingRole}
+                keyboard={!isSavingRole}
+                closable={!isSavingRole}
                 extra={(
                     <Space>
-                        <Button onClick={closeDrawer}>Отмена</Button>
-                        <Button type="primary" loading={isCreating || isUpdating} onClick={handleSubmit}>
-                            Сохранить
+                        <Button disabled={isSavingRole} onClick={closeDrawer}>Отмена</Button>
+                        <Button type="primary" loading={isSavingRole} onClick={handleSubmit}>
+                            {isSavingRole ? "Сохраняем…" : "Сохранить"}
                         </Button>
                     </Space>
                 )}
             >
-                <Form<RoleFormValues> form={form} layout="vertical" initialValues={{isActive: true, permissions: []}}>
+                <Form<RoleFormValues> form={form} layout="vertical" disabled={isSavingRole} initialValues={{isActive: true, permissions: []}}>
                     <Form.Item
                         name="code"
                         label="Код"
@@ -445,6 +455,15 @@ const RolesPage = () => {
                         message="Выдавайте минимально необходимый доступ"
                         description="Полный доступ в модуле автоматически покрывает просмотр, создание, изменение и удаление. Проверяйте delete/manage права отдельно перед сохранением роли."
                     />
+                    {isSavingRole ? (
+                        <Alert
+                            type="info"
+                            showIcon
+                            style={{marginBottom: 16}}
+                            message="Сохраняем роль"
+                            description="Поля и матрица доступов временно заблокированы, чтобы не отправить смешанные права или повторный запрос. Дождитесь ответа API."
+                        />
+                    ) : null}
                     <Alert
                         type={selectedPermissionRiskCount ? "warning" : "info"}
                         showIcon
@@ -461,6 +480,7 @@ const RolesPage = () => {
                             catalog={permissionCatalog}
                             selectedPermissions={selectedPermissions}
                             onToggle={handlePermissionToggle}
+                            disabled={isSavingRole}
                         />
                     </Form.Item>
                 </Form>
