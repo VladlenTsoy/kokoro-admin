@@ -1,5 +1,5 @@
 import {Alert, Button, Card, Col, Empty, Row, Space, Statistic, Table, Tag, Typography} from "antd"
-import {AlertOutlined, CheckCircleOutlined, ClockCircleOutlined, FireOutlined, ReloadOutlined, ShoppingOutlined, SwapRightOutlined, ThunderboltOutlined} from "@ant-design/icons"
+import {AlertOutlined, CheckCircleOutlined, ClockCircleOutlined, EyeOutlined, FireOutlined, ReloadOutlined, ShoppingOutlined, SwapRightOutlined, ThunderboltOutlined} from "@ant-design/icons"
 import type {ColumnsType} from "antd/es/table"
 import PageHeading from "../components/PageHeading.tsx"
 import {useGetOrdersSummaryQuery} from "../features/orders/orderApi.ts"
@@ -73,6 +73,18 @@ const HomePage = () => {
             dataIndex: "changedAt",
             width: 160,
             render: (value?: string) => (value ? dayjs(value).format("DD.MM HH:mm") : "—")
+        },
+        {
+            title: "Действие",
+            key: "action",
+            width: 140,
+            render: (_, item) => item.orderId ? (
+                <Button size="small" icon={<EyeOutlined />} onClick={() => openOrders(`orderId=${item.orderId}`)}>
+                    Открыть
+                </Button>
+            ) : (
+                <Typography.Text type="secondary">Нет ссылки</Typography.Text>
+            )
         }
     ]
 
@@ -203,7 +215,7 @@ const HomePage = () => {
                                 pagination={false}
                                 size="middle"
                                 loading={isLoading}
-                                scroll={{x: 720}}
+                                scroll={{x: 860}}
                             />
                         ) : (
                             <Empty description={isLoading ? "Загружаем последние события смены..." : "Пока нет событий по заказам"}>
