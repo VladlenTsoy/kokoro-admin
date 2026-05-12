@@ -1,4 +1,4 @@
-import {useState} from "react"
+import {type KeyboardEvent, type ReactNode, useState} from "react"
 import {Alert, Button, Card, Empty, Input, Space, Statistic, Switch, Table, Tag, Typography} from "antd"
 import {ReloadOutlined, SearchOutlined} from "@ant-design/icons"
 import type {ColumnsType} from "antd/es/table"
@@ -54,6 +54,24 @@ const SearchZeroResultsPage = () => {
         setShowRepeatedOnly(false)
         setShowFreshOnly(false)
     }
+    const getQueueMetricCardActionProps = (onOpen: () => void) => ({
+        hoverable: true,
+        role: "button",
+        tabIndex: 0,
+        onClick: onOpen,
+        onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault()
+                onOpen()
+            }
+        }
+    })
+    const renderMetricTitle = (label: string, hint: ReactNode) => (
+        <Space direction="vertical" size={2}>
+            <span>{label}</span>
+            <Typography.Text className="metric-card-hint" type="secondary">{hint}</Typography.Text>
+        </Space>
+    )
 
     const columns: ColumnsType<SearchZeroResultItem> = [
         {
@@ -142,14 +160,14 @@ const SearchZeroResultsPage = () => {
                 <Card className="metric-card metric-card--blue">
                     <Statistic title="Всего неуспешных поисков" value={totalSearches} loading={isLoading} />
                 </Card>
-                <Card className="metric-card metric-card--lime">
-                    <Statistic title="Повторяются чаще 1 раза" value={repeatedSignals} loading={isLoading} />
+                <Card className="metric-card metric-card--lime" {...getQueueMetricCardActionProps(showRepeatedQueue)}>
+                    <Statistic title={renderMetricTitle("Повторяются чаще 1 раза", "Открыть повторные")} value={repeatedSignals} loading={isLoading} />
                 </Card>
-                <Card className="metric-card metric-card--cyan">
-                    <Statistic title="Свежие за 7 дней" value={freshSignals} loading={isLoading} />
+                <Card className="metric-card metric-card--cyan" {...getQueueMetricCardActionProps(showFreshQueue)}>
+                    <Statistic title={renderMetricTitle("Свежие за 7 дней", "Открыть свежие")} value={freshSignals} loading={isLoading} />
                 </Card>
-                <Card className="metric-card metric-card--blue">
-                    <Statistic title="Разобрать сегодня" value={prioritySignals} loading={isLoading} />
+                <Card className="metric-card metric-card--blue" {...getQueueMetricCardActionProps(showPriorityQueue)}>
+                    <Statistic title={renderMetricTitle("Разобрать сегодня", "Открыть приоритет")} value={prioritySignals} loading={isLoading} />
                 </Card>
                 <Card className="metric-card metric-card--blue">
                     <Statistic title="Последний сигнал" value={latest ? dayjs(latest).format("DD.MM HH:mm") : "—"} loading={isLoading} />
