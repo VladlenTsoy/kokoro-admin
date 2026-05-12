@@ -67,6 +67,7 @@ const ColorPage: React.FC = () => {
     const [searchValue, setSearchValue] = useState("")
     const [statusFilter, setStatusFilter] = useState<ColorStatusFilter>("all")
     const [form] = Form.useForm()
+    const isSavingColor = isCreating || isUpdating
 
     const activeCount = colors.filter((color) => !color.deleted_at).length
     const archivedCount = colors.length - activeCount
@@ -195,6 +196,7 @@ const ColorPage: React.FC = () => {
                     form.resetFields()
                     setIsModalOpen(true)
                 }}
+                addButtonDisabled={deletingColorId !== null || isSavingColor}
             >
                 <div className={styles.summary}>
                     <Tag color="blue">Всего: {colors.length}</Tag>
@@ -228,6 +230,14 @@ const ColorPage: React.FC = () => {
                         </Button>
                     </div>
                 </div>
+                {deletingColorId !== null && (
+                    <Alert
+                        type="warning"
+                        showIcon
+                        message="Удаляем цвет"
+                        description="Дождитесь завершения операции: создание, редактирование и другие удаления временно заблокированы, чтобы не перепутать палитру вариантов товара."
+                    />
+                )}
                 {isError && (
                     <Alert
                         type="error"
@@ -259,6 +269,7 @@ const ColorPage: React.FC = () => {
                             >
                                 <Button
                                     type="primary"
+                                    disabled={deletingColorId !== null || isSavingColor}
                                     onClick={() => {
                                         setEditingColor(null)
                                         form.resetFields()
@@ -276,11 +287,26 @@ const ColorPage: React.FC = () => {
             <Modal
                 open={isModalOpen}
                 title={editingColor ? "Редактировать цвет" : "Добавить цвет"}
-                onCancel={() => setIsModalOpen(false)}
+                onCancel={() => {
+                    if (!isSavingColor) setIsModalOpen(false)
+                }}
                 onOk={handleSave}
-                confirmLoading={isCreating || isUpdating}
+                confirmLoading={isSavingColor}
+                okText={isSavingColor ? "Сохраняем..." : editingColor ? "Сохранить" : "Добавить"}
+                cancelButtonProps={{disabled: isSavingColor}}
+                maskClosable={!isSavingColor}
+                closable={!isSavingColor}
             >
-                <Form form={form} layout="vertical">
+                {isSavingColor && (
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Сохраняем цвет"
+                        description="Не закрывайте окно и не меняйте HEX до ответа API: этот справочник влияет на выбор вариантов в карточке товара и комплектацию заказа."
+                        style={{marginBottom: 16}}
+                    />
+                )}
+                <Form form={form} layout="vertical" disabled={isSavingColor}>
                     <Form.Item
                         label="Название"
                         name="title"
