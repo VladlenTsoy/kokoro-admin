@@ -51,6 +51,7 @@ const SizePage: React.FC = () => {
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingSize, setEditingSize] = useState<SizeType | null>(null)
+    const [deletingSizeId, setDeletingSizeId] = useState<number | null>(null)
     const [searchValue, setSearchValue] = useState("")
     const [statusFilter, setStatusFilter] = useState<SizeStatusFilter>("all")
     const [form] = Form.useForm()
@@ -96,11 +97,14 @@ const SizePage: React.FC = () => {
     }
 
     const handleDelete = async (id: number) => {
+        setDeletingSizeId(id)
         try {
             await deleteSize(id).unwrap()
             message.success("Размер удалён")
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setDeletingSizeId(null)
         }
     }
 
@@ -117,32 +121,39 @@ const SizePage: React.FC = () => {
         {
             title: "Действия",
             key: "actions",
-            render: (_: unknown, record: SizeType) => (
-                <Space>
-                    <Button
-                        type="link"
-                        onClick={() => {
-                            setEditingSize(record)
-                            form.setFieldsValue(record)
-                            setIsModalOpen(true)
-                        }}
-                    >
-                        Редактировать
-                    </Button>
-                    <Popconfirm
-                        title="Удалить размер?"
-                        description="Проверьте, что размер не используется в активных товарах. Удаление может убрать вариант из выбора менеджеров и карточек заказа."
-                        okText="Удалить"
-                        cancelText="Отмена"
-                        onConfirm={() => handleDelete(record.id)}
-                        okButtonProps={{loading: isDeleting}}
-                    >
-                        <Button type="link" danger>
-                            Удалить
+            render: (_: unknown, record: SizeType) => {
+                const isCurrentDeleting = deletingSizeId === record.id
+                const isMutationLocked = isCreating || isUpdating || isDeleting
+
+                return (
+                    <Space>
+                        <Button
+                            type="link"
+                            disabled={isMutationLocked}
+                            onClick={() => {
+                                setEditingSize(record)
+                                form.setFieldsValue(record)
+                                setIsModalOpen(true)
+                            }}
+                        >
+                            Редактировать
                         </Button>
-                    </Popconfirm>
-                </Space>
-            )
+                        <Popconfirm
+                            title="Удалить размер?"
+                            description="Проверьте, что размер не используется в активных товарах. Удаление может убрать вариант из выбора менеджеров и карточек заказа."
+                            okText={isCurrentDeleting ? "Удаляем…" : "Удалить"}
+                            cancelText="Отмена"
+                            onConfirm={() => handleDelete(record.id)}
+                            okButtonProps={{loading: isCurrentDeleting}}
+                            cancelButtonProps={{disabled: isCurrentDeleting}}
+                        >
+                            <Button type="link" danger loading={isCurrentDeleting} disabled={isMutationLocked && !isCurrentDeleting}>
+                                {isCurrentDeleting ? "Удаляем…" : "Удалить"}
+                            </Button>
+                        </Popconfirm>
+                    </Space>
+                )
+            }
         }
     ]
 
@@ -190,6 +201,14 @@ const SizePage: React.FC = () => {
                         </Button>
                     </div>
                 </div>
+                {isDeleting && deletingSizeId !== null && (
+                    <Alert
+                        type="warning"
+                        showIcon
+                        message="Удаляем размер"
+                        description="Дождитесь завершения операции: редактирование и другие удаления временно заблокированы, чтобы не смешать изменения в размерной сетке."
+                    />
+                )}
                 {isError && (
                     <Alert
                         type="error"
