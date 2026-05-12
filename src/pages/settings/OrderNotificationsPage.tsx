@@ -50,7 +50,13 @@ type RuleStateFilter = "all" | "active" | "inactive"
 type LogStatusFilter = "all" | OrderStatusNotificationLog["status"]
 
 const OrderNotificationsPage = () => {
-    const {data: statuses} = useGetOrderStatusesQuery()
+    const {
+        data: statuses,
+        isLoading: isLoadingStatuses,
+        isFetching: isFetchingStatuses,
+        isError: isStatusesError,
+        refetch: refetchStatuses
+    } = useGetOrderStatusesQuery()
     const {data: configs, isLoading: isLoadingConfigs, isFetching: isFetchingConfigs, isError: isConfigsError, refetch: refetchConfigs} = useGetOrderStatusNotificationsQuery()
     const {data: logs, isLoading: isLoadingLogs, isError: isLogsError, refetch: refetchLogs} = useGetOrderStatusNotificationLogsQuery()
     const [createConfig, {isLoading: isCreating}] = useCreateOrderStatusNotificationMutation()
@@ -67,8 +73,10 @@ const OrderNotificationsPage = () => {
     const [form] = Form.useForm<FormValues>()
 
     const isConfigListUnsafe = isConfigsError || isLoadingConfigs || isFetchingConfigs
+    const isStatusDictionaryUnsafe = isStatusesError || isLoadingStatuses || isFetchingStatuses || !statuses?.length
     const isSavingConfig = isCreating || isUpdating
-    const isConfigMutationLocked = isConfigListUnsafe || isSavingConfig || isDeleting
+    const isConfigFormUnsafe = isConfigListUnsafe || isStatusDictionaryUnsafe
+    const isConfigMutationLocked = isConfigFormUnsafe || isSavingConfig || isDeleting
     const statusMap = useMemo(() => new Map((statuses || []).map((status) => [status.id, status.title])), [statuses])
     const filteredConfigs = useMemo(() => {
         const query = configSearch.trim().toLowerCase()
@@ -143,6 +151,11 @@ const OrderNotificationsPage = () => {
             return
         }
 
+        if (isStatusDictionaryUnsafe) {
+            message.warning("Сначала загрузите статусы заказов, чтобы правило привязалось к правильному этапу")
+            return
+        }
+
         setEditing(null)
         form.resetFields()
         form.setFieldsValue({isActive: true, type: "sms", sendTo: "client"})
@@ -155,6 +168,11 @@ const OrderNotificationsPage = () => {
             return
         }
 
+        if (isStatusDictionaryUnsafe) {
+            message.warning("Сначала загрузите справочник статусов, чтобы не сохранить правило с неверной привязкой")
+            return
+        }
+
         setEditing(item)
         form.setFieldsValue(item)
         setModalOpen(true)
@@ -163,6 +181,11 @@ const OrderNotificationsPage = () => {
     const saveConfig = async () => {
         if (isConfigListUnsafe) {
             message.warning("Сохранение заблокировано: список правил не подтверждён API")
+            return
+        }
+
+        if (isStatusDictionaryUnsafe) {
+            message.warning("Сохранение заблокировано: справочник статусов не подтверждён API")
             return
         }
 
@@ -287,6 +310,21 @@ const OrderNotificationsPage = () => {
                     </Space>
                 )}
             />
+
+            {isStatusDictionaryUnsafe && (
+                <Alert
+                    type={isStatusesError ? "error" : "warning"}
+                    showIcon
+                    message={isStatusesError ? "Не удалось загрузить статусы заказов" : "Статусы заказов не готовы для правил уведомлений"}
+                    description="Создание и редактирование правил заблокированы, пока справочник статусов не подтверждён API. Так менеджер не привяжет шаблон к неверному этапу заказа."
+                    action={(
+                        <Space wrap>
+                            <Button size="small" onClick={() => refetchStatuses()} loading={isFetchingStatuses}>Повторить</Button>
+                            <Button size="small" href="/settings/order-statuses">Открыть статусы</Button>
+                        </Space>
+                    )}
+                />
+            )}
 
             <SettingsTableSection
                 title="Уведомления по статусам"
@@ -417,7 +455,7 @@ const OrderNotificationsPage = () => {
                 onOk={saveConfig}
                 confirmLoading={isSavingConfig}
                 okText={isSavingConfig ? "Сохраняем…" : editing ? "Сохранить" : "Создать"}
-                okButtonProps={{disabled: isConfigListUnsafe || isDeleting}}
+                okButtonProps={{disabled: isConfigFormUnsafe || isDeleting}}
                 cancelButtonProps={{disabled: isSavingConfig}}
                 closable={!isSavingConfig}
                 maskClosable={!isSavingConfig}
@@ -432,9 +470,25 @@ const OrderNotificationsPage = () => {
                         style={{marginBottom: 16}}
                     />
                 )}
+                {isStatusDictionaryUnsafe && (
+                    <Alert
+                        type={isStatusesError ? "error" : "warning"}
+                        showIcon
+                        message="Статусы заказов не подтверждены"
+                        description="Нельзя безопасно выбрать этап заказа для уведомления. Повторите загрузку справочника перед созданием или редактированием правила."
+                        action={<Button size="small" onClick={() => refetchStatuses()} loading={isFetchingStatuses}>Повторить</Button>}
+                        style={{marginBottom: 16}}
+                    />
+                )}
                 <Form form={form} layout="vertical" disabled={isConfigMutationLocked}>
-                    <Form.Item name="statusId" label="Статус заказа" rules={[{required: true}]}>
-                        <Select options={(statuses || []).map((status) => ({label: status.title, value: status.id}))} />
+                    <Form.Item name="statusId" label="Статус заказа" rules={[{required: true, message: "Выберите статус заказа для правила"}]}>
+                        <Select
+                            loading={isLoadingStatuses || isFetchingStatuses}
+                            disabled={isStatusDictionaryUnsafe || isSavingConfig}
+                            placeholder="Выберите статус заказа"
+                            notFoundContent={isStatusesError ? "Не удалось загрузить статусы" : "Статусы не настроены"}
+                            options={(statuses || []).map((status) => ({label: status.title, value: status.id}))}
+                        />
                     </Form.Item>
                     <Form.Item name="type" label="Тип уведомления" rules={[{required: true}]}>
                         <Select options={typeOptions} />
