@@ -33,7 +33,11 @@ const SettingsOverviewPage = () => {
     const hasSetupError = setupQueries.some((query) => query.isError)
 
     const countriesWithCities = (countries || []).filter((country) => (country.cities?.length || 0) > 0).length
+    const {hostname, protocol} = window.location
     const callbackUrl = `${window.location.origin}/api/payme`
+    const isLocalHost = ["localhost", "127.0.0.1", "0.0.0.0"].includes(hostname)
+    const isHttpsCallback = protocol === "https:"
+    const isPaymeCallbackReady = isHttpsCallback && !isLocalHost
 
     const checklist: ChecklistItem[] = [
         {
@@ -73,8 +77,10 @@ const SettingsOverviewPage = () => {
         },
         {
             title: "Payme callback",
-            description: "URL должен быть передан в Payme Business; автоматический refund не включаем без отдельной проверки.",
-            done: true,
+            description: isPaymeCallbackReady
+                ? "URL открыт на публичном HTTPS-домене; перед запуском всё равно проверьте тестовый заказ."
+                : "Для production нужен публичный HTTPS-домен. Локальный или HTTP callback не переносим в Payme Business.",
+            done: isPaymeCallbackReady,
             action: "Открыть платежи",
             path: "/settings/payments"
         }
@@ -136,6 +142,10 @@ const SettingsOverviewPage = () => {
                         <Typography.Paragraph type="secondary" style={{marginTop: 16}}>
                             Цель — убрать блокеры запуска магазина: точка, склад, доставка, статусы, уведомления и Payme callback.
                         </Typography.Paragraph>
+                        <Space wrap size={[8, 8]} style={{marginBottom: 8}}>
+                            <Tag color={isHttpsCallback ? "green" : "orange"}>{isHttpsCallback ? "HTTPS" : "Не HTTPS"}</Tag>
+                            <Tag color={isLocalHost ? "orange" : "green"}>{isLocalHost ? "Локальный домен" : "Публичный домен"}</Tag>
+                        </Space>
                         <Typography.Text copyable>{callbackUrl}</Typography.Text>
                     </Card>
                 </Col>
