@@ -66,6 +66,7 @@ const OrderStatusesPage = () => {
     }
 
     const hasActiveFilters = Boolean(normalizedSearch) || typeFilter !== "all"
+    const isDeletingStatus = deletingStatusId !== null
 
     const statusOptions = useMemo(
         () => (statuses || []).filter((item) => item.id !== transitionStatus?.id).map((item) => ({label: item.title, value: item.id})),
@@ -159,16 +160,19 @@ const OrderStatusesPage = () => {
             width: 300,
             render: (_, status) => (
                 <Space wrap>
-                    <Button type="link" onClick={() => openEdit(status)}>Редактировать</Button>
-                    <Button type="link" onClick={() => {setTransitionStatus(status); setTransitionsModalOpen(true)}}>Переходы</Button>
+                    <Button type="link" disabled={isDeletingStatus} onClick={() => openEdit(status)}>Редактировать</Button>
+                    <Button type="link" disabled={isDeletingStatus} onClick={() => {setTransitionStatus(status); setTransitionsModalOpen(true)}}>Переходы</Button>
                     <Popconfirm
                         title="Удалить статус заказа?"
                         description="Перед удалением убедитесь, что статус не используется в заказах, фильтрах и отчётах. Для системных статусов безопаснее менять переходы, а не удалять запись."
-                        okText="Удалить"
+                        okText={deletingStatusId === status.id ? "Удаляем..." : "Удалить"}
                         cancelText="Отмена"
                         onConfirm={() => removeStatus(status.id)}
+                        okButtonProps={{loading: deletingStatusId === status.id}}
                     >
-                        <Button type="link" danger loading={deletingStatusId === status.id}>Удалить</Button>
+                        <Button type="link" danger loading={deletingStatusId === status.id} disabled={isDeletingStatus && deletingStatusId !== status.id}>
+                            {deletingStatusId === status.id ? "Удаляем..." : "Удалить"}
+                        </Button>
                     </Popconfirm>
                 </Space>
             )
@@ -182,6 +186,7 @@ const OrderStatusesPage = () => {
                 subtitle="Настройка статусов и разрешённых переходов, которые менеджеры видят в заказах, фильтрах и отчётах."
                 addButtonText="Добавить статус"
                 onAdd={openCreate}
+                canAdd={!isDeletingStatus}
             >
                 <Alert
                     type="info"
@@ -190,6 +195,15 @@ const OrderStatusesPage = () => {
                     description="Меняйте статусы маленькими шагами: название влияет на работу менеджеров, а переходы — на допустимый путь заказа. Перед удалением проверьте активные заказы и отчёты."
                     style={{margin: 16}}
                 />
+                {isDeletingStatus && (
+                    <Alert
+                        type="warning"
+                        showIcon
+                        message="Идёт удаление статуса заказа"
+                        description="Дождитесь завершения операции перед редактированием статусов или переходов, чтобы не сохранить конфликтующие правила обработки заказов."
+                        style={{margin: "0 16px 16px"}}
+                    />
+                )}
                 {isError && (
                     <Alert
                         type="error"
