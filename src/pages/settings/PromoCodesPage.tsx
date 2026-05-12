@@ -85,6 +85,7 @@ const PromoCodesPage = () => {
     const [editing, setEditing] = useState<PromoCode | null>(null)
     const [searchValue, setSearchValue] = useState("")
     const [statusFilter, setStatusFilter] = useState<PromoStatusFilter>("all")
+    const [deletingPromoId, setDeletingPromoId] = useState<number | null>(null)
     const [form] = Form.useForm<PromoForm>()
     const promoCodes = useMemo(() => data || [], [data])
     const promoSummary = useMemo(() => {
@@ -172,11 +173,14 @@ const PromoCodesPage = () => {
     }
 
     const removePromo = async (id: number) => {
+        setDeletingPromoId(id)
         try {
             await deletePromo(id).unwrap()
             message.success("Промокод удалён")
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setDeletingPromoId(null)
         }
     }
 
@@ -202,21 +206,30 @@ const PromoCodesPage = () => {
             title: "Действия",
             key: "actions",
             width: 220,
-            render: (_, promo) => (
-                <Space>
-                    <Button type="link" onClick={() => openEdit(promo)}>Редактировать</Button>
-                    <Popconfirm
-                        title="Удалить промокод?"
-                        description="Проверьте, что код не используется в активных маркетинговых коммуникациях."
-                        okText="Удалить"
-                        cancelText="Отмена"
-                        okButtonProps={{loading: isDeleting}}
-                        onConfirm={() => removePromo(promo.id)}
-                    >
-                        <Button type="link" danger loading={isDeleting}>Удалить</Button>
-                    </Popconfirm>
-                </Space>
-            )
+            render: (_, promo) => {
+                const isCurrentDeleting = deletingPromoId === promo.id
+                const isAnotherPromoDeleting = deletingPromoId !== null && !isCurrentDeleting
+
+                return (
+                    <Space wrap>
+                        <Button type="link" onClick={() => openEdit(promo)} disabled={deletingPromoId !== null}>
+                            Редактировать
+                        </Button>
+                        <Popconfirm
+                            title="Удалить промокод?"
+                            description="Проверьте, что код не используется в активных маркетинговых коммуникациях."
+                            okText={isCurrentDeleting ? "Удаляем..." : "Удалить"}
+                            cancelText="Отмена"
+                            okButtonProps={{loading: isCurrentDeleting, danger: true}}
+                            onConfirm={() => removePromo(promo.id)}
+                        >
+                            <Button type="link" danger loading={isCurrentDeleting} disabled={isAnotherPromoDeleting}>
+                                {isCurrentDeleting ? "Удаляем..." : "Удалить"}
+                            </Button>
+                        </Popconfirm>
+                    </Space>
+                )
+            }
         }
     ]
 
@@ -227,6 +240,7 @@ const PromoCodesPage = () => {
                 subtitle="Создание и управление скидочными кодами: статус, период действия, лимиты и быстрое копирование кода."
                 addButtonText="Добавить промокод"
                 onAdd={openCreate}
+                canAdd={deletingPromoId === null}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Alert
@@ -261,6 +275,14 @@ const PromoCodesPage = () => {
                         </Typography.Text>
                         {hasActiveFilters ? <Button onClick={resetFilters}>Сбросить фильтры</Button> : null}
                     </Space>
+                    {isDeleting && deletingPromoId !== null ? (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            message="Удаляем промокод"
+                            description="Дождитесь завершения операции: создание, редактирование и другие удаления временно заблокированы, чтобы не перепутать активные маркетинговые коды."
+                        />
+                    ) : null}
                     {isError ? (
                         <Alert
                             type="error"
