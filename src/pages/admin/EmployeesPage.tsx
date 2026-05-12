@@ -114,6 +114,8 @@ const EmployeesPage = () => {
     const [rolesForm] = Form.useForm<RolesOnlyFormValues>()
     const editedEmployeeIsActive = Form.useWatch("isActive", form)
     const canManageStaff = useCan("staff.manage")
+    const isSavingEmployee = isCreating || isUpdating
+    const isSavingRoles = isUpdatingRoles
 
     const employees = useMemo(
         () => (employeesData ? [...employeesData].sort((a, b) => b.id - a.id) : []),
@@ -317,8 +319,8 @@ const EmployeesPage = () => {
 
                     return (
                         <Space wrap>
-                            <Button disabled={isDeleting} onClick={() => openEdit(employee)}>Редактировать</Button>
-                            <Button disabled={isDeleting} onClick={() => openRolesOnly(employee)}>Только роли</Button>
+                            <Button disabled={isDeleting || isSavingEmployee || isSavingRoles} onClick={() => openEdit(employee)}>Редактировать</Button>
+                            <Button disabled={isDeleting || isSavingEmployee || isSavingRoles} onClick={() => openRolesOnly(employee)}>Только роли</Button>
                             <Popconfirm
                                 title="Удалить сотрудника?"
                                 description="Перед удалением проверьте, что у сотрудника нет активной смены, заказов или незавершённой передачи клиенту. Если нужно только закрыть вход, безопаснее сначала выключить активность."
@@ -344,7 +346,7 @@ const EmployeesPage = () => {
                 title="Сотрудники"
                 subtitle="Команда админки, статусы активности и распределение ролей."
                 extra={canManageStaff ? (
-                    <Button type="primary" onClick={openCreate}>
+                    <Button type="primary" disabled={isSavingEmployee || isSavingRoles || isDeleting} onClick={openCreate}>
                         Добавить сотрудника
                     </Button>
                 ) : null}
@@ -454,10 +456,12 @@ const EmployeesPage = () => {
                 open={isEditModalOpen}
                 onCancel={closeEditModal}
                 onOk={handleSubmit}
-                confirmLoading={isCreating || isUpdating}
+                confirmLoading={isSavingEmployee}
+                okText={isSavingEmployee ? "Сохраняем доступ…" : undefined}
+                cancelButtonProps={{disabled: isSavingEmployee}}
                 width={700}
             >
-                <Form<EmployeeFormValues> form={form} layout="vertical" initialValues={{isActive: true, roleIds: []}}>
+                <Form<EmployeeFormValues> form={form} layout="vertical" disabled={isSavingEmployee} initialValues={{isActive: true, roleIds: []}}>
                     <Form.Item
                         name="email"
                         label="Email"
@@ -552,12 +556,21 @@ const EmployeesPage = () => {
                 open={isRolesModalOpen}
                 onCancel={closeRolesModal}
                 onOk={handleRolesSubmit}
-                confirmLoading={isUpdatingRoles}
+                confirmLoading={isSavingRoles}
+                okText={isSavingRoles ? "Сохраняем роли…" : undefined}
+                cancelButtonProps={{disabled: isSavingRoles}}
             >
                 <Typography.Paragraph type="secondary">
                     Быстрое обновление ролей через endpoint PATCH /employees/:id/roles
                 </Typography.Paragraph>
-                <Form<RolesOnlyFormValues> form={rolesForm} layout="vertical">
+                <Alert
+                    showIcon
+                    type="info"
+                    style={{marginBottom: 16}}
+                    message="Проверьте состав ролей перед сохранением"
+                    description="Во время сохранения список ролей блокируется, чтобы не отправить случайно изменённый или частичный набор доступов. Удаление ролей может сразу ограничить рабочие сценарии менеджера."
+                />
+                <Form<RolesOnlyFormValues> form={rolesForm} layout="vertical" disabled={isSavingRoles}>
                     <Form.Item
                         name="roleIds"
                         label="Роли"
