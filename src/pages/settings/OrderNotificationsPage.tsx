@@ -51,7 +51,7 @@ type LogStatusFilter = "all" | OrderStatusNotificationLog["status"]
 
 const OrderNotificationsPage = () => {
     const {data: statuses} = useGetOrderStatusesQuery()
-    const {data: configs, isLoading: isLoadingConfigs, isError: isConfigsError, refetch: refetchConfigs} = useGetOrderStatusNotificationsQuery()
+    const {data: configs, isLoading: isLoadingConfigs, isFetching: isFetchingConfigs, isError: isConfigsError, refetch: refetchConfigs} = useGetOrderStatusNotificationsQuery()
     const {data: logs, isLoading: isLoadingLogs, isError: isLogsError, refetch: refetchLogs} = useGetOrderStatusNotificationLogsQuery()
     const [createConfig, {isLoading: isCreating}] = useCreateOrderStatusNotificationMutation()
     const [updateConfig, {isLoading: isUpdating}] = useUpdateOrderStatusNotificationMutation()
@@ -66,6 +66,8 @@ const OrderNotificationsPage = () => {
     const [deletingConfigId, setDeletingConfigId] = useState<number | null>(null)
     const [form] = Form.useForm<FormValues>()
 
+    const isConfigListUnsafe = isConfigsError || isLoadingConfigs || isFetchingConfigs
+    const isConfigMutationLocked = isConfigListUnsafe || isCreating || isUpdating || isDeleting
     const statusMap = useMemo(() => new Map((statuses || []).map((status) => [status.id, status.title])), [statuses])
     const filteredConfigs = useMemo(() => {
         const query = configSearch.trim().toLowerCase()
@@ -135,6 +137,11 @@ const OrderNotificationsPage = () => {
     }, [configs, logs])
 
     const openCreate = () => {
+        if (isConfigListUnsafe) {
+            message.warning("Сначала дождитесь актуального списка правил или повторите загрузку")
+            return
+        }
+
         setEditing(null)
         form.resetFields()
         form.setFieldsValue({isActive: true, type: "sms", sendTo: "client"})
@@ -142,12 +149,22 @@ const OrderNotificationsPage = () => {
     }
 
     const openEdit = (item: OrderStatusNotification) => {
+        if (isConfigListUnsafe) {
+            message.warning("Сначала обновите список правил, чтобы не редактировать устаревшие настройки")
+            return
+        }
+
         setEditing(item)
         form.setFieldsValue(item)
         setModalOpen(true)
     }
 
     const saveConfig = async () => {
+        if (isConfigListUnsafe) {
+            message.warning("Сохранение заблокировано: список правил не подтверждён API")
+            return
+        }
+
         try {
             const values = await form.validateFields()
             if (editing) {
@@ -164,6 +181,11 @@ const OrderNotificationsPage = () => {
     }
 
     const removeConfig = async (id: number) => {
+        if (isConfigListUnsafe) {
+            message.warning("Удаление заблокировано: сначала повторите загрузку правил")
+            return
+        }
+
         setDeletingConfigId(id)
         try {
             await deleteConfig(id).unwrap()
@@ -195,7 +217,7 @@ const OrderNotificationsPage = () => {
 
                 return (
                     <Space>
-                        <Button type="link" onClick={() => openEdit(item)} disabled={isDeleting}>
+                        <Button type="link" onClick={() => openEdit(item)} disabled={isConfigMutationLocked}>
                             Редактировать
                         </Button>
                         <Popconfirm
@@ -206,7 +228,7 @@ const OrderNotificationsPage = () => {
                             okButtonProps={{loading: isCurrentDeleting}}
                             onConfirm={() => removeConfig(item.id)}
                         >
-                            <Button type="link" danger loading={isCurrentDeleting} disabled={isDeleting && !isCurrentDeleting}>
+                            <Button type="link" danger loading={isCurrentDeleting} disabled={isConfigMutationLocked && !isCurrentDeleting}>
                                 {isCurrentDeleting ? "Удаляем" : "Удалить"}
                             </Button>
                         </Popconfirm>
@@ -266,6 +288,7 @@ const OrderNotificationsPage = () => {
                 subtitle="Правила отправки сообщений при смене статуса заказа: канал, получатель, шаблон и активность."
                 addButtonText="Добавить правило"
                 onAdd={openCreate}
+                addButtonDisabled={isConfigMutationLocked}
             >
                 <Space size={[8, 8]} wrap style={{padding: "16px 16px 0", width: "100%"}}>
                     <Input.Search
@@ -294,7 +317,7 @@ const OrderNotificationsPage = () => {
                         showIcon
                         message="Не удалось загрузить правила уведомлений"
                         description="Проверьте соединение или повторите попытку, чтобы не редактировать настройки вслепую."
-                        action={<Button onClick={() => refetchConfigs()}>Повторить</Button>}
+                        action={<Button onClick={() => refetchConfigs()} loading={isFetchingConfigs}>Повторить</Button>}
                         style={{margin: 16}}
                     />
                 )}
@@ -314,7 +337,7 @@ const OrderNotificationsPage = () => {
                                 {hasConfigFilters ? (
                                     <Button onClick={resetConfigFilters}>Сбросить фильтры</Button>
                                 ) : (
-                                    <Button type="primary" onClick={openCreate}>Добавить первое правило</Button>
+                                    <Button type="primary" onClick={openCreate} disabled={isConfigMutationLocked}>Добавить первое правило</Button>
                                 )}
                             </Empty>
                         )
@@ -387,7 +410,16 @@ const OrderNotificationsPage = () => {
                 onOk={saveConfig}
                 confirmLoading={isCreating || isUpdating}
             >
-                <Form form={form} layout="vertical">
+                {isConfigListUnsafe && (
+                    <Alert
+                        type="warning"
+                        showIcon
+                        message="Дождитесь актуального списка правил"
+                        description="Создание и редактирование заблокированы, пока API не подтвердит текущие правила уведомлений. Это защищает от изменения устаревшей доставки сообщений."
+                        style={{marginBottom: 16}}
+                    />
+                )}
+                <Form form={form} layout="vertical" disabled={isConfigMutationLocked}>
                     <Form.Item name="statusId" label="Статус заказа" rules={[{required: true}]}>
                         <Select options={(statuses || []).map((status) => ({label: status.title, value: status.id}))} />
                     </Form.Item>
