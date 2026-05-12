@@ -285,6 +285,25 @@ const ClientsPage = () => {
         }
     ]
 
+    const clientOrderCount = clientDetails?.stats?.ordersCount ?? clientDetails?.ordersCount ?? 0
+    const clientAttentionItems = clientDetails ? [
+        !clientDetails.phone && {
+            color: "orange",
+            label: "Нет телефона",
+            description: "Перед поддержкой или доставкой уточните контакт: менеджер не сможет быстро связаться с клиентом из CRM."
+        },
+        !clientDetails.isActive && {
+            color: "red",
+            label: "Заблокирован",
+            description: "Проверьте причину блокировки до ручного заказа, бонусной корректировки или обещаний клиенту."
+        },
+        clientOrderCount === 0 && {
+            color: "blue",
+            label: "Первый заказ",
+            description: "Истории покупок ещё нет — сверяйте адрес, телефон и ожидания особенно внимательно."
+        }
+    ].filter(Boolean) as Array<{color: string; label: string; description: string}> : []
+
     return (
         <Space orientation="vertical" size={18} style={{width: "100%"}}>
             <Card className="admin-hero-card clients-hero">
@@ -433,6 +452,24 @@ const ClientsPage = () => {
                 )}
                 {!isClientLoading && clientDetails && (
                     <Space orientation="vertical" size={16} style={{width: "100%"}}>
+                        {clientAttentionItems.length > 0 && (
+                            <Alert
+                                type="warning"
+                                showIcon
+                                message="Проверьте CRM-контекст перед действием"
+                                description={(
+                                    <Space direction="vertical" size={8}>
+                                        {clientAttentionItems.map((item) => (
+                                            <Space key={item.label} wrap align="start" size={[8, 4]}>
+                                                <Tag color={item.color}>{item.label}</Tag>
+                                                <Typography.Text>{item.description}</Typography.Text>
+                                            </Space>
+                                        ))}
+                                    </Space>
+                                )}
+                            />
+                        )}
+
                         <Descriptions className="profile-summary" bordered size="small" column={2}>
                             <Descriptions.Item label="Имя">{clientDetails.name || "—"}</Descriptions.Item>
                             <Descriptions.Item label="Телефон">
