@@ -34,6 +34,21 @@ const SearchZeroResultsPage = () => {
         const params = new URLSearchParams({search: query.trim(), current: "1"})
         navigate(`/products?${params.toString()}`)
     }
+    const showPriorityQueue = () => {
+        setQueryFilter("")
+        setShowRepeatedOnly(true)
+        setShowFreshOnly(true)
+    }
+    const showRepeatedQueue = () => {
+        setQueryFilter("")
+        setShowRepeatedOnly(true)
+        setShowFreshOnly(false)
+    }
+    const showFreshQueue = () => {
+        setQueryFilter("")
+        setShowRepeatedOnly(false)
+        setShowFreshOnly(true)
+    }
     const resetFilters = () => {
         setQueryFilter("")
         setShowRepeatedOnly(false)
@@ -83,7 +98,7 @@ const SearchZeroResultsPage = () => {
             key: "action",
             width: 190,
             render: (_, item) => (
-                <Button size="small" icon={<SearchOutlined />} onClick={() => openCatalogSearch(item.query)}>
+                <Button size="small" icon={<SearchOutlined />} onClick={() => openCatalogSearch(item.query)} disabled={!item.query.trim()}>
                     Проверить каталог
                 </Button>
             )
@@ -150,6 +165,26 @@ const SearchZeroResultsPage = () => {
                     style={{marginBottom: 16}}
                 />
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
+                    <Space direction="vertical" size={8} style={{width: "100%"}}>
+                        <Typography.Text strong>Быстрые очереди менеджера</Typography.Text>
+                        <Space size={8} wrap>
+                            <Button type={showRepeatedOnly && showFreshOnly && !normalizedQueryFilter ? "primary" : "default"} onClick={showPriorityQueue}>
+                                Разобрать сегодня ({prioritySignals})
+                            </Button>
+                            <Button type={showRepeatedOnly && !showFreshOnly && !normalizedQueryFilter ? "primary" : "default"} onClick={showRepeatedQueue}>
+                                Повторные ({repeatedSignals})
+                            </Button>
+                            <Button type={!showRepeatedOnly && showFreshOnly && !normalizedQueryFilter ? "primary" : "default"} onClick={showFreshQueue}>
+                                Свежие 7 дней ({freshSignals})
+                            </Button>
+                            <Button onClick={resetFilters} disabled={!hasActiveFilters}>
+                                Все сигналы ({sortedData.length})
+                            </Button>
+                        </Space>
+                        <Typography.Text type="secondary">
+                            Очереди сразу перестраивают таблицу: сначала свежие повторяющиеся запросы, затем повторные и новые одиночные сигналы.
+                        </Typography.Text>
+                    </Space>
                     <Space size={12} wrap style={{width: "100%"}}>
                         <Input
                             allowClear
