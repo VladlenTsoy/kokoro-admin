@@ -284,7 +284,13 @@ const OrdersPage = () => {
         refetchOnFocus: true,
         refetchOnMountOrArgChange: true
     })
-    const {data, isLoading, isFetching} = useGetOrdersQuery({...filters, problemOnly, attentionOnly}, {
+    const {
+        data,
+        isLoading,
+        isFetching,
+        isError: isOrdersError,
+        refetch: refetchOrders
+    } = useGetOrdersQuery({...filters, problemOnly, attentionOnly}, {
         pollingInterval: LIVE_ALERT_POLLING_INTERVAL_MS,
         refetchOnFocus: true,
         refetchOnMountOrArgChange: true
@@ -928,6 +934,16 @@ const OrdersPage = () => {
                     </Typography.Text>
                 )}
             >
+                {isOrdersError && (
+                    <Alert
+                        type="error"
+                        showIcon
+                        message="Не удалось обновить очередь заказов"
+                        description="Не меняйте статусы по устаревшему списку. Повторите загрузку или откройте сохранённую карточку заказа только после проверки актуальности."
+                        action={<Button size="small" onClick={() => refetchOrders()}>Повторить</Button>}
+                        style={{marginBottom: 16}}
+                    />
+                )}
                 <Table<AdminOrder>
                     rowKey="id"
                     loading={isLoading}
