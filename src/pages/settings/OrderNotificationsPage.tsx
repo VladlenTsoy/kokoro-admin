@@ -54,12 +54,13 @@ const OrderNotificationsPage = () => {
     const {data: logs, isLoading: isLoadingLogs, isError: isLogsError, refetch: refetchLogs} = useGetOrderStatusNotificationLogsQuery()
     const [createConfig, {isLoading: isCreating}] = useCreateOrderStatusNotificationMutation()
     const [updateConfig, {isLoading: isUpdating}] = useUpdateOrderStatusNotificationMutation()
-    const [deleteConfig] = useDeleteOrderStatusNotificationMutation()
+    const [deleteConfig, {isLoading: isDeleting}] = useDeleteOrderStatusNotificationMutation()
 
     const [isModalOpen, setModalOpen] = useState(false)
     const [editing, setEditing] = useState<OrderStatusNotification | null>(null)
     const [configSearch, setConfigSearch] = useState("")
     const [configStateFilter, setConfigStateFilter] = useState<RuleStateFilter>("all")
+    const [deletingConfigId, setDeletingConfigId] = useState<number | null>(null)
     const [form] = Form.useForm<FormValues>()
 
     const statusMap = useMemo(() => new Map((statuses || []).map((status) => [status.id, status.title])), [statuses])
@@ -136,11 +137,14 @@ const OrderNotificationsPage = () => {
     }
 
     const removeConfig = async (id: number) => {
+        setDeletingConfigId(id)
         try {
             await deleteConfig(id).unwrap()
             message.success("Конфиг уведомления удалён")
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setDeletingConfigId(null)
         }
     }
 
@@ -159,20 +163,29 @@ const OrderNotificationsPage = () => {
             title: "Действия",
             key: "actions",
             width: 220,
-            render: (_, item) => (
-                <Space>
-                    <Button type="link" onClick={() => openEdit(item)}>Редактировать</Button>
-                    <Popconfirm
-                        title="Удалить правило уведомления?"
-                        description="Перед удалением проверьте, что менеджеры не потеряют важное уведомление по этому статусу. Логи отправки останутся для аудита."
-                        okText="Удалить"
-                        cancelText="Отмена"
-                        onConfirm={() => removeConfig(item.id)}
-                    >
-                        <Button type="link" danger>Удалить</Button>
-                    </Popconfirm>
-                </Space>
-            )
+            render: (_, item) => {
+                const isCurrentDeleting = deletingConfigId === item.id
+
+                return (
+                    <Space>
+                        <Button type="link" onClick={() => openEdit(item)} disabled={isDeleting}>
+                            Редактировать
+                        </Button>
+                        <Popconfirm
+                            title="Удалить правило уведомления?"
+                            description="Перед удалением проверьте, что менеджеры не потеряют важное уведомление по этому статусу. Логи отправки останутся для аудита."
+                            okText="Удалить"
+                            cancelText="Отмена"
+                            okButtonProps={{loading: isCurrentDeleting}}
+                            onConfirm={() => removeConfig(item.id)}
+                        >
+                            <Button type="link" danger loading={isCurrentDeleting} disabled={isDeleting && !isCurrentDeleting}>
+                                {isCurrentDeleting ? "Удаляем" : "Удалить"}
+                            </Button>
+                        </Popconfirm>
+                    </Space>
+                )
+            }
         }
     ]
 
