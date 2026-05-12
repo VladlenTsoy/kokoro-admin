@@ -280,7 +280,12 @@ const OrdersPage = () => {
     const {data: statuses} = useGetOrderStatusesQuery()
     const {data: sources} = useGetSourcesQuery()
     const {data: employees} = useGetEmployeesQuery()
-    const {data: summary} = useGetOrdersSummaryQuery(undefined, {
+    const {
+        data: summary,
+        isError: isSummaryError,
+        isFetching: isSummaryFetching,
+        refetch: refetchSummary
+    } = useGetOrdersSummaryQuery(undefined, {
         pollingInterval: LIVE_ALERT_POLLING_INTERVAL_MS,
         refetchOnFocus: true,
         refetchOnMountOrArgChange: true
@@ -835,9 +840,9 @@ const OrdersPage = () => {
                 />
                 <Space wrap className="hero-badges">
                     <Badge status="processing" text="Сегодня по умолчанию" />
-                    <Badge status={(summary?.problemToday ?? 0) > 0 ? "error" : "success"} text={`${summary?.problemToday ?? 0} проблемных`} />
+                    <Badge status={(summary?.problemToday ?? 0) > 0 ? "error" : isSummaryError ? "warning" : "success"} text={isSummaryError ? "Summary требует проверки" : `${summary?.problemToday ?? 0} проблемных`} />
                     <Badge status="warning" text="SLA: новые 10+ мин подсвечиваются" />
-                    <Badge status={isFetching ? "processing" : "success"} text="Live refresh: 30 сек" />
+                    <Badge status={isFetching || isSummaryFetching ? "processing" : "success"} text="Live refresh: 30 сек" />
                     <Badge
                         status={lastSuccessfulRefreshAt ? "success" : "default"}
                         text={lastSuccessfulRefreshAt ? `Обновлено ${dayjs(lastSuccessfulRefreshAt).format("HH:mm:ss")}` : "Ожидаем первое обновление"}
@@ -875,6 +880,16 @@ const OrdersPage = () => {
                     )}
                 </Space>
             </Card>
+
+            {isSummaryError && (
+                <Alert
+                    showIcon
+                    type="warning"
+                    message="Не удалось обновить операционный summary"
+                    description="Счётчики Today Desk могут быть неполными. Перед оценкой нагрузки смены обновите summary; список заказов и карточки остаются доступными по отдельной загрузке."
+                    action={<Button size="small" onClick={() => refetchSummary()}>Обновить summary</Button>}
+                />
+            )}
 
             <Row gutter={[16, 16]}>
                 <Col xs={24} sm={12} lg={6} xl={4}>
