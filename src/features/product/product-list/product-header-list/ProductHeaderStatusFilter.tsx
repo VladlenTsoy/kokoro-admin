@@ -1,10 +1,11 @@
-import {Segmented, Skeleton, Space} from "antd"
+import {ReloadOutlined} from "@ant-design/icons"
+import {Alert, Button, Segmented, Skeleton, Space} from "antd"
 import {useGetProductVariantStatusesQuery} from "../../../product-variant-status/productVariantStatusApi.ts"
 import {createStyles} from "antd-style"
 import {useNavigate} from "react-router-dom"
 import React from "react"
 
-const useStyles = createStyles(() => ({
+const useStyles = createStyles(({token}) => ({
     segmented: {
         maxWidth: "100%",
         overflowX: "auto",
@@ -25,6 +26,13 @@ const useStyles = createStyles(() => ({
         "&::-webkit-scrollbar": {
             display: "none"
         }
+    },
+    recoveryAlert: {
+        maxWidth: 720,
+        borderRadius: token.borderRadiusLG,
+        "@media (max-width: 960px)": {
+            width: "100%"
+        }
     }
 }))
 
@@ -33,7 +41,7 @@ interface Props {
 }
 
 const ProductHeaderStatusFilter:React.FC<Props> = ({defaultSelected}) => {
-    const {isLoading, data} = useGetProductVariantStatusesQuery(undefined, {refetchOnMountOrArgChange: true})
+    const {isLoading, isError, data, refetch} = useGetProductVariantStatusesQuery(undefined, {refetchOnMountOrArgChange: true})
     const {styles} = useStyles()
     const navigate = useNavigate()
 
@@ -51,8 +59,32 @@ const ProductHeaderStatusFilter:React.FC<Props> = ({defaultSelected}) => {
             <Skeleton.Button />
         </Space>
 
+    if (isError)
+        return (
+            <Alert
+                className={styles.recoveryAlert}
+                type="warning"
+                showIcon
+                message="Статусы каталога временно не загрузились"
+                description="Показываем общий список товаров. Повторите загрузку перед массовой проверкой публикации, остатков или скидок."
+                action={(
+                    <Button size="small" icon={<ReloadOutlined />} onClick={() => refetch()}>
+                        Повторить
+                    </Button>
+                )}
+            />
+        )
+
     if (!(data && data?.length > 0))
-        return null
+        return (
+            <Alert
+                className={styles.recoveryAlert}
+                type="info"
+                showIcon
+                message="Статусы товаров ещё не настроены"
+                description="Фильтр по SKU-статусам появится после настройки жизненного цикла вариантов. Пока менеджер видит весь каталог."
+            />
+        )
 
     return (
         <Segmented
