@@ -51,7 +51,8 @@ const ProductStoragePage: React.FC = () => {
     }, [search, statusFilter, storages])
 
     const hasActiveFilters = Boolean(search.trim()) || statusFilter !== "all"
-    const isMutationInFlight = isCreating || isUpdating || isDeleting
+    const isSaving = isCreating || isUpdating
+    const isMutationInFlight = isSaving || isDeleting
 
     const resetFilters = () => {
         setSearch("")
@@ -71,9 +72,9 @@ const ProductStoragePage: React.FC = () => {
     }
 
     const handleSubmit = async () => {
-        const values = await form.validateFields()
-
         try {
+            const values = await form.validateFields()
+
             if (editingStorage) {
                 await updateStorage({id: editingStorage.id, body: values}).unwrap()
                 message.success("Склад обновлён")
@@ -85,8 +86,18 @@ const ProductStoragePage: React.FC = () => {
             setEditingStorage(null)
             form.resetFields()
         } catch (error) {
+            if (typeof error === "object" && error !== null && "errorFields" in error) {
+                return
+            }
             message.error(getNestErrorMessage(error))
         }
+    }
+
+    const handleModalCancel = () => {
+        if (isSaving) {
+            return
+        }
+        setIsModalOpen(false)
     }
 
     const handleDelete = async (id: number) => {
@@ -244,6 +255,7 @@ const ProductStoragePage: React.FC = () => {
                                     <Button
                                         type="primary"
                                         onClick={openCreate}
+                                        disabled={isMutationInFlight}
                                     >
                                         Добавить первый склад
                                     </Button>
@@ -257,11 +269,14 @@ const ProductStoragePage: React.FC = () => {
             <Modal
                 title={editingStorage ? "Редактирование склада" : "Создание склада"}
                 open={isModalOpen}
-                onCancel={() => setIsModalOpen(false)}
+                onCancel={handleModalCancel}
                 onOk={handleSubmit}
-                okText={editingStorage ? "Сохранить" : "Создать склад"}
+                okText={isSaving ? "Сохраняем..." : editingStorage ? "Сохранить" : "Создать склад"}
                 cancelText="Отмена"
-                confirmLoading={isCreating || isUpdating}
+                confirmLoading={isSaving}
+                cancelButtonProps={{disabled: isSaving}}
+                maskClosable={!isSaving}
+                keyboard={!isSaving}
             >
                 <Alert
                     type="info"
@@ -270,7 +285,16 @@ const ProductStoragePage: React.FC = () => {
                     message="Склад должен быть привязан к корректной точке продаж"
                     description="Неверная привязка может запутать менеджеров при проверке остатков и выдаче заказа."
                 />
-                <Form form={form} layout="vertical">
+                {isSaving && (
+                    <Alert
+                        type="warning"
+                        showIcon
+                        style={{marginBottom: 16}}
+                        message="Сохраняем склад"
+                        description="Не закрывайте окно и не меняйте поля, пока API подтверждает склад и точку продаж."
+                    />
+                )}
+                <Form form={form} layout="vertical" disabled={isSaving}>
                     <Form.Item name="title" label="Название склада" rules={[{required: true, message: "Введите название склада"}]}>
                         <Input placeholder="Например: Основной склад шоурума" />
                     </Form.Item>
