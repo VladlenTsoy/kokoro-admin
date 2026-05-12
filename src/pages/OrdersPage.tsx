@@ -56,6 +56,7 @@ import {formatMoney} from "../utils/formatters.ts"
 import {useCan} from "../features/auth/permissions.ts"
 import {useNavigate, useSearchParams} from "react-router-dom"
 import {deliveryStatusMeta, paymentStatusMeta} from "../utils/adminStatusMeta.ts"
+import {isAntdFormValidationError} from "../utils/isAntdFormValidationError.ts"
 
 const todayFilters = (): GetAdminOrdersParams => ({
     page: 1,
@@ -312,6 +313,7 @@ const OrdersPage = () => {
     const [createOrderComment, {isLoading: isCreatingComment}] = useCreateOrderCommentMutation()
     const canUpdateOrders = useCan("orders.update")
     const canDeleteOrders = useCan("orders.delete")
+    const isOrderActionSaving = isUpdatingOrder || isUpdatingStatus || isCancelling || isCreatingComment
     const currentActionOrderId = actionOrderId ?? selectedOrderId
     const currentItems = useMemo(() => data?.items || [], [data?.items])
     const activeOrderFilterLabels = useMemo(() => {
@@ -515,24 +517,28 @@ const OrdersPage = () => {
     }
 
     const closeStatusModal = () => {
+        if (isUpdatingStatus) return
         setStatusModalOpen(false)
         setActionOrderId(null)
         statusForm.resetFields()
     }
 
     const closeCancelModal = () => {
+        if (isCancelling) return
         setCancelModalOpen(false)
         setActionOrderId(null)
         cancelForm.resetFields()
     }
 
     const closeCommentModal = () => {
+        if (isCreatingComment) return
         setCommentModalOpen(false)
         setActionOrderId(null)
         commentForm.resetFields()
     }
 
     const closeEditModal = () => {
+        if (isUpdatingOrder) return
         setEditModalOpen(false)
         setActionOrderId(null)
         editForm.resetFields()
@@ -602,6 +608,9 @@ const OrdersPage = () => {
             message.success("Данные заказа обновлены")
             closeEditModal()
         } catch (error) {
+            if (isAntdFormValidationError(error)) {
+                return
+            }
             message.error(getNestErrorMessage(error))
         }
     }
@@ -621,6 +630,9 @@ const OrdersPage = () => {
             message.success("Статус заказа обновлён")
             closeStatusModal()
         } catch (error) {
+            if (isAntdFormValidationError(error)) {
+                return
+            }
             message.error(getNestErrorMessage(error))
         }
     }
@@ -633,6 +645,9 @@ const OrdersPage = () => {
             message.success("Заказ отменён")
             closeCancelModal()
         } catch (error) {
+            if (isAntdFormValidationError(error)) {
+                return
+            }
             message.error(getNestErrorMessage(error))
         }
     }
@@ -651,6 +666,9 @@ const OrdersPage = () => {
             message.success("Комментарий добавлен")
             closeCommentModal()
         } catch (error) {
+            if (isAntdFormValidationError(error)) {
+                return
+            }
             message.error(getNestErrorMessage(error))
         }
     }
@@ -754,8 +772,8 @@ const OrdersPage = () => {
                             <Button
                                 size="small"
                                 type="primary"
-                                disabled={isQueueActionBlocked}
-                                title={isQueueActionBlocked ? queueActionBlockReason : undefined}
+                                disabled={isQueueActionBlocked || isOrderActionSaving}
+                                title={isQueueActionBlocked ? queueActionBlockReason : isOrderActionSaving ? "Дождитесь завершения текущего действия" : undefined}
                                 onClick={() => openNextActionModal(order)}
                             >
                                 {getNextActionLabel(order)}
@@ -764,8 +782,8 @@ const OrdersPage = () => {
                         {canUpdateOrders && (
                             <Button
                                 size="small"
-                                disabled={isQueueActionBlocked}
-                                title={isQueueActionBlocked ? queueActionBlockReason : undefined}
+                                disabled={isQueueActionBlocked || isOrderActionSaving}
+                                title={isQueueActionBlocked ? queueActionBlockReason : isOrderActionSaving ? "Дождитесь завершения текущего действия" : undefined}
                                 onClick={() => openEditModal(order)}
                             >
                                 Правки
@@ -774,8 +792,8 @@ const OrdersPage = () => {
                         {canUpdateOrders && (
                             <Button
                                 size="small"
-                                disabled={isQueueActionBlocked}
-                                title={isQueueActionBlocked ? queueActionBlockReason : undefined}
+                                disabled={isQueueActionBlocked || isOrderActionSaving}
+                                title={isQueueActionBlocked ? queueActionBlockReason : isOrderActionSaving ? "Дождитесь завершения текущего действия" : undefined}
                                 onClick={() => openStatusModal(order.id)}
                             >
                                 Статус
@@ -785,8 +803,8 @@ const OrdersPage = () => {
                             <Button
                                 size="small"
                                 danger
-                                disabled={isQueueActionBlocked}
-                                title={isQueueActionBlocked ? queueActionBlockReason : undefined}
+                                disabled={isQueueActionBlocked || isOrderActionSaving}
+                                title={isQueueActionBlocked ? queueActionBlockReason : isOrderActionSaving ? "Дождитесь завершения текущего действия" : undefined}
                                 onClick={() => openCancelModal(order.id)}
                             >
                                 Отмена
@@ -1022,8 +1040,8 @@ const OrdersPage = () => {
                 width={1100}
                 extra={selectedOrder && canUpdateOrders ? (
                     <Space wrap size={[6, 6]} className="order-drawer-actions">
-                        <Button size="small" onClick={() => openEditModal(selectedOrder)}>Правки</Button>
-                        <Button size="small" type="primary" onClick={() => openNextActionModal(selectedOrder)}>{getNextActionLabel(selectedOrder)}</Button>
+                        <Button size="small" disabled={isOrderActionSaving} onClick={() => openEditModal(selectedOrder)}>Правки</Button>
+                        <Button size="small" type="primary" disabled={isOrderActionSaving} onClick={() => openNextActionModal(selectedOrder)}>{getNextActionLabel(selectedOrder)}</Button>
                     </Space>
                 ) : null}
             >
@@ -1133,11 +1151,11 @@ const OrdersPage = () => {
                                         <Typography.Text strong>{getNextActionLabel(selectedOrder)}</Typography.Text>
                                         <div style={{marginTop: 12}}>
                                             <Space wrap>
-                                                {canUpdateOrders && <Button type="primary" onClick={() => openNextActionModal(selectedOrder)}>{getNextActionLabel(selectedOrder)}</Button>}
-                                                {canUpdateOrders && <Button onClick={() => openEditModal(selectedOrder)}>Операционные правки</Button>}
-                                                {canUpdateOrders && <Button onClick={() => openStatusModal(selectedOrder.id)}>Другой статус</Button>}
+                                                {canUpdateOrders && <Button type="primary" disabled={isOrderActionSaving} onClick={() => openNextActionModal(selectedOrder)}>{getNextActionLabel(selectedOrder)}</Button>}
+                                                {canUpdateOrders && <Button disabled={isOrderActionSaving} onClick={() => openEditModal(selectedOrder)}>Операционные правки</Button>}
+                                                {canUpdateOrders && <Button disabled={isOrderActionSaving} onClick={() => openStatusModal(selectedOrder.id)}>Другой статус</Button>}
                                                 {selectedPhone && <Tooltip title="Скопировать телефон"><Button onClick={() => copyPhone(selectedPhone)}>Телефон</Button></Tooltip>}
-                                                {canDeleteOrders && <Button danger onClick={() => openCancelModal(selectedOrder.id)}>Отменить</Button>}
+                                                {canDeleteOrders && <Button danger disabled={isOrderActionSaving} onClick={() => openCancelModal(selectedOrder.id)}>Отменить</Button>}
                                             </Space>
                                         </div>
                                     </Card>
@@ -1240,7 +1258,10 @@ const OrdersPage = () => {
                 onCancel={closeEditModal}
                 onOk={handleEditSubmit}
                 confirmLoading={isUpdatingOrder}
-                okText="Сохранить"
+                okText={isUpdatingOrder ? "Сохраняем…" : "Сохранить"}
+                cancelButtonProps={{disabled: isUpdatingOrder}}
+                maskClosable={!isUpdatingOrder}
+                keyboard={!isUpdatingOrder}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Alert
@@ -1269,11 +1290,12 @@ const OrdersPage = () => {
                             <Typography.Text type="secondary">Тип доставки не меняем без справочника delivery types, чтобы не отправить неверный id.</Typography.Text>
                         </Form.Item>
                         <Form.Item name="deliveryPrice" label="Стоимость доставки">
-                            <InputNumber min={0} precision={0} style={{width: "100%"}} addonAfter="UZS" />
+                            <InputNumber min={0} precision={0} style={{width: "100%"}} addonAfter="UZS" disabled={isUpdatingOrder} />
                         </Form.Item>
                         <Form.Item name="sourceId" label="Источник">
                             <Select
                                 allowClear
+                                disabled={isUpdatingOrder}
                                 placeholder="Выберите источник"
                                 options={sources?.map((source) => ({label: source.title, value: source.id}))}
                             />
@@ -1281,6 +1303,7 @@ const OrdersPage = () => {
                         <Form.Item name="assignedEmployeeId" label="Ответственный сотрудник">
                             <Select
                                 allowClear
+                                disabled={isUpdatingOrder}
                                 placeholder="Назначить сотрудника"
                                 options={employees?.filter((employee) => employee.isActive).map((employee) => ({
                                     label: `${employee.firstName} ${employee.lastName}`,
@@ -1298,6 +1321,10 @@ const OrdersPage = () => {
                 onCancel={closeStatusModal}
                 onOk={handleStatusSubmit}
                 confirmLoading={isUpdatingStatus}
+                okText={isUpdatingStatus ? "Сохраняем…" : "Сохранить"}
+                cancelButtonProps={{disabled: isUpdatingStatus}}
+                maskClosable={!isUpdatingStatus}
+                keyboard={!isUpdatingStatus}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Alert
@@ -1308,13 +1335,13 @@ const OrdersPage = () => {
                     />
                     <Form form={statusForm} layout="vertical">
                         <Form.Item name="statusId" label="Новый статус" rules={[{required: true, message: "Выберите статус"}]}>
-                            <Select options={statuses?.map((status) => ({label: status.title, value: status.id}))} />
+                            <Select disabled={isUpdatingStatus} options={statuses?.map((status) => ({label: status.title, value: status.id}))} />
                         </Form.Item>
                         <Form.Item name="comment" label="Комментарий">
-                            <Input.TextArea rows={3} placeholder="Например: согласовано с клиентом, передано на сборку" />
+                            <Input.TextArea rows={3} disabled={isUpdatingStatus} placeholder="Например: согласовано с клиентом, передано на сборку" />
                         </Form.Item>
                         <Form.Item name="visibleForClient" valuePropName="checked">
-                            <Checkbox>Показывать клиенту</Checkbox>
+                            <Checkbox disabled={isUpdatingStatus}>Показывать клиенту</Checkbox>
                         </Form.Item>
                     </Form>
                 </Space>
@@ -1326,6 +1353,10 @@ const OrdersPage = () => {
                 onCancel={closeCancelModal}
                 onOk={handleCancelSubmit}
                 confirmLoading={isCancelling}
+                okText={isCancelling ? "Отменяем…" : "Отменить заказ"}
+                cancelButtonProps={{disabled: isCancelling}}
+                maskClosable={!isCancelling}
+                keyboard={!isCancelling}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Alert
@@ -1336,7 +1367,7 @@ const OrdersPage = () => {
                     />
                     <Form form={cancelForm} layout="vertical">
                         <Form.Item name="reason" label="Причина отмены" rules={[{required: true, message: "Укажите причину отмены"}]}>
-                            <Input.TextArea rows={3} placeholder="Например: клиент отказался, нет товара, дубль заказа" />
+                            <Input.TextArea rows={3} disabled={isCancelling} placeholder="Например: клиент отказался, нет товара, дубль заказа" />
                         </Form.Item>
                     </Form>
                 </Space>
@@ -1348,6 +1379,10 @@ const OrdersPage = () => {
                 onCancel={closeCommentModal}
                 onOk={handleCommentSubmit}
                 confirmLoading={isCreatingComment}
+                okText={isCreatingComment ? "Добавляем…" : "Добавить"}
+                cancelButtonProps={{disabled: isCreatingComment}}
+                maskClosable={!isCreatingComment}
+                keyboard={!isCreatingComment}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Alert
@@ -1358,10 +1393,10 @@ const OrdersPage = () => {
                     />
                     <Form form={commentForm} layout="vertical">
                         <Form.Item name="message" label="Комментарий" rules={[{required: true, message: "Введите комментарий"}]}>
-                            <Input.TextArea rows={4} placeholder="Например: клиент подтвердил адрес, передано курьеру, нужен повторный звонок" />
+                            <Input.TextArea rows={4} disabled={isCreatingComment} placeholder="Например: клиент подтвердил адрес, передано курьеру, нужен повторный звонок" />
                         </Form.Item>
                         <Form.Item name="visibleForClient" valuePropName="checked">
-                            <Checkbox>Показывать клиенту</Checkbox>
+                            <Checkbox disabled={isCreatingComment}>Показывать клиенту</Checkbox>
                         </Form.Item>
                     </Form>
                 </Space>
