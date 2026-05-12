@@ -56,6 +56,10 @@ const ProductVariantStatusPage: React.FC = () => {
             }
             closeModal()
         } catch (error) {
+            if (error && typeof error === "object" && "errorFields" in error) {
+                return
+            }
+
             message.error(getNestErrorMessage(error))
         }
     }
