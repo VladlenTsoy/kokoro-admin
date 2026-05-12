@@ -67,6 +67,7 @@ const OrderStatusesPage = () => {
 
     const hasActiveFilters = Boolean(normalizedSearch) || typeFilter !== "all"
     const isDeletingStatus = deletingStatusId !== null
+    const isSavingStatus = isCreating || isUpdating
 
     const statusOptions = useMemo(
         () => (statuses || []).filter((item) => item.id !== transitionStatus?.id).map((item) => ({label: item.title, value: item.id})),
@@ -273,11 +274,15 @@ const OrderStatusesPage = () => {
             <Modal
                 title={editingStatus ? "Редактировать статус" : "Создать статус"}
                 open={isStatusModalOpen}
-                onCancel={() => setStatusModalOpen(false)}
+                onCancel={() => {
+                    if (!isSavingStatus) setStatusModalOpen(false)
+                }}
                 onOk={saveStatus}
-                confirmLoading={isCreating || isUpdating}
-                okText={editingStatus ? "Сохранить" : "Создать"}
+                confirmLoading={isSavingStatus}
+                okText={isSavingStatus ? "Сохраняем..." : editingStatus ? "Сохранить" : "Создать"}
                 cancelText="Отмена"
+                cancelButtonProps={{disabled: isSavingStatus}}
+                maskClosable={!isSavingStatus}
             >
                 <Alert
                     type="warning"
@@ -286,7 +291,16 @@ const OrderStatusesPage = () => {
                     description="Используйте короткую формулировку действия или этапа заказа. После создания проверьте разрешённые переходы, чтобы менеджеры не застряли в сценарии обработки."
                     style={{marginBottom: 16}}
                 />
-                <Form form={statusForm} layout="vertical">
+                {isSavingStatus && (
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Сохраняем статус заказа"
+                        description="Не закрывайте форму до ответа API: незавершённое сохранение может оставить менеджеров с непонятным названием или без нужного этапа обработки."
+                        style={{marginBottom: 16}}
+                    />
+                )}
+                <Form form={statusForm} layout="vertical" disabled={isSavingStatus}>
                     <Form.Item name="title" label="Название статуса" extra="Например: «Новый», «Собирается», «Передан курьеру»." rules={[{required: true, message: "Введите название статуса"}]}>
                         <Input placeholder="Новый" />
                     </Form.Item>
@@ -296,11 +310,15 @@ const OrderStatusesPage = () => {
             <Modal
                 title={transitionStatus ? `Переходы для "${transitionStatus.title}"` : "Переходы"}
                 open={isTransitionsModalOpen}
-                onCancel={() => setTransitionsModalOpen(false)}
+                onCancel={() => {
+                    if (!isUpdatingTransitions) setTransitionsModalOpen(false)
+                }}
                 onOk={saveTransitions}
                 confirmLoading={isUpdatingTransitions}
-                okText="Сохранить переходы"
+                okText={isUpdatingTransitions ? "Сохраняем..." : "Сохранить переходы"}
                 cancelText="Отмена"
+                cancelButtonProps={{disabled: isUpdatingTransitions}}
+                maskClosable={!isUpdatingTransitions}
             >
                 <Alert
                     type="info"
@@ -309,7 +327,16 @@ const OrderStatusesPage = () => {
                     description="Оставьте только реальные следующие этапы заказа. Если переход нужен редко или рискован, лучше согласовать правило процесса перед включением."
                     style={{marginBottom: 16}}
                 />
-                <Form form={transitionForm} layout="vertical">
+                {isUpdatingTransitions && (
+                    <Alert
+                        type="warning"
+                        showIcon
+                        message="Сохраняем переходы статуса"
+                        description="Дождитесь завершения, чтобы не закрыть форму в момент изменения доступного пути заказа для менеджеров."
+                        style={{marginBottom: 16}}
+                    />
+                )}
+                <Form form={transitionForm} layout="vertical" disabled={isUpdatingTransitions}>
                     <Form.Item name="toStatusIds" label="Разрешённые переходы" extra="Менеджер сможет перевести заказ только в выбранные статусы.">
                         <Select mode="multiple" options={statusOptions} allowClear placeholder="Выберите допустимые следующие статусы" />
                     </Form.Item>
