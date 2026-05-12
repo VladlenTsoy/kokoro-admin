@@ -184,6 +184,11 @@ const ClientsPage = () => {
         editForm.resetFields()
     }
 
+    const handleEditCancel = () => {
+        if (isUpdating) return
+        closeEdit()
+    }
+
     const saveEdit = async () => {
         if (!editingClientId) return
         try {
@@ -575,20 +580,27 @@ const ClientsPage = () => {
             <Modal
                 title="Редактировать клиента"
                 open={isEditModalOpen}
-                onCancel={closeEdit}
+                onCancel={handleEditCancel}
                 onOk={saveEdit}
                 confirmLoading={isUpdating}
-                okText="Сохранить клиента"
+                okText={isUpdating ? "Сохраняем клиента..." : "Сохранить клиента"}
                 cancelText="Отмена"
+                cancelButtonProps={{disabled: isUpdating}}
+                closable={!isUpdating}
+                keyboard={!isUpdating}
+                maskClosable={!isUpdating}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Alert
-                        type="info"
+                        type={isUpdating ? "warning" : "info"}
                         showIcon
-                        message="Проверьте данные перед сохранением"
-                        description="Имя и телефон видны в CRM, заказах и поддержке. Не очищайте телефон без подтверждения: менеджеры могут потерять быстрый контакт для звонка или доставки."
+                        message={isUpdating ? "Сохраняем CRM-данные клиента" : "Проверьте данные перед сохранением"}
+                        description={isUpdating
+                            ? "Не закрывайте окно и не меняйте поля: имя и телефон уже отправляются в API, чтобы избежать смешанных контактных данных."
+                            : "Имя и телефон видны в CRM, заказах и поддержке. Не очищайте телефон без подтверждения: менеджеры могут потерять быстрый контакт для звонка или доставки."
+                        }
                     />
-                    <Form form={editForm} layout="vertical">
+                    <Form form={editForm} layout="vertical" disabled={isUpdating}>
                         <Form.Item
                             name="name"
                             label="Имя"
