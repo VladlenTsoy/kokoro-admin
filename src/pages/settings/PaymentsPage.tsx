@@ -31,6 +31,11 @@ const PaymentsPage = () => {
         }
     ]
     const hasReadinessWarning = readinessItems.some((item) => !item.ok)
+    const handoffItems = [
+        "Сделать тестовый заказ и убедиться, что статус оплаты обновился в заказе без ручной правки.",
+        "Проверить очередь проблемных/ожидающих оплат после теста: менеджер должен видеть, что делать дальше.",
+        "Зафиксировать, кто отвечает за повторную проверку callback после смены домена или мерчанта."
+    ]
 
     const copyCallback = async () => {
         try {
@@ -108,6 +113,21 @@ const PaymentsPage = () => {
                             message="Не меняйте production-мерчант без подтверждения владельца"
                             description="Ошибочный callback может остановить подтверждение оплат. Для боевого изменения нужен отдельный контрольный тест и approval Владлена."
                         />
+
+                        <Card size="small" title="Мини-чеклист передачи менеджеру" bordered={false} style={{background: "#fafafa"}}>
+                            <List
+                                size="small"
+                                dataSource={handoffItems}
+                                renderItem={(item, index) => (
+                                    <List.Item>
+                                        <Space align="start">
+                                            <Tag color="blue">{index + 1}</Tag>
+                                            <Typography.Text>{item}</Typography.Text>
+                                        </Space>
+                                    </List.Item>
+                                )}
+                            />
+                        </Card>
 
                         <Button type="primary" icon={<CopyOutlined />} onClick={copyCallback}>
                             Скопировать callback URL
