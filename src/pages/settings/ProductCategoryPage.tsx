@@ -31,6 +31,7 @@ const ProductCategoryPage = () => {
     const [categorySearch, setCategorySearch] = useState("")
     const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>("all")
     const [hierarchyFilter, setHierarchyFilter] = useState<HierarchyFilter>("all")
+    const [deletingCategoryId, setDeletingCategoryId] = useState<number | null>(null)
 
     const [form] = Form.useForm<CategoryFormValues>()
 
@@ -138,11 +139,15 @@ const ProductCategoryPage = () => {
     }
 
     const handleDelete = async (id: number) => {
+        setDeletingCategoryId(id)
+
         try {
             await deleteCategory(id).unwrap()
             message.success("Категория удалена")
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setDeletingCategoryId(null)
         }
     }
 
@@ -182,29 +187,34 @@ const ProductCategoryPage = () => {
         {
             title: "Действия",
             key: "actions",
-            render: (_, record) => (
-                <Space>
-                    {canUpdate && (
-                        <Button type="link" onClick={() => openEdit(record)}>
-                            Редактировать
-                        </Button>
-                    )}
-                    {canDelete && (
-                        <Popconfirm
-                            title="Удалить категорию?"
-                            description="Перед удалением проверьте, что в категории нет товаров и дочерних разделов. Действие нельзя отменить из админки."
-                            okText="Удалить"
-                            cancelText="Отмена"
-                            okButtonProps={{loading: isDeleting}}
-                            onConfirm={() => handleDelete(record.id)}
-                        >
-                            <Button type="link" danger>
-                                Удалить
+            render: (_, record) => {
+                const isCurrentCategoryDeleting = deletingCategoryId === record.id
+                const isAnotherCategoryDeleting = isDeleting && !isCurrentCategoryDeleting
+
+                return (
+                    <Space>
+                        {canUpdate && (
+                            <Button type="link" disabled={isDeleting} onClick={() => openEdit(record)}>
+                                Редактировать
                             </Button>
-                        </Popconfirm>
-                    )}
-                </Space>
-            )
+                        )}
+                        {canDelete && (
+                            <Popconfirm
+                                title="Удалить категорию?"
+                                description="Перед удалением проверьте, что в категории нет товаров и дочерних разделов. Действие нельзя отменить из админки."
+                                okText={isCurrentCategoryDeleting ? "Удаляем…" : "Удалить"}
+                                cancelText="Отмена"
+                                okButtonProps={{loading: isCurrentCategoryDeleting, danger: true}}
+                                onConfirm={() => handleDelete(record.id)}
+                            >
+                                <Button type="link" danger loading={isCurrentCategoryDeleting} disabled={isAnotherCategoryDeleting}>
+                                    {isCurrentCategoryDeleting ? "Удаляем…" : "Удалить"}
+                                </Button>
+                            </Popconfirm>
+                        )}
+                    </Space>
+                )
+            }
         }
     ]
 
@@ -215,7 +225,7 @@ const ProductCategoryPage = () => {
                 subtitle="Иерархия товарных категорий, URL и видимость в клиентском каталоге."
                 addButtonText="Добавить категорию"
                 onAdd={openCreate}
-                canAdd={canCreate}
+                canAdd={canCreate && !isDeleting}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Row gutter={[12, 12]}>
@@ -277,6 +287,14 @@ const ProductCategoryPage = () => {
                             message="Применены фильтры категорий"
                             description="Если нужного раздела нет в списке, сбросьте поиск, видимость и уровень перед созданием новой категории."
                             action={<Button onClick={resetCategoryFilters}>Сбросить</Button>}
+                        />
+                    ) : null}
+                    {isDeleting && deletingCategoryId !== null ? (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            message="Удаляем категорию"
+                            description="Дождитесь завершения операции перед созданием или редактированием других категорий, чтобы не получить конфликт в структуре каталога."
                         />
                     ) : null}
                     {isError ? (
