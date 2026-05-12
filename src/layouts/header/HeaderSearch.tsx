@@ -24,6 +24,7 @@ const MANAGER_SHORTCUTS: Array<{keywords: string[]; path: string}> = [
 ]
 
 const searchableProductPattern = /(?:^|\s)(?:sku|id|артикул|товар)[:#\s-]*[\wа-яё-]+/iu
+const phoneSearchPattern = /(?:^|\s)(?:\+?998|8|\+)?[\d\s()\-.]{7,}\d(?:\s|$)/u
 
 const useStyles = createStyles(({token}) => ({
     search: {
@@ -49,6 +50,10 @@ function resolveManagerSearchPath(rawValue: string) {
 
     const shortcut = MANAGER_SHORTCUTS.find((item) => item.keywords.some((keyword) => normalized.includes(keyword)))
     if (shortcut) return shortcut.path
+
+    if (phoneSearchPattern.test(query)) {
+        return `/clients?search=${encodeURIComponent(query)}`
+    }
 
     if (searchableProductPattern.test(query)) {
         return `/products?search=${encodeURIComponent(query.replace(/^(sku|id|артикул|товар)[:#\s-]*/iu, ""))}`

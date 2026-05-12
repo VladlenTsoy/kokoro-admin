@@ -61,11 +61,13 @@ const getPositiveClientIdFromSearch = (searchParams: URLSearchParams) => {
     return Number.isInteger(clientId) && clientId > 0 ? clientId : null
 }
 
+const getClientSearchFromUrl = (searchParams: URLSearchParams) => searchParams.get("search")?.trim() || ""
+
 const ClientsPage = () => {
     const navigate = useNavigate()
     const [searchParams, setSearchParams] = useSearchParams()
     const [filters, setFilters] = useState<{search?: string; status: ClientStatusFilter; page: number; pageSize: number}>({
-        search: "",
+        search: getClientSearchFromUrl(searchParams),
         status: "all",
         page: 1,
         pageSize: 20
@@ -134,7 +136,11 @@ const ClientsPage = () => {
 
     useEffect(() => {
         const clientIdFromUrl = getPositiveClientIdFromSearch(searchParams)
+        const searchFromUrl = getClientSearchFromUrl(searchParams)
         setSelectedClientId((currentClientId) => currentClientId === clientIdFromUrl ? currentClientId : clientIdFromUrl)
+        setFilters((currentFilters) => currentFilters.search === searchFromUrl
+            ? currentFilters
+            : {...currentFilters, search: searchFromUrl, page: 1})
     }, [searchParams])
 
     const updateSelectedClientId = (id: number | null) => {
@@ -150,7 +156,28 @@ const ClientsPage = () => {
         }, {replace: !id})
     }
 
-    const resetClientFilters = () => setFilters((prev) => ({...prev, search: "", status: "all", page: 1}))
+    const updateClientSearch = (search: string) => {
+        setFilters((prev) => ({...prev, search, page: 1}))
+        setSearchParams((previousParams) => {
+            const nextParams = new URLSearchParams(previousParams)
+            const normalizedSearch = search.trim()
+            if (normalizedSearch) {
+                nextParams.set("search", normalizedSearch)
+            } else {
+                nextParams.delete("search")
+            }
+            return nextParams
+        }, {replace: true})
+    }
+
+    const resetClientFilters = () => {
+        setFilters((prev) => ({...prev, search: "", status: "all", page: 1}))
+        setSearchParams((previousParams) => {
+            const nextParams = new URLSearchParams(previousParams)
+            nextParams.delete("search")
+            return nextParams
+        }, {replace: true})
+    }
 
     const openClientOrder = (order: AdminClientOrder) => {
         navigate(`/orders?orderId=${order.id}`)
@@ -346,8 +373,15 @@ const ClientsPage = () => {
                             allowClear
                             enterButton="Найти"
                             value={filters.search}
-                            onChange={(event) => setFilters((prev) => ({...prev, search: event.target.value}))}
-                            onSearch={(search) => setFilters((prev) => ({...prev, search, page: 1}))}
+                            onChange={(event) => {
+                                const nextSearch = event.target.value
+                                if (!nextSearch) {
+                                    updateClientSearch("")
+                                    return
+                                }
+                                setFilters((prev) => ({...prev, search: nextSearch}))
+                            }}
+                            onSearch={updateClientSearch}
                             style={{width: 360, maxWidth: "100%"}}
                         />
                         <Segmented<ClientStatusFilter>
