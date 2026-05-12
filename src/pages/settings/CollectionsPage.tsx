@@ -40,7 +40,8 @@ const CollectionsPage = () => {
     const hasSearch = normalizedSearch.length > 0
     const isSavingCollection = isCreating || isUpdating
     const isDeletingCollection = deletingCollectionId !== null
-    const isCollectionMutationLocked = isSavingCollection || isDeletingCollection
+    const isCollectionListUnavailable = isError
+    const isCollectionMutationLocked = isSavingCollection || isDeletingCollection || isCollectionListUnavailable
 
     const openCreate = () => {
         if (isCollectionMutationLocked) {
@@ -124,6 +125,9 @@ const CollectionsPage = () => {
                     <Button type="link" onClick={() => openEdit(record)} disabled={isCollectionMutationLocked}>
                         Редактировать
                     </Button>
+                    {isCollectionListUnavailable ? (
+                        <Typography.Text type="secondary">Сначала повторите загрузку списка</Typography.Text>
+                    ) : null}
                     <Popconfirm
                         title="Удалить коллекцию?"
                         description="Проверьте, что коллекция не используется в активных товарах или промо-подборках. Действие нельзя отменить из админки."
@@ -136,7 +140,7 @@ const CollectionsPage = () => {
                             type="link"
                             danger
                             loading={deletingCollectionId === record.id}
-                            disabled={isDeletingCollection && deletingCollectionId !== record.id}
+                            disabled={isCollectionListUnavailable || (isDeletingCollection && deletingCollectionId !== record.id)}
                         >
                             {deletingCollectionId === record.id ? "Удаляем…" : "Удалить"}
                         </Button>
@@ -161,7 +165,7 @@ const CollectionsPage = () => {
                             type="error"
                             showIcon
                             message="Не удалось загрузить коллекции"
-                            description="Проверьте подключение или повторите загрузку. Если ошибка сохраняется, не меняйте коллекции вслепую и передайте проблему администратору."
+                            description="Проверьте подключение или повторите загрузку. Создание, редактирование и удаление заблокированы до успешной повторной загрузки, чтобы менеджер не менял витринные подборки по устаревшему списку."
                             action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
                         />
                     ) : null}
@@ -208,7 +212,7 @@ const CollectionsPage = () => {
                                     {hasSearch ? (
                                         <Button onClick={() => setCollectionSearch("")}>Сбросить поиск</Button>
                                     ) : (
-                                        <Button type="primary" onClick={openCreate} disabled={isDeletingCollection}>Создать первую коллекцию</Button>
+                                        <Button type="primary" onClick={openCreate} disabled={isCollectionMutationLocked}>Создать первую коллекцию</Button>
                                     )}
                                 </Empty>
                             )
