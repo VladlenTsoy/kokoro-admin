@@ -152,6 +152,9 @@ const RolesPage = () => {
     const [roleStatusFilter, setRoleStatusFilter] = useState<RoleStatusFilter>("all")
     const [form] = Form.useForm<RoleFormValues>()
     const selectedPermissions = Form.useWatch("permissions", form) ?? []
+    const selectedManagePermissions = selectedPermissions.filter((permission) => permission.endsWith(".manage"))
+    const selectedDeletePermissions = selectedPermissions.filter((permission) => permission.endsWith(".delete"))
+    const selectedPermissionRiskCount = selectedManagePermissions.length + selectedDeletePermissions.length
 
     const roles = useMemo(() => (data ? [...data].sort((a, b) => b.id - a.id) : []), [data])
     const normalizedRoleSearch = roleSearch.trim().toLowerCase()
@@ -441,6 +444,17 @@ const RolesPage = () => {
                         style={{marginBottom: 16}}
                         message="Выдавайте минимально необходимый доступ"
                         description="Полный доступ в модуле автоматически покрывает просмотр, создание, изменение и удаление. Проверяйте delete/manage права отдельно перед сохранением роли."
+                    />
+                    <Alert
+                        type={selectedPermissionRiskCount ? "warning" : "info"}
+                        showIcon
+                        style={{marginBottom: 16}}
+                        message={selectedPermissionRiskCount
+                            ? `В роли выбрано рискованных прав: ${selectedPermissionRiskCount}`
+                            : "В роли пока нет delete/manage прав"}
+                        description={selectedPermissionRiskCount
+                            ? "Перед сохранением проверьте, что эти права действительно нужны сотруднику в смене: они могут менять критичные настройки, заказы, каталог или доступы."
+                            : "Это хороший базовый уровень для роли просмотра/оператора. Добавляйте удаление или полный доступ только под конкретный рабочий сценарий."}
                     />
                     <Form.Item name="permissions" label="Матрица доступов">
                         <PermissionMatrix
