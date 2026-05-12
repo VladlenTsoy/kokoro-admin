@@ -56,6 +56,8 @@ const SizePage: React.FC = () => {
     const [statusFilter, setStatusFilter] = useState<SizeStatusFilter>("all")
     const [form] = Form.useForm()
 
+    const isSaving = isCreating || isUpdating
+    const isMutationLocked = isSaving || isDeleting
     const activeCount = sizes.filter((size) => !size.deleted_at).length
     const archivedCount = sizes.length - activeCount
     const normalizedSearch = searchValue.trim().toLowerCase()
@@ -123,7 +125,6 @@ const SizePage: React.FC = () => {
             key: "actions",
             render: (_: unknown, record: SizeType) => {
                 const isCurrentDeleting = deletingSizeId === record.id
-                const isMutationLocked = isCreating || isUpdating || isDeleting
 
                 return (
                     <Space>
@@ -163,6 +164,7 @@ const SizePage: React.FC = () => {
                 title="Размеры"
                 subtitle="Управляйте размерной сеткой каталога: названия должны быть короткими, единообразными и понятными менеджерам при подборе товара."
                 addButtonText="Добавить размер"
+                addButtonDisabled={isMutationLocked}
                 onAdd={() => {
                     setEditingSize(null)
                     form.resetFields()
@@ -240,6 +242,7 @@ const SizePage: React.FC = () => {
                             >
                                 <Button
                                     type="primary"
+                                    disabled={isMutationLocked}
                                     onClick={() => {
                                         setEditingSize(null)
                                         form.resetFields()
@@ -257,9 +260,17 @@ const SizePage: React.FC = () => {
             <Modal
                 open={isModalOpen}
                 title={editingSize ? "Редактировать размер" : "Добавить размер"}
-                onCancel={() => setIsModalOpen(false)}
+                onCancel={() => {
+                    if (!isSaving) {
+                        setIsModalOpen(false)
+                    }
+                }}
                 onOk={handleSave}
-                confirmLoading={isCreating || isUpdating}
+                okText={isSaving ? "Сохраняем…" : editingSize ? "Сохранить размер" : "Добавить размер"}
+                cancelButtonProps={{disabled: isSaving}}
+                maskClosable={!isSaving}
+                keyboard={!isSaving}
+                confirmLoading={isSaving}
             >
                 <Form form={form} layout="vertical">
                     <Form.Item
@@ -268,7 +279,7 @@ const SizePage: React.FC = () => {
                         extra="Используйте формат, который менеджер сразу узнает в карточке товара и заказе: XS, S, M, 42, One Size."
                         rules={[{required: true, message: "Введите название"}]}
                     >
-                        <Input placeholder="Например: M" />
+                        <Input placeholder="Например: M" disabled={isSaving} />
                     </Form.Item>
                     <Text type="secondary" className={styles.formHint}>
                         Перед сохранением проверьте единый стиль написания: дубли вроде «M» и «m» усложняют подбор размера и учет остатков.
