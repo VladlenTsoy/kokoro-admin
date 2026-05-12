@@ -59,9 +59,10 @@ const ColorPage: React.FC = () => {
     const {data: colors = [], isLoading, isError, refetch} = useGetColorsQuery()
     const [createColor, {isLoading: isCreating}] = useCreateColorMutation()
     const [updateColor, {isLoading: isUpdating}] = useUpdateColorMutation()
-    const [deleteColor, {isLoading: isDeleting}] = useDeleteColorMutation()
+    const [deleteColor] = useDeleteColorMutation()
 
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [deletingColorId, setDeletingColorId] = useState<number | null>(null)
     const [editingColor, setEditingColor] = useState<ColorType | null>(null)
     const [searchValue, setSearchValue] = useState("")
     const [statusFilter, setStatusFilter] = useState<ColorStatusFilter>("all")
@@ -109,11 +110,14 @@ const ColorPage: React.FC = () => {
     }
 
     const handleDelete = async (id: number) => {
+        setDeletingColorId(id)
         try {
             await deleteColor(id).unwrap()
             message.success("Цвет удалён")
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setDeletingColorId(null)
         }
     }
 
@@ -145,32 +149,38 @@ const ColorPage: React.FC = () => {
         {
             title: "Действия",
             key: "actions",
-            render: (_: undefined, record: ColorType) => (
-                <Space>
-                    <Button
-                        type="link"
-                        onClick={() => {
-                            setEditingColor(record)
-                            form.setFieldsValue(record)
-                            setIsModalOpen(true)
-                        }}
-                    >
-                        Редактировать
-                    </Button>
-                    <Popconfirm
-                        title="Удалить цвет?"
-                        description="Проверьте, что цвет не используется в активных товарах. Это действие может убрать вариант из выбора менеджеров."
-                        okText="Удалить"
-                        cancelText="Отмена"
-                        onConfirm={() => handleDelete(record.id)}
-                        okButtonProps={{loading: isDeleting}}
-                    >
-                        <Button type="link" danger>
-                            Удалить
+            render: (_: undefined, record: ColorType) => {
+                const isCurrentColorDeleting = deletingColorId === record.id
+                const isAnotherColorDeleting = deletingColorId !== null && !isCurrentColorDeleting
+
+                return (
+                    <Space>
+                        <Button
+                            type="link"
+                            disabled={deletingColorId !== null}
+                            onClick={() => {
+                                setEditingColor(record)
+                                form.setFieldsValue(record)
+                                setIsModalOpen(true)
+                            }}
+                        >
+                            Редактировать
                         </Button>
-                    </Popconfirm>
-                </Space>
-            )
+                        <Popconfirm
+                            title="Удалить цвет?"
+                            description="Проверьте, что цвет не используется в активных товарах. Это действие может убрать вариант из выбора менеджеров."
+                            okText="Удалить"
+                            cancelText="Отмена"
+                            onConfirm={() => handleDelete(record.id)}
+                            okButtonProps={{loading: isCurrentColorDeleting}}
+                        >
+                            <Button type="link" danger loading={isCurrentColorDeleting} disabled={isAnotherColorDeleting}>
+                                Удалить
+                            </Button>
+                        </Popconfirm>
+                    </Space>
+                )
+            }
         }
     ]
 
