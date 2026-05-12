@@ -10,6 +10,7 @@ import {
 import type {ColorType} from "../../features/settings/color/ColorTypes.ts"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
+import {isAntdFormValidationError} from "../../utils/isAntdFormValidationError.ts"
 
 const {Text} = Typography
 const {Search} = Input
@@ -103,7 +104,7 @@ const ColorPage: React.FC = () => {
             setEditingColor(null)
             form.resetFields()
         } catch (error) {
-            if (typeof error === "object" && error !== null && "errorFields" in error) {
+            if (isAntdFormValidationError(error)) {
                 return
             }
             message.error(getNestErrorMessage(error))
@@ -158,7 +159,7 @@ const ColorPage: React.FC = () => {
                     <Space>
                         <Button
                             type="link"
-                            disabled={deletingColorId !== null}
+                            disabled={deletingColorId !== null || isSavingColor}
                             onClick={() => {
                                 setEditingColor(record)
                                 form.setFieldsValue(record)
@@ -293,8 +294,10 @@ const ColorPage: React.FC = () => {
                 onOk={handleSave}
                 confirmLoading={isSavingColor}
                 okText={isSavingColor ? "Сохраняем..." : editingColor ? "Сохранить" : "Добавить"}
+                okButtonProps={{disabled: isSavingColor}}
                 cancelButtonProps={{disabled: isSavingColor}}
                 maskClosable={!isSavingColor}
+                keyboard={!isSavingColor}
                 closable={!isSavingColor}
             >
                 {isSavingColor && (
