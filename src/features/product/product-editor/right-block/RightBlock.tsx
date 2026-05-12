@@ -1,7 +1,7 @@
 import {createStyles} from "antd-style"
 import ImagesSection from "../../../file-uploader/product-image-uploader/ProductImageUploader.tsx"
 import React, {type Dispatch, type SetStateAction} from "react"
-import {Button, Card, Divider, Space, Typography} from "antd"
+import {Alert, Button, Card, Divider, Space, Typography} from "antd"
 import {SaveFilled} from "@ant-design/icons"
 import type {ProductTemporaryImageType} from "../../../file-uploader/product-image-uploader/ProductImageUploaderType.ts"
 
@@ -18,9 +18,11 @@ interface Props {
     imageUrls: ProductTemporaryImageType[];
     setImageUrl: Dispatch<SetStateAction<ProductTemporaryImageType[]>>;
     isSaving?: boolean
+    saveDisabled?: boolean
+    saveDisabledReason?: string
 }
 
-const RightBlock: React.FC<Props> = ({imageUrls, setImageUrl, isSaving}) => {
+const RightBlock: React.FC<Props> = ({imageUrls, setImageUrl, isSaving, saveDisabled, saveDisabledReason}) => {
     const {styles} = useStyles()
 
     return (
@@ -31,6 +33,14 @@ const RightBlock: React.FC<Props> = ({imageUrls, setImageUrl, isSaving}) => {
                 <ImagesSection imageUrls={imageUrls} setImageUrl={setImageUrl} />
                 <Divider size="middle" />
                 <Space orientation="vertical" style={{width: "100%"}}>
+                    {saveDisabled && saveDisabledReason && (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            message="Сохранение временно недоступно"
+                            description={saveDisabledReason}
+                        />
+                    )}
                     <Button
                         htmlType="submit"
                         type="primary"
@@ -39,7 +49,7 @@ const RightBlock: React.FC<Props> = ({imageUrls, setImageUrl, isSaving}) => {
                         form="editor-product"
                         icon={<SaveFilled />}
                         loading={isSaving}
-                        disabled={isSaving}
+                        disabled={isSaving || saveDisabled}
                     >
                         {isSaving ? "Сохраняем..." : "Сохранить"}
                     </Button>

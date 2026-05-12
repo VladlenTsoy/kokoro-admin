@@ -49,6 +49,10 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
     const {styles} = useStyles()
     const navigate = useNavigate()
     const isSaving = isCreating || isUpdating
+    const isSaveBlocked = isLoading || Boolean(productId && isProductLoadError)
+    const saveBlockedReason = isLoading
+        ? "Дождитесь загрузки карточки товара, чтобы сохранить актуальные данные по цене, остаткам и публикации."
+        : "Карточка товара не загрузилась полностью. Повторите загрузку перед сохранением, чтобы не перезаписать актуальные данные пустой или устаревшей формой."
 
     // ---------- Состояния ----------
     const [selectedSizes, setSelectedSizes] = useState<{id: number; title: string}[]>([])
@@ -279,8 +283,16 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
     // ---------- Memoized Left/Right blocks ----------
     const leftBlock = useMemo(() => <LeftBlock />, [])
     const rightBlock = useMemo(
-        () => <RightBlock imageUrls={images} setImageUrl={onImagesChangeHandler} isSaving={isSaving} />,
-        [images, isSaving, onImagesChangeHandler]
+        () => (
+            <RightBlock
+                imageUrls={images}
+                setImageUrl={onImagesChangeHandler}
+                isSaving={isSaving}
+                saveDisabled={isSaveBlocked}
+                saveDisabledReason={saveBlockedReason}
+            />
+        ),
+        [images, isSaveBlocked, isSaving, onImagesChangeHandler, saveBlockedReason]
     )
 
     // ---------- Render ----------
