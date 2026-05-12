@@ -152,6 +152,7 @@ const ProductImageItem: React.FC<Props> = ({isDragging, loading, error, size, ur
                 removePhoto &&
                 <motion.div
                     className={styles.deleteIcon}
+                    animate={error ? "hover" : undefined}
                     variants={{
                         rest: {
                             y: "-100%",

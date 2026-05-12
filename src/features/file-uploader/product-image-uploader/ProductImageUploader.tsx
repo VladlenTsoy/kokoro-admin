@@ -34,8 +34,11 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({imageUrls, s
 
     const addPhotoHandler = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
-            if (e?.target?.files?.length) {
-                Array.from(e.target.files).forEach(file => {
+            const files = e.target.files ? Array.from(e.target.files) : []
+            e.target.value = ""
+
+            if (files.length) {
+                files.forEach(file => {
                     getBase64(file, async (imageUrl) => {
                         const timeKey = Math.round(Date.now() + Math.random()) // уникальный id
 
@@ -99,7 +102,8 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({imageUrls, s
         [setImageUrl]
     )
 
-    const hasUploadErrors = imageUrls.some((item) => item.error && !item.to_delete)
+    const visibleImageUrls = imageUrls.filter(item => !item.to_delete)
+    const hasUploadErrors = visibleImageUrls.some((item) => item.error)
 
     return <ProductImageDragContext
         setImageUrl={setImageUrl}
@@ -117,8 +121,7 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({imageUrls, s
             />
         )}
         <div className={styles.grid}>
-            {imageUrls
-                .filter(item => !item.to_delete)
+            {visibleImageUrls
                 .map((item, index) => (
                     <ProductImageSortableItem
                         key={item.tmp_id}
@@ -128,7 +131,7 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({imageUrls, s
                         removePhoto={removeTemporaryPhotoHandler}
                     />
                 ))}
-            <ProductImageUploaderButton addPhoto={addPhotoHandler} isFirst={imageUrls.length <= 0} />
+            <ProductImageUploaderButton addPhoto={addPhotoHandler} isFirst={visibleImageUrls.length <= 0} />
         </div>
     </ProductImageDragContext>
 }
