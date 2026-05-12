@@ -142,11 +142,12 @@ const RolesPage = () => {
     } = useGetRolePermissionsQuery()
     const [createRole, {isLoading: isCreating}] = useCreateRoleMutation()
     const [updateRole, {isLoading: isUpdating}] = useUpdateRoleMutation()
-    const [deleteRole, {isLoading: isDeleting}] = useDeleteRoleMutation()
+    const [deleteRole] = useDeleteRoleMutation()
 
     const canManageStaff = useCan("staff.manage")
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
     const [editingRole, setEditingRole] = useState<Role | null>(null)
+    const [deletingRoleId, setDeletingRoleId] = useState<number | null>(null)
     const [roleSearch, setRoleSearch] = useState("")
     const [roleStatusFilter, setRoleStatusFilter] = useState<RoleStatusFilter>("all")
     const [form] = Form.useForm<RoleFormValues>()
@@ -226,11 +227,15 @@ const RolesPage = () => {
     }
 
     const handleDelete = async (role: Role) => {
+        setDeletingRoleId(role.id)
+
         try {
             await deleteRole(role.id).unwrap()
             message.success("Роль удалена")
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setDeletingRoleId(null)
         }
     }
 
@@ -257,21 +262,30 @@ const RolesPage = () => {
                 title: "Действия",
                 key: "actions",
                 width: 220,
-                render: (_: unknown, role: Role) => (
-                    <Space>
-                        <Button onClick={() => openEdit(role)}>Редактировать</Button>
-                        <Popconfirm
-                            title="Удалить роль?"
-                            description="Удаление может сломать доступ сотрудников, если роль уже используется. Для временного ограничения безопаснее отключить роль."
-                            okText="Удалить"
-                            cancelText="Отмена"
-                            onConfirm={() => handleDelete(role)}
-                            okButtonProps={{loading: isDeleting}}
-                        >
-                            <Button danger>Удалить</Button>
-                        </Popconfirm>
-                    </Space>
-                )
+                render: (_: unknown, role: Role) => {
+                    const isCurrentRoleDeleting = deletingRoleId === role.id
+                    const isAnotherRoleDeleting = Boolean(deletingRoleId && !isCurrentRoleDeleting)
+
+                    return (
+                        <Space>
+                            <Button disabled={isCurrentRoleDeleting || isAnotherRoleDeleting} onClick={() => openEdit(role)}>
+                                Редактировать
+                            </Button>
+                            <Popconfirm
+                                title="Удалить роль?"
+                                description="Удаление может сломать доступ сотрудников, если роль уже используется. Для временного ограничения безопаснее отключить роль."
+                                okText="Удалить"
+                                cancelText="Отмена"
+                                onConfirm={() => handleDelete(role)}
+                                okButtonProps={{loading: isCurrentRoleDeleting}}
+                            >
+                                <Button danger loading={isCurrentRoleDeleting} disabled={isAnotherRoleDeleting}>
+                                    Удалить
+                                </Button>
+                            </Popconfirm>
+                        </Space>
+                    )
+                }
             } satisfies ColumnsType<Role>[number]]
             : [])
     ]
