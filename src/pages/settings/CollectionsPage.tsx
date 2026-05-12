@@ -38,14 +38,21 @@ const CollectionsPage = () => {
         [collections, normalizedSearch]
     )
     const hasSearch = normalizedSearch.length > 0
+    const isDeletingCollection = deletingCollectionId !== null
 
     const openCreate = () => {
+        if (isDeletingCollection) {
+            return
+        }
         setEditing(null)
         form.resetFields()
         setIsOpen(true)
     }
 
     const openEdit = (record: CollectionType) => {
+        if (isDeletingCollection) {
+            return
+        }
         setEditing(record)
         form.setFieldsValue({title: record.title})
         setIsOpen(true)
@@ -109,7 +116,7 @@ const CollectionsPage = () => {
             width: 220,
             render: (_, record) => (
                 <Space wrap>
-                    <Button type="link" onClick={() => openEdit(record)}>
+                    <Button type="link" onClick={() => openEdit(record)} disabled={isDeletingCollection}>
                         Редактировать
                     </Button>
                     <Popconfirm
@@ -120,8 +127,13 @@ const CollectionsPage = () => {
                         okButtonProps={{loading: deletingCollectionId === record.id, danger: true}}
                         onConfirm={() => handleDelete(record.id)}
                     >
-                        <Button type="link" danger loading={deletingCollectionId === record.id}>
-                            Удалить
+                        <Button
+                            type="link"
+                            danger
+                            loading={deletingCollectionId === record.id}
+                            disabled={isDeletingCollection && deletingCollectionId !== record.id}
+                        >
+                            {deletingCollectionId === record.id ? "Удаляем…" : "Удалить"}
                         </Button>
                     </Popconfirm>
                 </Space>
@@ -136,6 +148,7 @@ const CollectionsPage = () => {
                 subtitle="Группируйте товары в понятные подборки для витрины и промо-сценариев."
                 addButtonText="Добавить коллекцию"
                 onAdd={openCreate}
+                addButtonDisabled={isDeletingCollection}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     {isError ? (
@@ -160,6 +173,14 @@ const CollectionsPage = () => {
                         {hasSearch ? <Tag>Найдено: {filteredCollections.length}</Tag> : null}
                         {hasSearch ? <Button onClick={() => setCollectionSearch("")}>Сбросить поиск</Button> : null}
                     </Space>
+                    {isDeletingCollection ? (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            message="Удаляем коллекцию"
+                            description="Дождитесь завершения операции: создание и редактирование временно заблокированы, чтобы не начать конфликтующее изменение витринной подборки."
+                        />
+                    ) : null}
                     <Alert
                         type="info"
                         showIcon
@@ -182,7 +203,7 @@ const CollectionsPage = () => {
                                     {hasSearch ? (
                                         <Button onClick={() => setCollectionSearch("")}>Сбросить поиск</Button>
                                     ) : (
-                                        <Button type="primary" onClick={openCreate}>Создать первую коллекцию</Button>
+                                        <Button type="primary" onClick={openCreate} disabled={isDeletingCollection}>Создать первую коллекцию</Button>
                                     )}
                                 </Empty>
                             )
