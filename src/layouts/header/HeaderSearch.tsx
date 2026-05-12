@@ -6,6 +6,12 @@ import {useNavigate} from "react-router-dom"
 const {Search} = Input
 
 const MANAGER_SHORTCUTS: Array<{keywords: string[]; path: string}> = [
+    {keywords: ["проблем", "ошибка заказа", "problem", "attention"], path: "/orders?problemOnly=1"},
+    {keywords: ["внимания", "срочно", "urgent"], path: "/orders?attentionOnly=1"},
+    {keywords: ["оплачен", "оплаченные", "paid"], path: "/orders?paymentStatus=paid"},
+    {keywords: ["ждет оплат", "ждёт оплат", "pending payment"], path: "/orders?paymentStatus=pending"},
+    {keywords: ["готов", "выдач", "handoff", "ready"], path: "/orders?deliveryStatus=ready"},
+    {keywords: ["новые заказ", "принять заказ", "new order"], path: "/orders?deliveryStatus=pending"},
     {keywords: ["заказ", "заказы", "order", "orders", "доставка", "оплата"], path: "/orders"},
     {keywords: ["клиент", "клиенты", "client", "clients", "покупатель", "телефон"], path: "/clients"},
     {keywords: ["товар", "товары", "catalog", "product", "products", "каталог", "артикул"], path: "/products"},
@@ -59,7 +65,7 @@ const HeaderSearch = () => {
         <Search
             className={styles.search}
             size="large"
-            placeholder="Куда перейти или что найти..."
+            placeholder="Заказ, клиент, SKU или очередь..."
             allowClear
             enterButton="Найти"
             prefix={<SearchOutlined />}
