@@ -12,7 +12,7 @@ export const productPropertyApi = createApi({
             providesTags: ["ProductProperty"]
         }),
         getProductProperty: builder.query<ProductPropertyType, number>({
-            query: (id) => `/color/${id}`,
+            query: (id) => `/product-property/${id}`,
             providesTags: (_res, _err, id) => [{type: "ProductProperty", id}]
         }),
         createProductProperty: builder.mutation<void, Partial<ProductPropertyType>>({
@@ -26,7 +26,7 @@ export const productPropertyApi = createApi({
         updateProductProperty: builder.mutation<void, {id: number; data: Partial<ProductPropertyType>}>({
             query: ({id, data}) => ({
                 url: `/product-property/${id}`,
-                method: "PUT",
+                method: "PATCH",
                 body: data
             }),
             invalidatesTags: (_res, _err, {id}) => [{type: "ProductProperty", id}]
