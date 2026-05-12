@@ -179,7 +179,14 @@ const LoginPage = () => {
                                     showIcon
                                     style={{marginBottom: 16}}
                                     message="Не удалось войти"
-                                    description="Проверьте email и пароль. Если доступ должен быть открыт, обратитесь к администратору — не создавайте новый пароль в переписке и не пересылайте текущий."
+                                    description={(
+                                        <Space direction="vertical" size={4}>
+                                            <Typography.Text>{lastLoginError}</Typography.Text>
+                                            <Typography.Text type="secondary">
+                                                Проверьте email и пароль. Если доступ должен быть открыт, обратитесь к администратору — не создавайте новый пароль в переписке и не пересылайте текущий.
+                                            </Typography.Text>
+                                        </Space>
+                                    )}
                                 />
                             )}
 
@@ -192,7 +199,12 @@ const LoginPage = () => {
                                         {type: "email", message: "Неверный формат email"}
                                     ]}
                                 >
-                                    <Input placeholder="Введите рабочий email" size="large" autoComplete="username" />
+                                    <Input
+                                        placeholder="Введите рабочий email"
+                                        size="large"
+                                        autoComplete="username"
+                                        disabled={isLoginLoading}
+                                    />
                                 </Form.Item>
 
                                 <Form.Item
@@ -210,6 +222,7 @@ const LoginPage = () => {
                                         placeholder="Введите пароль"
                                         size="large"
                                         autoComplete="current-password"
+                                        disabled={isLoginLoading}
                                         onKeyUp={(event) => setIsCapsLockOn(event.getModifierState("CapsLock"))}
                                         onBlur={() => setIsCapsLockOn(false)}
                                     />
@@ -222,7 +235,7 @@ const LoginPage = () => {
                                     size="large"
                                     loading={isLoginLoading}
                                 >
-                                    Войти
+                                    {isLoginLoading ? "Проверяем доступ…" : "Войти"}
                                 </Button>
                             </Form>
                         </Card>
