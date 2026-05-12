@@ -47,6 +47,7 @@ const ProductTagsPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingTag, setEditingTag] = useState<ProductVariantTagType | null>(null)
     const [activeToggleTagId, setActiveToggleTagId] = useState<number | null>(null)
+    const [deletingTagId, setDeletingTagId] = useState<number | null>(null)
 
     const tags = useMemo(
         () => [...(data ?? [])].sort((a, b) => a.sortOrder - b.sortOrder || b.id - a.id),
@@ -59,6 +60,7 @@ const ProductTagsPage = () => {
         colorPalettes: tags.filter((tag) => tag.type === "color_palette").length
     }), [tags])
     const hasActiveFilters = Boolean(filters.search || filters.type || filters.isActive)
+    const isTagMutationInFlight = isCreating || isUpdating || isDeleting
 
     const resetFilters = () => setFilters({})
 
@@ -135,12 +137,16 @@ const ProductTagsPage = () => {
         }
     }
 
-    const handleDelete = async (id: number) => {
+    const handleDelete = async (tag: ProductVariantTagType) => {
+        setDeletingTagId(tag.id)
+
         try {
-            await deleteTag(id).unwrap()
-            message.success("Тег удалён")
+            await deleteTag(tag.id).unwrap()
+            message.success(`Тег «${tag.title}» удалён`)
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setDeletingTagId(null)
         }
     }
 
@@ -204,7 +210,7 @@ const ProductTagsPage = () => {
                     <Tag color={isActive ? "green" : "default"}>{isActive ? "Активен" : "Скрыт"}</Tag>
                     <Switch
                         checked={isActive}
-                        disabled={!canUpdate || (isUpdating && activeToggleTagId !== tag.id)}
+                        disabled={!canUpdate || (isTagMutationInFlight && activeToggleTagId !== tag.id)}
                         loading={activeToggleTagId === tag.id}
                         checkedChildren="Вкл"
                         unCheckedChildren="Выкл"
@@ -221,7 +227,7 @@ const ProductTagsPage = () => {
             render: (_, tag) => (
                 <Space>
                     {canUpdate && (
-                        <Button type="link" onClick={() => openEdit(tag)}>
+                        <Button type="link" disabled={isTagMutationInFlight} onClick={() => openEdit(tag)}>
                             Редактировать
                         </Button>
                     )}
@@ -229,13 +235,13 @@ const ProductTagsPage = () => {
                         <Popconfirm
                             title="Удалить тег?"
                             description="Проверьте, что тег не используется в активных товарах, фильтрах или промо-подборках. Действие нельзя отменить из админки."
-                            okText="Удалить"
+                            okText={deletingTagId === tag.id ? "Удаляем…" : "Удалить"}
                             cancelText="Отмена"
-                            onConfirm={() => handleDelete(tag.id)}
-                            okButtonProps={{loading: isDeleting}}
+                            onConfirm={() => handleDelete(tag)}
+                            okButtonProps={{loading: deletingTagId === tag.id}}
                         >
-                            <Button type="link" danger>
-                                Удалить
+                            <Button type="link" danger loading={deletingTagId === tag.id} disabled={isTagMutationInFlight && deletingTagId !== tag.id}>
+                                {deletingTagId === tag.id ? "Удаляем…" : "Удалить"}
                             </Button>
                         </Popconfirm>
                     )}
@@ -251,9 +257,18 @@ const ProductTagsPage = () => {
                 subtitle="Управляемый словарь тегов для фильтров, мерчандайзинга и карточек товаров."
                 addButtonText="Создать тег"
                 onAdd={openCreate}
-                canAdd={canCreate}
+                canAdd={canCreate && !isTagMutationInFlight}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
+                    {deletingTagId ? (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            style={{margin: "16px 16px 0"}}
+                            message="Удаляем тег каталога"
+                            description="Пока запрос выполняется, создание, редактирование и соседние удаления заблокированы, чтобы не смешать изменения фильтров и подборок."
+                        />
+                    ) : null}
                     {isError ? (
                         <Alert
                             type="error"
