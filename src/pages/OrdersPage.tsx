@@ -108,6 +108,11 @@ const getPositiveOrderIdFromSearch = (searchParams: URLSearchParams) => {
     return Number.isInteger(orderId) && orderId > 0 ? orderId : null
 }
 
+const getOrderSearchFromSearch = (searchParams: URLSearchParams) => {
+    const search = searchParams.get("search")?.trim()
+    return search || undefined
+}
+
 const getPositiveNumberFromSearch = (searchParams: URLSearchParams, key: string) => {
     const value = Number(searchParams.get(key))
     return Number.isInteger(value) && value > 0 ? value : undefined
@@ -134,6 +139,7 @@ const getInitialOrderFiltersFromSearch = (searchParams: URLSearchParams): GetAdm
 
     return {
         ...todayFilters(),
+        search: getOrderSearchFromSearch(searchParams),
         statusId: getPositiveNumberFromSearch(searchParams, "statusId"),
         paymentStatus: getPaymentStatusFromSearch(searchParams),
         deliveryStatus: getDeliveryStatusFromSearch(searchParams),
@@ -253,7 +259,7 @@ const OrdersPage = () => {
     const navigate = useNavigate()
     const [searchParams, setSearchParams] = useSearchParams()
     const [filters, setFilters] = useState<GetAdminOrdersParams>(() => getInitialOrderFiltersFromSearch(searchParams))
-    const [searchInput, setSearchInput] = useState("")
+    const [searchInput, setSearchInput] = useState(() => getOrderSearchFromSearch(searchParams) || "")
     const [problemOnly, setProblemOnly] = useState(searchParams.get("problemOnly") === "1")
     const [attentionOnly, setAttentionOnly] = useState(searchParams.get("attentionOnly") === "1")
     const [selectedOrderId, setSelectedOrderId] = useState<number | null>(() => getPositiveOrderIdFromSearch(searchParams))
@@ -360,6 +366,7 @@ const OrdersPage = () => {
             const orderId = getPositiveOrderIdFromSearch(previousParams) ?? selectedOrderId
 
             if (orderId) nextParams.set("orderId", String(orderId))
+            if (filters.search) nextParams.set("search", filters.search)
             if (filters.statusId) nextParams.set("statusId", String(filters.statusId))
             if (filters.paymentStatus) nextParams.set("paymentStatus", filters.paymentStatus)
             if (filters.deliveryStatus) nextParams.set("deliveryStatus", filters.deliveryStatus)
@@ -372,7 +379,7 @@ const OrdersPage = () => {
 
             return nextParams.toString() === previousParams.toString() ? previousParams : nextParams
         }, {replace: true})
-    }, [attentionOnly, filters.deliveryStatus, filters.from, filters.paymentStatus, filters.statusId, filters.to, problemOnly, selectedOrderId, setSearchParams])
+    }, [attentionOnly, filters.deliveryStatus, filters.from, filters.paymentStatus, filters.search, filters.statusId, filters.to, problemOnly, selectedOrderId, setSearchParams])
 
     useEffect(() => {
         const timer = window.setInterval(() => setRefreshClock(dayjs()), 15_000)
@@ -990,7 +997,7 @@ const OrdersPage = () => {
                         {hasActiveOrderFilters && <Button size="small" onClick={setAllFilters}>Очистить всё</Button>}
                         {hasActiveOrderFilters && (
                             <Typography.Text type="secondary">
-                                Ссылка сохраняет эти фильтры без клиентского поиска — можно безопасно передать очередь смены коллеге.
+                                Ссылка сохраняет эти фильтры вместе с поиском — можно безопасно передать очередь смены коллеге.
                             </Typography.Text>
                         )}
                     </Space>

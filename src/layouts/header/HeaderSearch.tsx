@@ -24,6 +24,7 @@ const MANAGER_SHORTCUTS: Array<{keywords: string[]; path: string}> = [
 ]
 
 const searchableProductPattern = /(?:^|\s)(?:sku|id|артикул|товар)[:#\s-]*[\wа-яё-]+/iu
+const orderSearchPattern = /(?:^|\s)(?:заказ|order|номер)[:#№\s-]+([\wа-яё-]+)/iu
 const phoneSearchPattern = /(?:^|\s)(?:\+?998|8|\+)?[\d\s()\-.]{7,}\d(?:\s|$)/u
 
 const useStyles = createStyles(({token}) => ({
@@ -47,6 +48,11 @@ function resolveManagerSearchPath(rawValue: string) {
     const normalized = query.toLocaleLowerCase("ru-RU")
 
     if (!normalized) return "/"
+
+    const orderMatch = query.match(orderSearchPattern)
+    if (orderMatch?.[1]) {
+        return `/orders?search=${encodeURIComponent(orderMatch[1])}`
+    }
 
     const shortcut = MANAGER_SHORTCUTS.find((item) => item.keywords.some((keyword) => normalized.includes(keyword)))
     if (shortcut) return shortcut.path
