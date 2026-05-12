@@ -19,6 +19,7 @@ const SalesPointPage: React.FC = () => {
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingPoint, setEditingPoint] = useState<SalesPointType | null>(null)
+    const [deletingSalesPointId, setDeletingSalesPointId] = useState<number | null>(null)
     const [searchValue, setSearchValue] = useState("")
     const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all")
 
@@ -52,6 +53,7 @@ const SalesPointPage: React.FC = () => {
         setStatusFilter("all")
     }
     const isSaving = isCreatingSalesPoint || isUpdatingSalesPoint
+    const isMutationInFlight = isSaving || isDeletingSalesPoint
 
     const closeModal = () => {
         setIsModalOpen(false)
@@ -60,6 +62,9 @@ const SalesPointPage: React.FC = () => {
     }
 
     const openCreateModal = () => {
+        if (isMutationInFlight) {
+            return
+        }
         setEditingPoint(null)
         form.resetFields()
         setIsModalOpen(true)
@@ -89,11 +94,14 @@ const SalesPointPage: React.FC = () => {
     }
 
     const handleDelete = async (id: number) => {
+        setDeletingSalesPointId(id)
         try {
             await deleteSalesPoint(id).unwrap()
             message.success("Точка продаж удалена")
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setDeletingSalesPointId(null)
         }
     }
 
@@ -131,36 +139,42 @@ const SalesPointPage: React.FC = () => {
         {
             title: "Действия",
             width: 220,
-            render: (_: unknown, record: SalesPointType) => (
-                <Space wrap>
-                    <Button
-                        type="link"
-                        onClick={() => {
-                            setEditingPoint(record)
-                            form.setFieldsValue({
-                                title: record.title,
-                                lat: record.location.lat,
-                                lng: record.location.lng
-                            })
-                            setIsModalOpen(true)
-                        }}
-                    >
-                        Редактировать
-                    </Button>
-                    <Popconfirm
-                        title="Удалить точку продаж?"
-                        description="Перед удалением проверьте склады, зоны доставки и заказы, которые могут быть привязаны к этой точке. Если есть история операций, безопаснее сначала отключить её на уровне бизнес-процесса."
-                        okText="Удалить"
-                        cancelText="Отмена"
-                        onConfirm={() => handleDelete(record.id)}
-                        okButtonProps={{loading: isDeletingSalesPoint}}
-                    >
-                        <Button type="link" danger>
-                            Удалить
+            render: (_: unknown, record: SalesPointType) => {
+                const isCurrentSalesPointDeleting = deletingSalesPointId === record.id
+                const isAnotherSalesPointDeleting = isDeletingSalesPoint && !isCurrentSalesPointDeleting
+
+                return (
+                    <Space wrap>
+                        <Button
+                            type="link"
+                            disabled={isMutationInFlight}
+                            onClick={() => {
+                                setEditingPoint(record)
+                                form.setFieldsValue({
+                                    title: record.title,
+                                    lat: record.location.lat,
+                                    lng: record.location.lng
+                                })
+                                setIsModalOpen(true)
+                            }}
+                        >
+                            Редактировать
                         </Button>
-                    </Popconfirm>
-                </Space>
-            )
+                        <Popconfirm
+                            title="Удалить точку продаж?"
+                            description="Перед удалением проверьте склады, зоны доставки и заказы, которые могут быть привязаны к этой точке. Если есть история операций, безопаснее сначала отключить её на уровне бизнес-процесса."
+                            okText="Удалить"
+                            cancelText="Отмена"
+                            onConfirm={() => handleDelete(record.id)}
+                            okButtonProps={{loading: isCurrentSalesPointDeleting}}
+                        >
+                            <Button type="link" danger loading={isCurrentSalesPointDeleting} disabled={isAnotherSalesPointDeleting || isSaving}>
+                                {isCurrentSalesPointDeleting ? "Удаляем..." : "Удалить"}
+                            </Button>
+                        </Popconfirm>
+                    </Space>
+                )
+            }
         }
     ]
 
@@ -171,6 +185,7 @@ const SalesPointPage: React.FC = () => {
                 subtitle="Филиалы, шоурумы и пункты выдачи. Проверяйте координаты перед сохранением — они влияют на карту, самовывоз и складскую привязку."
                 addButtonText="Добавить точку продаж"
                 onAdd={openCreateModal}
+                addButtonDisabled={isMutationInFlight}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Alert
@@ -179,6 +194,14 @@ const SalesPointPage: React.FC = () => {
                         message={`Активных точек продаж: ${activeSalesPointsCount} из ${salesPoints.length}`}
                         description="Название должно быть понятным менеджеру в заказе, а координаты — достаточно точными для клиента и курьера. Не удаляйте точки с активными складами или заказами без проверки связей."
                     />
+                    {isDeletingSalesPoint && (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            message="Удаление точки продаж ещё выполняется"
+                            description="Дождитесь завершения операции: создание, редактирование и соседние удаления временно заблокированы, чтобы не смешать изменения филиалов, складов и самовывоза."
+                        />
+                    )}
                     <Space wrap style={{width: "100%"}}>
                         <Input.Search
                             allowClear
