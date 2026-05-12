@@ -26,7 +26,7 @@ export const colorApi = createApi({
         updateColor: builder.mutation<void, {id: number; data: Partial<ColorType>}>({
             query: ({id, data}) => ({
                 url: `/color/${id}`,
-                method: "PUT",
+                method: "PATCH",
                 body: data
             }),
             invalidatesTags: (_res, _err, {id}) => [{type: "Color", id}]
