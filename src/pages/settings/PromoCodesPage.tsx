@@ -11,6 +11,7 @@ import {
     useUpdatePromoCodeMutation
 } from "../../features/promo/promoApi.ts"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
+import {isAntdFormValidationError} from "../../utils/isAntdFormValidationError.ts"
 
 type PromoForm = {
     code: string
@@ -169,6 +170,10 @@ const PromoCodesPage = () => {
             }
             setIsOpen(false)
         } catch (error) {
+            if (isAntdFormValidationError(error)) {
+                return
+            }
+
             message.error(getNestErrorMessage(error))
         }
     }
@@ -325,6 +330,7 @@ const PromoCodesPage = () => {
                 okText={isSavingPromo ? "Сохраняем..." : editing ? "Сохранить" : "Создать"}
                 cancelButtonProps={{disabled: isSavingPromo}}
                 maskClosable={!isSavingPromo}
+                keyboard={!isSavingPromo}
                 closable={!isSavingPromo}
                 width={640}
             >
