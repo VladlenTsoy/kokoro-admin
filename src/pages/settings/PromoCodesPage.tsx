@@ -87,6 +87,7 @@ const PromoCodesPage = () => {
     const [statusFilter, setStatusFilter] = useState<PromoStatusFilter>("all")
     const [deletingPromoId, setDeletingPromoId] = useState<number | null>(null)
     const [form] = Form.useForm<PromoForm>()
+    const isSavingPromo = isCreating || isUpdating
     const promoCodes = useMemo(() => data || [], [data])
     const promoSummary = useMemo(() => {
         const now = dayjs()
@@ -240,7 +241,7 @@ const PromoCodesPage = () => {
                 subtitle="Создание и управление скидочными кодами: статус, период действия, лимиты и быстрое копирование кода."
                 addButtonText="Добавить промокод"
                 onAdd={openCreate}
-                canAdd={deletingPromoId === null}
+                canAdd={deletingPromoId === null && !isSavingPromo}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Alert
@@ -316,12 +317,27 @@ const PromoCodesPage = () => {
             <Modal
                 title={editing ? "Редактировать промокод" : "Создать промокод"}
                 open={isOpen}
-                onCancel={() => setIsOpen(false)}
+                onCancel={() => {
+                    if (!isSavingPromo) setIsOpen(false)
+                }}
                 onOk={savePromo}
-                confirmLoading={isCreating || isUpdating}
+                confirmLoading={isSavingPromo}
+                okText={isSavingPromo ? "Сохраняем..." : editing ? "Сохранить" : "Создать"}
+                cancelButtonProps={{disabled: isSavingPromo}}
+                maskClosable={!isSavingPromo}
+                closable={!isSavingPromo}
                 width={640}
             >
-                <Form form={form} layout="vertical">
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
+                    {isSavingPromo ? (
+                        <Alert
+                            type="info"
+                            showIcon
+                            message="Сохраняем промокод"
+                            description="Не закрывайте окно и не меняйте условия акции до ответа API, чтобы в рассылку не ушёл частично сохранённый код."
+                        />
+                    ) : null}
+                    <Form form={form} layout="vertical" disabled={isSavingPromo}>
                     <Form.Item name="code" label="Промокод" rules={[{required: true, message: "Введите промокод"}]} tooltip="Используйте понятный код из маркетинговой коммуникации, например MAYSALE10.">
                         <Input placeholder="MAYSALE10" />
                     </Form.Item>
@@ -346,7 +362,8 @@ const PromoCodesPage = () => {
                     <Form.Item name="isActive" label="Активен" valuePropName="checked">
                         <Switch />
                     </Form.Item>
-                </Form>
+                    </Form>
+                </Space>
             </Modal>
         </>
     )
