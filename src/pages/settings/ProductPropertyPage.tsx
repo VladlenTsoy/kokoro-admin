@@ -9,6 +9,7 @@ import {
 import {DeleteOutlined, EditOutlined, LoadingOutlined, PlusOutlined} from "@ant-design/icons"
 import type {ProductPropertyType} from "../../features/settings/product-property/ProductPropertyTypes.ts"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
+import {isAntdFormValidationError} from "../../utils/isAntdFormValidationError.ts"
 import {useCan} from "../../features/auth/permissions.ts"
 import {useMemo, useState} from "react"
 
@@ -109,6 +110,8 @@ const ProductPropertyPage = () => {
 
             closeModal()
         } catch (error) {
+            if (isAntdFormValidationError(error)) return
+
             message.error(getNestErrorMessage(error))
         }
     }
@@ -128,6 +131,7 @@ const ProductPropertyPage = () => {
     const genExtra = (property: ProductPropertyType) => {
         const isDeletingCurrentProperty = deletingPropertyId === property.id
         const isAnotherPropertyDeleting = deletingPropertyId !== null && !isDeletingCurrentProperty
+        const isDeleteDisabled = isSaving || isAnotherPropertyDeleting
 
         return <Space size="middle" wrap>
             {canUpdate && (
@@ -151,7 +155,7 @@ const ProductPropertyPage = () => {
                     cancelText="Отмена"
                     onConfirm={() => handleDelete(property.id)}
                     okButtonProps={{loading: isDeletingCurrentProperty, danger: true}}
-                    disabled={isAnotherPropertyDeleting}
+                    disabled={isDeleteDisabled}
                 >
                     <Button
                         type="text"
@@ -160,7 +164,7 @@ const ProductPropertyPage = () => {
                         icon={isDeletingCurrentProperty ? <LoadingOutlined /> : <DeleteOutlined />}
                         aria-label={isDeletingCurrentProperty ? `Удаляем свойство ${property.title}` : `Удалить свойство ${property.title}`}
                         loading={isDeletingCurrentProperty}
-                        disabled={isAnotherPropertyDeleting}
+                        disabled={isDeleteDisabled}
                         onClick={(event) => {
                             event.stopPropagation()
                         }}
@@ -272,6 +276,7 @@ const ProductPropertyPage = () => {
                 onOk={handleSubmit}
                 confirmLoading={isSaving}
                 okText={isSaving ? "Сохраняем…" : editingProperty ? "Сохранить" : "Создать"}
+                okButtonProps={{disabled: isSaving}}
                 cancelButtonProps={{disabled: isSaving}}
                 maskClosable={!isSaving}
                 keyboard={!isSaving}
