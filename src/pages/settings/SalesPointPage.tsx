@@ -1,5 +1,5 @@
 import React, {useMemo, useState} from "react"
-import {Alert, Button, Empty, Form, Input, InputNumber, Modal, Popconfirm, Space, Table, Tag, Typography, message} from "antd"
+import {Alert, Button, Empty, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, Typography, message} from "antd"
 import type {ColumnsType} from "antd/es/table"
 import {
     useGetSalesPointsQuery,
@@ -19,6 +19,8 @@ const SalesPointPage: React.FC = () => {
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingPoint, setEditingPoint] = useState<SalesPointType | null>(null)
+    const [searchValue, setSearchValue] = useState("")
+    const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all")
 
     const [form] = Form.useForm()
 
@@ -26,6 +28,29 @@ const SalesPointPage: React.FC = () => {
         () => salesPoints.filter((point) => !point.deleted_at).length,
         [salesPoints]
     )
+    const archivedSalesPointsCount = salesPoints.length - activeSalesPointsCount
+    const normalizedSearchValue = searchValue.trim().toLowerCase()
+    const hasActiveFilters = Boolean(normalizedSearchValue) || statusFilter !== "all"
+    const filteredSalesPoints = useMemo(
+        () => salesPoints.filter((point) => {
+            const matchesSearch = !normalizedSearchValue
+                || point.title.toLowerCase().includes(normalizedSearchValue)
+                || String(point.id).includes(normalizedSearchValue)
+                || String(point.location.lat).includes(normalizedSearchValue)
+                || String(point.location.lng).includes(normalizedSearchValue)
+            const isArchived = Boolean(point.deleted_at)
+            const matchesStatus = statusFilter === "all"
+                || (statusFilter === "active" && !isArchived)
+                || (statusFilter === "archived" && isArchived)
+
+            return matchesSearch && matchesStatus
+        }),
+        [normalizedSearchValue, salesPoints, statusFilter]
+    )
+    const resetFilters = () => {
+        setSearchValue("")
+        setStatusFilter("all")
+    }
     const isSaving = isCreatingSalesPoint || isUpdatingSalesPoint
 
     const closeModal = () => {
@@ -154,6 +179,31 @@ const SalesPointPage: React.FC = () => {
                         message={`Активных точек продаж: ${activeSalesPointsCount} из ${salesPoints.length}`}
                         description="Название должно быть понятным менеджеру в заказе, а координаты — достаточно точными для клиента и курьера. Не удаляйте точки с активными складами или заказами без проверки связей."
                     />
+                    <Space wrap style={{width: "100%"}}>
+                        <Input.Search
+                            allowClear
+                            placeholder="Поиск по названию, ID или координатам"
+                            value={searchValue}
+                            onChange={(event) => setSearchValue(event.target.value)}
+                            style={{minWidth: 260, flex: 1}}
+                        />
+                        <Select
+                            value={statusFilter}
+                            onChange={setStatusFilter}
+                            style={{minWidth: 180}}
+                            options={[
+                                {value: "all", label: `Все статусы (${salesPoints.length})`},
+                                {value: "active", label: `Активные (${activeSalesPointsCount})`},
+                                {value: "archived", label: `Архив (${archivedSalesPointsCount})`}
+                            ]}
+                        />
+                        <Typography.Text type="secondary">
+                            Найдено: {filteredSalesPoints.length}
+                        </Typography.Text>
+                        {hasActiveFilters && (
+                            <Button onClick={resetFilters}>Сбросить фильтры</Button>
+                        )}
+                    </Space>
                     {isError && (
                         <Alert
                             type="error"
@@ -165,12 +215,19 @@ const SalesPointPage: React.FC = () => {
                     )}
                     <Table<SalesPointType>
                         loading={isLoading}
-                        dataSource={salesPoints}
+                        dataSource={filteredSalesPoints}
                         columns={columns}
                         rowKey="id"
                         scroll={{x: 760}}
                         locale={{
-                            emptyText: (
+                            emptyText: hasActiveFilters ? (
+                                <Empty
+                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                    description="По текущим фильтрам точки продаж не найдены"
+                                >
+                                    <Button onClick={resetFilters}>Сбросить фильтры</Button>
+                                </Empty>
+                            ) : (
                                 <Empty
                                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                                     description="Точки продаж ещё не настроены"
