@@ -74,6 +74,7 @@ const SourcePage: React.FC = () => {
     const hasActiveFilters = Boolean(searchValue) || statusFilter !== "all"
     const isSaving = isCreating || isUpdating
     const isSourceMutationLocked = isSaving || isDeleting
+    const modalOkText = isSaving ? "Сохраняем…" : editingSource ? "Сохранить" : "Создать"
 
     const resetFilters = () => {
         setSearchValue("")
@@ -105,6 +106,13 @@ const SourcePage: React.FC = () => {
         } catch (error) {
             message.error(getNestErrorMessage(error))
         }
+    }
+
+    const handleCloseModal = () => {
+        if (isSaving) {
+            return
+        }
+        setIsModalOpen(false)
     }
 
     const handleDelete = async (id: number) => {
@@ -270,20 +278,25 @@ const SourcePage: React.FC = () => {
             <Modal
                 title={editingSource ? "Редактирование источника" : "Создание источника"}
                 open={isModalOpen}
-                onCancel={() => setIsModalOpen(false)}
+                onCancel={handleCloseModal}
                 onOk={handleSubmit}
                 confirmLoading={isSaving}
-                okText={editingSource ? "Сохранить" : "Создать"}
+                okText={modalOkText}
                 cancelText="Отмена"
+                cancelButtonProps={{disabled: isSaving}}
+                maskClosable={!isSaving}
+                closable={!isSaving}
             >
                 <Alert
-                    type="warning"
+                    type={isSaving ? "info" : "warning"}
                     showIcon
-                    message="Код источника может использоваться в интеграциях и отчётах"
-                    description="Меняйте его только если уверены, что внешний канал и аналитика готовы к новому значению."
+                    message={isSaving ? "Сохраняем источник заказов" : "Код источника может использоваться в интеграциях и отчётах"}
+                    description={isSaving
+                        ? "Поля временно заблокированы, чтобы не отправить частично изменённый канал аналитики."
+                        : "Меняйте его только если уверены, что внешний канал и аналитика готовы к новому значению."}
                     style={{marginBottom: 16}}
                 />
-                <Form form={form} layout="vertical" initialValues={{isActive: true}}>
+                <Form form={form} layout="vertical" initialValues={{isActive: true}} disabled={isSaving}>
                     <Form.Item name="title" label="Название" rules={[{required: true, message: "Введите название источника"}]}>
                         <Input placeholder="Например, Telegram" />
                     </Form.Item>
