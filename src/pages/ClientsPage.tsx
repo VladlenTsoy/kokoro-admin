@@ -76,7 +76,13 @@ const ClientsPage = () => {
     const [isEditModalOpen, setEditModalOpen] = useState(false)
     const [editForm] = Form.useForm<{name?: string; phone?: string}>()
 
-    const {data, isLoading} = useGetClientsQuery({
+    const {
+        data,
+        error: clientsError,
+        isFetching: isClientsFetching,
+        isLoading,
+        refetch: refetchClients
+    } = useGetClientsQuery({
         search: filters.search || undefined,
         isActive: filters.status === "all" ? undefined : filters.status === "active" ? "true" : "false",
         page: filters.page,
@@ -338,6 +344,25 @@ const ClientsPage = () => {
             </Card>
 
             <Card className="admin-table-card clients-table-card">
+                {clientsError && (
+                    <Alert
+                        type="warning"
+                        showIcon
+                        style={{marginBottom: 12}}
+                        message="Список клиентов не обновился"
+                        description={(
+                            <Space direction="vertical" size={8}>
+                                <Typography.Text>{getNestErrorMessage(clientsError)}</Typography.Text>
+                                <Typography.Text type="secondary">
+                                    Не блокируйте и не меняйте CRM-статусы по старой выдаче: список может не учитывать последние регистрации, заказы или изменения доступа.
+                                </Typography.Text>
+                                <Button size="small" icon={<ReloadOutlined />} loading={isClientsFetching} onClick={() => refetchClients()}>
+                                    Повторить загрузку
+                                </Button>
+                            </Space>
+                        )}
+                    />
+                )}
                 <Table<AdminClient>
                     rowKey="id"
                     loading={isLoading}
