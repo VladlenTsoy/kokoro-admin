@@ -12,6 +12,7 @@ import {
     useUpdateOrderStatusTransitionsMutation
 } from "../../features/order-status/orderStatusApi.ts"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
+import {isAntdFormValidationError} from "../../utils/isAntdFormValidationError.ts"
 
 const OrderStatusesPage = () => {
     const {data: statuses, isLoading, isError, refetch} = useGetOrderStatusesQuery()
@@ -68,6 +69,7 @@ const OrderStatusesPage = () => {
     const hasActiveFilters = Boolean(normalizedSearch) || typeFilter !== "all"
     const isDeletingStatus = deletingStatusId !== null
     const isSavingStatus = isCreating || isUpdating
+    const isStatusMutationLocked = isSavingStatus || isUpdatingTransitions || isDeletingStatus
 
     const statusOptions = useMemo(
         () => (statuses || []).filter((item) => item.id !== transitionStatus?.id).map((item) => ({label: item.title, value: item.id})),
@@ -75,15 +77,23 @@ const OrderStatusesPage = () => {
     )
 
     const openCreate = () => {
+        if (isStatusMutationLocked) return
         setEditingStatus(null)
         statusForm.resetFields()
         setStatusModalOpen(true)
     }
 
     const openEdit = (status: OrderStatusEntity) => {
+        if (isStatusMutationLocked) return
         setEditingStatus(status)
         statusForm.setFieldsValue({title: status.title})
         setStatusModalOpen(true)
+    }
+
+    const openTransitions = (status: OrderStatusEntity) => {
+        if (isStatusMutationLocked) return
+        setTransitionStatus(status)
+        setTransitionsModalOpen(true)
     }
 
     const saveStatus = async () => {
@@ -98,6 +108,9 @@ const OrderStatusesPage = () => {
             }
             setStatusModalOpen(false)
         } catch (error) {
+            if (isAntdFormValidationError(error)) {
+                return
+            }
             message.error(getNestErrorMessage(error))
         }
     }
@@ -122,6 +135,9 @@ const OrderStatusesPage = () => {
             message.success("Переходы статуса сохранены")
             setTransitionsModalOpen(false)
         } catch (error) {
+            if (isAntdFormValidationError(error)) {
+                return
+            }
             message.error(getNestErrorMessage(error))
         }
     }
@@ -161,8 +177,8 @@ const OrderStatusesPage = () => {
             width: 300,
             render: (_, status) => (
                 <Space wrap>
-                    <Button type="link" disabled={isDeletingStatus} onClick={() => openEdit(status)}>Редактировать</Button>
-                    <Button type="link" disabled={isDeletingStatus} onClick={() => {setTransitionStatus(status); setTransitionsModalOpen(true)}}>Переходы</Button>
+                    <Button type="link" disabled={isStatusMutationLocked} onClick={() => openEdit(status)}>Редактировать</Button>
+                    <Button type="link" disabled={isStatusMutationLocked} onClick={() => openTransitions(status)}>Переходы</Button>
                     <Popconfirm
                         title="Удалить статус заказа?"
                         description="Перед удалением убедитесь, что статус не используется в заказах, фильтрах и отчётах. Для системных статусов безопаснее менять переходы, а не удалять запись."
@@ -171,7 +187,7 @@ const OrderStatusesPage = () => {
                         onConfirm={() => removeStatus(status.id)}
                         okButtonProps={{loading: deletingStatusId === status.id}}
                     >
-                        <Button type="link" danger loading={deletingStatusId === status.id} disabled={isDeletingStatus && deletingStatusId !== status.id}>
+                        <Button type="link" danger loading={deletingStatusId === status.id} disabled={isStatusMutationLocked && deletingStatusId !== status.id}>
                             {deletingStatusId === status.id ? "Удаляем..." : "Удалить"}
                         </Button>
                     </Popconfirm>
@@ -187,7 +203,7 @@ const OrderStatusesPage = () => {
                 subtitle="Настройка статусов и разрешённых переходов, которые менеджеры видят в заказах, фильтрах и отчётах."
                 addButtonText="Добавить статус"
                 onAdd={openCreate}
-                canAdd={!isDeletingStatus}
+                addButtonDisabled={isStatusMutationLocked}
             >
                 <Alert
                     type="info"
@@ -283,6 +299,7 @@ const OrderStatusesPage = () => {
                 cancelText="Отмена"
                 cancelButtonProps={{disabled: isSavingStatus}}
                 maskClosable={!isSavingStatus}
+                keyboard={!isSavingStatus}
             >
                 <Alert
                     type="warning"
@@ -319,6 +336,7 @@ const OrderStatusesPage = () => {
                 cancelText="Отмена"
                 cancelButtonProps={{disabled: isUpdatingTransitions}}
                 maskClosable={!isUpdatingTransitions}
+                keyboard={!isUpdatingTransitions}
             >
                 <Alert
                     type="info"
