@@ -10,6 +10,7 @@ interface SettingsTableSectionProps {
     addButtonText: string
     onAdd: () => void
     canAdd?: boolean
+    addButtonDisabled?: boolean
     addButtonIcon?: ReactNode
     children: ReactNode
 }
@@ -29,6 +30,7 @@ const SettingsTableSection = ({
     addButtonText,
     onAdd,
     canAdd = true,
+    addButtonDisabled = false,
     addButtonIcon = <PlusOutlined />,
     children
 }: SettingsTableSectionProps) => {
@@ -40,7 +42,7 @@ const SettingsTableSection = ({
                 title={title}
                 subtitle={subtitle}
                 extra={canAdd ? (
-                    <Button type="primary" icon={addButtonIcon} onClick={onAdd}>
+                    <Button type="primary" icon={addButtonIcon} onClick={onAdd} disabled={addButtonDisabled}>
                         {addButtonText}
                     </Button>
                 ) : null}

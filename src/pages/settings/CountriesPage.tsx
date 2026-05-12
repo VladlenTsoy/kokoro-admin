@@ -38,6 +38,8 @@ const CountryCityPage: React.FC = () => {
     const [modalType, setModalType] = useState<"country" | "city">("country")
     const [searchQuery, setSearchQuery] = useState("")
     const [showWithoutCitiesOnly, setShowWithoutCitiesOnly] = useState(false)
+    const [deletingCountryId, setDeletingCountryId] = useState<number | null>(null)
+    const [deletingCityKey, setDeletingCityKey] = useState<string | null>(null)
     const [form] = Form.useForm()
 
     const sortedCountries = useMemo(
@@ -71,6 +73,7 @@ const CountryCityPage: React.FC = () => {
     )
     const selectedCountry = sortedCountries.find((country) => country.id === selectedCountryId)
     const isSaving = isCreatingCountry || isUpdatingCountry || isCreatingCity || isUpdatingCity
+    const isDeletingGeography = isDeletingCountry || isDeletingCity
     const totalCities = sortedCountries.reduce((sum, country) => sum + (country.cities?.length ?? 0), 0)
     const countriesWithoutCities = sortedCountries.filter((country) => (country.cities?.length ?? 0) === 0).length
     const hasActiveFilters = Boolean(normalizedSearchQuery) || showWithoutCitiesOnly
@@ -133,14 +136,19 @@ const CountryCityPage: React.FC = () => {
     const handleDelete = async (type: "country" | "city", id: number, parentId?: number) => {
         try {
             if (type === "country") {
+                setDeletingCountryId(id)
                 await deleteCountry(id).unwrap()
                 message.success("Страна удалена")
             } else if (parentId !== undefined) {
+                setDeletingCityKey(`${parentId}:${id}`)
                 await deleteCity({countryId: parentId, cityId: id}).unwrap()
                 message.success("Город удалён")
             }
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setDeletingCountryId(null)
+            setDeletingCityKey(null)
         }
     }
 
@@ -172,24 +180,30 @@ const CountryCityPage: React.FC = () => {
         {
             title: "Действия",
             key: "actions",
-            render: (_, record) => (
-                <Space wrap>
-                    <Button onClick={() => openModal("country", record)}>Редактировать</Button>
-                    <Button type="primary" onClick={() => openModal("city", null, record.id)}>
-                        Добавить город
-                    </Button>
-                    <Popconfirm
-                        title="Удалить страну?"
-                        description="Проверьте, что страна и её города не используются в точках продаж, доставке или заказах. Действие нельзя отменить из админки."
-                        okText="Удалить"
-                        cancelText="Отмена"
-                        onConfirm={() => handleDelete("country", record.id)}
-                        okButtonProps={{loading: isDeletingCountry}}
-                    >
-                        <Button danger>Удалить</Button>
-                    </Popconfirm>
-                </Space>
-            )
+            render: (_, record) => {
+                const isDeletingThisCountry = deletingCountryId === record.id
+
+                return (
+                    <Space wrap>
+                        <Button disabled={isDeletingGeography} onClick={() => openModal("country", record)}>Редактировать</Button>
+                        <Button type="primary" disabled={isDeletingGeography} onClick={() => openModal("city", null, record.id)}>
+                            Добавить город
+                        </Button>
+                        <Popconfirm
+                            title="Удалить страну?"
+                            description="Проверьте, что страна и её города не используются в точках продаж, доставке или заказах. Действие нельзя отменить из админки."
+                            okText="Удалить"
+                            cancelText="Отмена"
+                            onConfirm={() => handleDelete("country", record.id)}
+                            okButtonProps={{loading: isDeletingThisCountry}}
+                        >
+                            <Button danger loading={isDeletingThisCountry} disabled={isDeletingGeography && !isDeletingThisCountry}>
+                                {isDeletingThisCountry ? "Удаляется…" : "Удалить"}
+                            </Button>
+                        </Popconfirm>
+                    </Space>
+                )
+            }
         }
     ]
 
@@ -217,23 +231,30 @@ const CountryCityPage: React.FC = () => {
             {
                 title: "Действия",
                 key: "actions",
-                render: (_, record) => (
-                    <Space wrap>
-                        <Button onClick={() => openModal("city", record, country.id)}>
-                            Редактировать
-                        </Button>
-                        <Popconfirm
-                            title="Удалить город?"
-                            description="Сначала проверьте точки продаж, зоны доставки и заказы в этом городе. Действие нельзя отменить из админки."
-                            okText="Удалить"
-                            cancelText="Отмена"
-                            onConfirm={() => handleDelete("city", record.id, country.id)}
-                            okButtonProps={{loading: isDeletingCity}}
-                        >
-                            <Button danger>Удалить</Button>
-                        </Popconfirm>
-                    </Space>
-                )
+                render: (_, record) => {
+                    const cityKey = `${country.id}:${record.id}`
+                    const isDeletingThisCity = deletingCityKey === cityKey
+
+                    return (
+                        <Space wrap>
+                            <Button disabled={isDeletingGeography} onClick={() => openModal("city", record, country.id)}>
+                                Редактировать
+                            </Button>
+                            <Popconfirm
+                                title="Удалить город?"
+                                description="Сначала проверьте точки продаж, зоны доставки и заказы в этом городе. Действие нельзя отменить из админки."
+                                okText="Удалить"
+                                cancelText="Отмена"
+                                onConfirm={() => handleDelete("city", record.id, country.id)}
+                                okButtonProps={{loading: isDeletingThisCity}}
+                            >
+                                <Button danger loading={isDeletingThisCity} disabled={isDeletingGeography && !isDeletingThisCity}>
+                                    {isDeletingThisCity ? "Удаляется…" : "Удалить"}
+                                </Button>
+                            </Popconfirm>
+                        </Space>
+                    )
+                }
             }
         ]
 
@@ -266,6 +287,7 @@ const CountryCityPage: React.FC = () => {
             subtitle="Справочник географии для точек продаж, доставки и адресов клиентов. Меняйте его осторожно: записи могут быть связаны с операционными данными."
             addButtonText="Добавить страну"
             onAdd={() => openModal("country")}
+            addButtonDisabled={isDeletingGeography}
         >
             <Space direction="vertical" size={12} style={{width: "100%"}}>
                 {isError ? (
@@ -279,10 +301,14 @@ const CountryCityPage: React.FC = () => {
                 ) : null}
 
                 <Alert
-                    type="info"
+                    type={isDeletingGeography ? "warning" : "info"}
                     showIcon
-                    message="Перед удалением проверьте связи"
-                    description="Если страна или город уже используется в доставке, точках продаж или заказах, сначала нужен безопасный backend-контроль связей. Сейчас админка показывает предупреждение, но не знает usage-count."
+                    message={isDeletingGeography ? "Удаление географии выполняется" : "Перед удалением проверьте связи"}
+                    description={
+                        isDeletingGeography
+                            ? "Дождитесь завершения операции: на это время редактирование стран и городов заблокировано, чтобы не смешать изменения в справочнике доставки."
+                            : "Если страна или город уже используется в доставке, точках продаж или заказах, сначала нужен безопасный backend-контроль связей. Сейчас админка показывает предупреждение, но не знает usage-count."
+                    }
                 />
 
                 <Space direction="vertical" size={10} style={{width: "100%"}}>
