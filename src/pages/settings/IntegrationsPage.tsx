@@ -8,6 +8,7 @@ import {
 } from "../../features/integrations/integrationApi.ts"
 import type {IntegrationEventScope, IntegrationSetting} from "../../features/integrations/integrationTypes.ts"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
+import {isAntdFormValidationError} from "../../utils/isAntdFormValidationError.ts"
 
 const DATRA_SCOPES: Array<{value: IntegrationEventScope; label: string; description: string}> = [
     {value: "customers", label: "Клиенты", description: "Профили клиентов и контакты"},
@@ -111,8 +112,9 @@ const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
     }, [form, integration.billingStatus, integration.enabledScopes, integration.publicConfig?.endpoint, integration.publicConfig?.tenantId])
 
     const saveSettings = async () => {
-        const values = await form.validateFields()
         try {
+            const values = await form.validateFields()
+
             await updateIntegration({
                 providerKey: integration.providerKey,
                 body: {
@@ -128,6 +130,10 @@ const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
             api.success("Настройки интеграции сохранены")
             form.setFieldValue("apiToken", "")
         } catch (error) {
+            if (isAntdFormValidationError(error)) {
+                return
+            }
+
             api.error(getNestErrorMessage(error))
         }
     }
@@ -153,7 +159,7 @@ const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
     return (
         <Card
             title={<Space><span>{integration.title}</span><Tag color={statusColor[integration.status]}>{statusLabel[integration.status]}</Tag></Space>}
-            extra={<Switch checked={integration.enabled} disabled={locked || !integration.configured || isTesting} loading={isUpdating} onChange={toggleEnabled} />}
+            extra={<Switch checked={integration.enabled} disabled={locked || !integration.configured || mutationInProgress} loading={isUpdating} onChange={toggleEnabled} />}
         >
             {contextHolder}
             <Space direction="vertical" size={16} style={{width: "100%"}}>
@@ -167,6 +173,15 @@ const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
                         showIcon
                         message="Интеграция заблокирована биллингом"
                         description="Datra можно настроить и включить только после оплаты. Для тестового включения администратор может перевести billing status в active."
+                    />
+                )}
+
+                {mutationInProgress && (
+                    <Alert
+                        type="info"
+                        showIcon
+                        message={isTesting ? "Проверяем Datra" : "Сохраняем настройки Datra"}
+                        description="Поля и переключатели временно заблокированы, чтобы не смешать тест подключения, биллинг и замену токена в одном действии."
                     />
                 )}
 
@@ -187,7 +202,7 @@ const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
                                 label="Статус оплаты Datra"
                                 tooltip="Меняйте только после подтверждения оплаты или тестового доступа."
                             >
-                                <Select options={billingStatusOptions} />
+                                <Select options={billingStatusOptions} disabled={mutationInProgress} />
                             </Form.Item>
                         </Col>
                         <Col xs={24} md={12}>
@@ -238,8 +253,8 @@ const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
                 </Form>
 
                 <Space wrap>
-                    <Button type="primary" onClick={saveSettings} loading={isUpdating} disabled={isTesting}>Сохранить настройки</Button>
-                    <Button onClick={runTest} loading={isTesting} disabled={!paid || isUpdating}>Проверить</Button>
+                    <Button type="primary" onClick={saveSettings} loading={isUpdating} disabled={mutationInProgress}>Сохранить настройки</Button>
+                    <Button onClick={runTest} loading={isTesting} disabled={!paid || mutationInProgress}>Проверить</Button>
                 </Space>
 
                 {integration.lastError && <Alert type="error" showIcon message="Последняя ошибка" description={integration.lastError} />}
