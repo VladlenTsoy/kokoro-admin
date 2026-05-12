@@ -47,6 +47,7 @@ type FormValues = {
 }
 
 type RuleStateFilter = "all" | "active" | "inactive"
+type LogStatusFilter = "all" | OrderStatusNotificationLog["status"]
 
 const OrderNotificationsPage = () => {
     const {data: statuses} = useGetOrderStatusesQuery()
@@ -60,6 +61,8 @@ const OrderNotificationsPage = () => {
     const [editing, setEditing] = useState<OrderStatusNotification | null>(null)
     const [configSearch, setConfigSearch] = useState("")
     const [configStateFilter, setConfigStateFilter] = useState<RuleStateFilter>("all")
+    const [logSearch, setLogSearch] = useState("")
+    const [logStatusFilter, setLogStatusFilter] = useState<LogStatusFilter>("all")
     const [deletingConfigId, setDeletingConfigId] = useState<number | null>(null)
     const [form] = Form.useForm<FormValues>()
 
@@ -89,6 +92,30 @@ const OrderNotificationsPage = () => {
     const resetConfigFilters = () => {
         setConfigSearch("")
         setConfigStateFilter("all")
+    }
+    const filteredLogs = useMemo(() => {
+        const query = logSearch.trim().toLowerCase()
+
+        return (logs || []).filter((item) => {
+            const matchesStatus = logStatusFilter === "all" || item.status === logStatusFilter
+            const searchableText = [
+                item.id,
+                item.orderId,
+                logStatusMeta[item.status]?.label,
+                item.status,
+                item.recipient,
+                item.error,
+                item.createdAt ? new Date(item.createdAt).toLocaleString("ru-RU") : ""
+            ].join(" ").toLowerCase()
+
+            return matchesStatus && (!query || searchableText.includes(query))
+        })
+    }, [logSearch, logStatusFilter, logs])
+
+    const hasLogFilters = logSearch.trim().length > 0 || logStatusFilter !== "all"
+    const resetLogFilters = () => {
+        setLogSearch("")
+        setLogStatusFilter("all")
     }
     const notificationSummary = useMemo(() => {
         const safeConfigs = configs || []
@@ -222,6 +249,7 @@ const OrderNotificationsPage = () => {
                     <Space size={[8, 8]} wrap>
                         <Tag color="blue">Правил: {notificationSummary.totalRules}</Tag>
                         <Tag color="geekblue">Найдено: {filteredConfigs.length}</Tag>
+                        <Tag color={hasLogFilters ? "purple" : "default"}>Логов найдено: {filteredLogs.length}</Tag>
                         <Tag color="green">Активно: {notificationSummary.enabledRules}</Tag>
                         <Tag color="default">Выключено: {notificationSummary.disabledRules}</Tag>
                         <Tag color={notificationSummary.queuedLogs > 0 ? "processing" : "default"}>В очереди: {notificationSummary.queuedLogs}</Tag>
@@ -300,6 +328,29 @@ const OrderNotificationsPage = () => {
                 addButtonText="Обновить"
                 onAdd={() => refetchLogs()}
             >
+                <Space size={[8, 8]} wrap style={{padding: "16px 16px 0", width: "100%"}}>
+                    <Input.Search
+                        allowClear
+                        placeholder="Найти по заказу, получателю, ошибке, статусу или ID"
+                        value={logSearch}
+                        onChange={(event) => setLogSearch(event.target.value)}
+                        style={{minWidth: 280, maxWidth: 460}}
+                    />
+                    <Select<LogStatusFilter>
+                        value={logStatusFilter}
+                        onChange={setLogStatusFilter}
+                        style={{width: 190}}
+                        options={[
+                            {label: "Все статусы", value: "all"},
+                            {label: "В очереди", value: "queued"},
+                            {label: "Отправлено", value: "sent"},
+                            {label: "Ошибка", value: "failed"},
+                            {label: "Пропущено", value: "skipped"}
+                        ]}
+                    />
+                    <Tag color={hasLogFilters ? "purple" : "default"}>Показано {filteredLogs.length} из {(logs || []).length}</Tag>
+                    {hasLogFilters && <Button onClick={resetLogFilters}>Сбросить фильтры логов</Button>}
+                </Space>
                 {isLogsError && (
                     <Alert
                         type="error"
@@ -313,11 +364,18 @@ const OrderNotificationsPage = () => {
                 <Table
                     rowKey="id"
                     loading={isLoadingLogs}
-                    dataSource={logs || []}
+                    dataSource={filteredLogs}
                     columns={logsColumns}
                     scroll={{x: 900}}
                     locale={{
-                        emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Логов отправки пока нет" />
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description={hasLogFilters ? "По текущим фильтрам логи не найдены" : "Логов отправки пока нет"}
+                            >
+                                {hasLogFilters && <Button onClick={resetLogFilters}>Сбросить фильтры логов</Button>}
+                            </Empty>
+                        )
                     }}
                 />
             </SettingsTableSection>
