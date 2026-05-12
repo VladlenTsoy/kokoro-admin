@@ -36,6 +36,7 @@ const ProductPropertyPage = () => {
     const canCreate = useCan("catalog.create")
     const canUpdate = useCan("catalog.update")
     const canDelete = useCan("catalog.delete")
+    const isSaving = isCreating || isUpdating
     const normalizedSearchText = searchText.trim().toLowerCase()
 
     const summary = useMemo(() => {
@@ -63,12 +64,16 @@ const ProductPropertyPage = () => {
     }, [data, normalizedSearchText])
 
     const closeModal = () => {
+        if (isSaving) return
+
         setIsModalOpen(false)
         setEditingProperty(null)
         form.resetFields()
     }
 
     const openCreate = () => {
+        if (deletingPropertyId !== null || isSaving) return
+
         setEditingProperty(null)
         form.setFieldsValue({
             title: "",
@@ -79,6 +84,8 @@ const ProductPropertyPage = () => {
     }
 
     const openEdit = (property: ProductPropertyType) => {
+        if (deletingPropertyId !== null || isSaving) return
+
         setEditingProperty(property)
         form.setFieldsValue({
             title: property.title,
@@ -129,7 +136,7 @@ const ProductPropertyPage = () => {
                     size="small"
                     icon={<EditOutlined />}
                     aria-label={`Редактировать свойство ${property.title}`}
-                    disabled={deletingPropertyId !== null}
+                    disabled={deletingPropertyId !== null || isSaving}
                     onClick={(event) => {
                         event.stopPropagation()
                         openEdit(property)
@@ -192,7 +199,7 @@ const ProductPropertyPage = () => {
                     <Text type="secondary">Добавленное здесь свойство отображается на всех товарах.</Text>
                 </div>
                 {canCreate && (
-                    <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={openCreate} disabled={deletingPropertyId !== null || isSaving}>
                         Создать свойство
                     </Button>
                 )}
@@ -219,6 +226,14 @@ const ProductPropertyPage = () => {
                     onChange={(event) => setSearchText(event.target.value)}
                     onSearch={(value) => setSearchText(value)}
                 />
+                {deletingPropertyId !== null ? (
+                    <Alert
+                        type="warning"
+                        showIcon
+                        message="Удаляем свойство каталога"
+                        description="Дождитесь завершения операции: создание, редактирование и удаление других свойств временно заблокированы, чтобы не смешать изменения справочника."
+                    />
+                ) : null}
                 {isError ? (
                     <Alert
                         type="error"
@@ -246,7 +261,7 @@ const ProductPropertyPage = () => {
                     </Empty>
                 ) : (
                     <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Глобальные свойства ещё не созданы">
-                        {canCreate ? <Button type="primary" onClick={openCreate}>Создать первое свойство</Button> : null}
+                        {canCreate ? <Button type="primary" onClick={openCreate} disabled={deletingPropertyId !== null || isSaving}>Создать первое свойство</Button> : null}
                     </Empty>
                 )}
             </Space>
@@ -255,7 +270,11 @@ const ProductPropertyPage = () => {
                 open={isModalOpen}
                 onCancel={closeModal}
                 onOk={handleSubmit}
-                confirmLoading={isCreating || isUpdating}
+                confirmLoading={isSaving}
+                okText={isSaving ? "Сохраняем…" : editingProperty ? "Сохранить" : "Создать"}
+                cancelButtonProps={{disabled: isSaving}}
+                maskClosable={!isSaving}
+                keyboard={!isSaving}
             >
                 <Alert
                     type="info"
@@ -274,7 +293,7 @@ const ProductPropertyPage = () => {
                             {max: 120, message: "Максимум 120 символов"}
                         ]}
                     >
-                        <Input placeholder="Материал" maxLength={120} showCount />
+                        <Input placeholder="Материал" maxLength={120} showCount disabled={isSaving} />
                     </Form.Item>
                     <Form.Item
                         name="description"
@@ -282,7 +301,7 @@ const ProductPropertyPage = () => {
                         extra="Можно оставить простое текстовое описание. Если используется HTML, он будет очищен перед показом."
                         rules={[{required: true, message: "Введите описание"}]}
                     >
-                        <Input.TextArea rows={4} placeholder="Например: укажите основной материал и особенности ухода" />
+                        <Input.TextArea rows={4} placeholder="Например: укажите основной материал и особенности ухода" disabled={isSaving} />
                     </Form.Item>
                     <Form.Item
                         name="is_global"
@@ -290,7 +309,7 @@ const ProductPropertyPage = () => {
                         valuePropName="checked"
                         extra="Включите, если это поле нужно показывать во всех карточках товаров."
                     >
-                        <Switch />
+                        <Switch disabled={isSaving} />
                     </Form.Item>
                 </Form>
             </Modal>
