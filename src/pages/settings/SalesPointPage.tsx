@@ -10,6 +10,7 @@ import {
 import type {SalesPointType} from "../../features/settings/sales-point/SalesPointTypes.ts"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
+import {isAntdFormValidationError} from "../../utils/isAntdFormValidationError.ts"
 
 const SalesPointPage: React.FC = () => {
     const {data: salesPoints = [], isLoading, isError, refetch} = useGetSalesPointsQuery()
@@ -61,6 +62,13 @@ const SalesPointPage: React.FC = () => {
         form.resetFields()
     }
 
+    const handleModalCancel = () => {
+        if (isSaving) {
+            return
+        }
+        closeModal()
+    }
+
     const openCreateModal = () => {
         if (isMutationInFlight) {
             return
@@ -89,6 +97,9 @@ const SalesPointPage: React.FC = () => {
             }
             closeModal()
         } catch (error) {
+            if (isAntdFormValidationError(error)) {
+                return
+            }
             message.error(getNestErrorMessage(error))
         }
     }
@@ -268,11 +279,15 @@ const SalesPointPage: React.FC = () => {
             <Modal
                 title={editingPoint ? "Редактирование точки продаж" : "Создание точки продаж"}
                 open={isModalOpen}
-                onCancel={closeModal}
+                onCancel={handleModalCancel}
                 onOk={handleSubmit}
-                okText={editingPoint ? "Сохранить" : "Создать точку"}
+                okText={isSaving ? "Сохраняем..." : editingPoint ? "Сохранить" : "Создать точку"}
                 cancelText="Отмена"
                 confirmLoading={isSaving}
+                cancelButtonProps={{disabled: isSaving}}
+                closable={!isSaving}
+                maskClosable={!isSaving}
+                keyboard={!isSaving}
                 destroyOnClose
             >
                 <Alert
@@ -284,7 +299,7 @@ const SalesPointPage: React.FC = () => {
                 />
                 <Form form={form} layout="vertical">
                     <Form.Item name="title" label="Название точки" rules={[{required: true, message: "Введите название точки продаж"}]}>
-                        <Input placeholder="Например: Шоурум ЦУМ" />
+                        <Input disabled={isSaving} placeholder="Например: Шоурум ЦУМ" />
                     </Form.Item>
                     <Form.Item
                         name="lat"
@@ -292,7 +307,7 @@ const SalesPointPage: React.FC = () => {
                         extra="Диапазон от -90 до 90. Скопируйте координату из проверенной карты."
                         rules={[{required: true, message: "Укажите широту"}]}
                     >
-                        <InputNumber style={{width: "100%"}} min={-90} max={90} step={0.000001} placeholder="41.311081" />
+                        <InputNumber disabled={isSaving} style={{width: "100%"}} min={-90} max={90} step={0.000001} placeholder="41.311081" />
                     </Form.Item>
                     <Form.Item
                         name="lng"
@@ -300,7 +315,7 @@ const SalesPointPage: React.FC = () => {
                         extra="Диапазон от -180 до 180. Ошибка в знаке или цифре может увести точку в другой город."
                         rules={[{required: true, message: "Укажите долготу"}]}
                     >
-                        <InputNumber style={{width: "100%"}} min={-180} max={180} step={0.000001} placeholder="69.240562" />
+                        <InputNumber disabled={isSaving} style={{width: "100%"}} min={-180} max={180} step={0.000001} placeholder="69.240562" />
                     </Form.Item>
                 </Form>
             </Modal>
