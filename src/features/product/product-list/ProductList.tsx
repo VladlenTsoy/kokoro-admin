@@ -1,5 +1,5 @@
 import {ReloadOutlined} from "@ant-design/icons"
-import {Alert, Button, Empty, Space, Table, Typography} from "antd"
+import {Alert, Button, Empty, Space, Table, Tag, Typography} from "antd"
 import type {TablePaginationConfig} from "antd"
 import type {SorterResult} from "antd/es/table/interface"
 import {createStyles} from "antd-style"
@@ -36,6 +36,17 @@ const useStyles = createStyles(({token}) => ({
     alert: {
         margin: "12px 16px 0"
     },
+    readinessAlert: {
+        margin: "12px 16px 0",
+        ".ant-alert-description": {
+            marginTop: 8
+        }
+    },
+    readinessTags: {
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 8
+    },
     emptyText: {
         maxWidth: 460,
         margin: "0 auto"
@@ -51,6 +62,21 @@ const getActiveFiltersCount = (params: SelectProductsFilterParams) => [
     ...params.storageIds,
     ...params.sizeIds
 ].filter(Boolean).length
+
+const getCatalogReadinessSummary = (items: ProductType[]) => {
+    const noPhotoCount = items.filter((item) => item.images.length === 0).length
+    const zeroStockCount = items.filter((item) => item.sizes.length === 0 || item.sizes.every((size) => size.qty <= 0)).length
+    const lowStockCount = items.filter((item) => item.sizes.some((size) => size.qty > 0 && size.qty <= size.min_qty)).length
+    const expiredDiscountCount = items.filter((item) => item.discount?.endDate && new Date(item.discount.endDate).getTime() < Date.now()).length
+
+    return {
+        noPhotoCount,
+        zeroStockCount,
+        lowStockCount,
+        expiredDiscountCount,
+        hasWarnings: noPhotoCount > 0 || zeroStockCount > 0 || lowStockCount > 0 || expiredDiscountCount > 0
+    }
+}
 
 const ProductList = () => {
     const {styles} = useStyles()
@@ -72,7 +98,9 @@ const ProductList = () => {
     }, {refetchOnMountOrArgChange: true})
     const activeFiltersCount = getActiveFiltersCount(params)
     const hasActiveFilters = activeFiltersCount > 0
+    const productItems = data?.items || []
     const productTotal = data?.total || 0
+    const readinessSummary = getCatalogReadinessSummary(productItems)
     const emptyDescription = isError
         ? "Не удалось загрузить каталог. Повторите запрос или проверьте API перед массовыми изменениями."
         : hasActiveFilters
@@ -137,11 +165,27 @@ const ProductList = () => {
                         )}
                     />
                 )}
+                {!isError && !isLoading && productItems.length > 0 && readinessSummary.hasWarnings && (
+                    <Alert
+                        className={styles.readinessAlert}
+                        type="warning"
+                        showIcon
+                        message="На текущей странице есть товары, требующие внимания перед публикацией или промо"
+                        description={(
+                            <div className={styles.readinessTags}>
+                                {readinessSummary.noPhotoCount > 0 && <Tag color="orange">Без фото: {readinessSummary.noPhotoCount}</Tag>}
+                                {readinessSummary.zeroStockCount > 0 && <Tag color="red">Нет остатка: {readinessSummary.zeroStockCount}</Tag>}
+                                {readinessSummary.lowStockCount > 0 && <Tag color="gold">Ниже минимума: {readinessSummary.lowStockCount}</Tag>}
+                                {readinessSummary.expiredDiscountCount > 0 && <Tag color="volcano">Старая скидка: {readinessSummary.expiredDiscountCount}</Tag>}
+                            </div>
+                        )}
+                    />
+                )}
                 <Table
                     loading={isLoading}
                     rowKey="id"
                     scroll={{x: true}}
-                    dataSource={data?.items || []}
+                    dataSource={productItems}
                     columns={columns}
                     onChange={onChangeHandler}
                     pagination={{
