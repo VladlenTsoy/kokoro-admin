@@ -61,6 +61,8 @@ const ProductTagsPage = () => {
     }), [tags])
     const hasActiveFilters = Boolean(filters.search || filters.type || filters.isActive)
     const isTagMutationInFlight = isCreating || isUpdating || isDeleting
+    const isTagListUnavailable = isError
+    const areTagActionsBlocked = isTagMutationInFlight || isTagListUnavailable
 
     const resetFilters = () => setFilters({})
 
@@ -210,13 +212,16 @@ const ProductTagsPage = () => {
                     <Tag color={isActive ? "green" : "default"}>{isActive ? "Активен" : "Скрыт"}</Tag>
                     <Switch
                         checked={isActive}
-                        disabled={!canUpdate || (isTagMutationInFlight && activeToggleTagId !== tag.id)}
+                        disabled={!canUpdate || isTagListUnavailable || (isTagMutationInFlight && activeToggleTagId !== tag.id)}
                         loading={activeToggleTagId === tag.id}
                         checkedChildren="Вкл"
                         unCheckedChildren="Выкл"
                         onChange={(checked) => handleToggleActive(tag, checked)}
                     />
                     {!canUpdate && <Typography.Text type="secondary">Нет прав на изменение</Typography.Text>}
+                    {canUpdate && isTagListUnavailable && (
+                        <Typography.Text type="secondary">Сначала повторите загрузку списка</Typography.Text>
+                    )}
                 </Space>
             )
         },
@@ -227,7 +232,7 @@ const ProductTagsPage = () => {
             render: (_, tag) => (
                 <Space>
                     {canUpdate && (
-                        <Button type="link" disabled={isTagMutationInFlight} onClick={() => openEdit(tag)}>
+                        <Button type="link" disabled={areTagActionsBlocked} onClick={() => openEdit(tag)}>
                             Редактировать
                         </Button>
                     )}
@@ -240,7 +245,7 @@ const ProductTagsPage = () => {
                             onConfirm={() => handleDelete(tag)}
                             okButtonProps={{loading: deletingTagId === tag.id}}
                         >
-                            <Button type="link" danger loading={deletingTagId === tag.id} disabled={isTagMutationInFlight && deletingTagId !== tag.id}>
+                            <Button type="link" danger loading={deletingTagId === tag.id} disabled={isTagListUnavailable || (isTagMutationInFlight && deletingTagId !== tag.id)}>
                                 {deletingTagId === tag.id ? "Удаляем…" : "Удалить"}
                             </Button>
                         </Popconfirm>
@@ -257,7 +262,7 @@ const ProductTagsPage = () => {
                 subtitle="Управляемый словарь тегов для фильтров, мерчандайзинга и карточек товаров."
                 addButtonText="Создать тег"
                 onAdd={openCreate}
-                canAdd={canCreate && !isTagMutationInFlight}
+                canAdd={canCreate && !areTagActionsBlocked}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     {deletingTagId ? (
@@ -274,7 +279,7 @@ const ProductTagsPage = () => {
                             type="error"
                             showIcon
                             message="Не удалось загрузить теги товаров"
-                            description="Не меняйте теги вслепую: они влияют на фильтры, подборки и карточки товаров. Повторите загрузку или передайте проблему администратору."
+                            description="Не меняйте теги вслепую: они влияют на фильтры, подборки и карточки товаров. Создание, редактирование, активация и удаление заблокированы до успешной повторной загрузки."
                             action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
                         />
                     ) : null}
