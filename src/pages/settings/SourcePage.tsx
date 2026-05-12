@@ -11,6 +11,7 @@ import {
 import type {SourceType} from "../../features/source/SourceType.ts"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
+import {isAntdFormValidationError} from "../../utils/isAntdFormValidationError.ts"
 
 const {Text} = Typography
 const {Search} = Input
@@ -104,6 +105,10 @@ const SourcePage: React.FC = () => {
             setEditingSource(null)
             form.resetFields()
         } catch (error) {
+            if (isAntdFormValidationError(error)) {
+                return
+            }
+
             message.error(getNestErrorMessage(error))
         }
     }
