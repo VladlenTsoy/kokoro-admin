@@ -67,7 +67,8 @@ const OrderNotificationsPage = () => {
     const [form] = Form.useForm<FormValues>()
 
     const isConfigListUnsafe = isConfigsError || isLoadingConfigs || isFetchingConfigs
-    const isConfigMutationLocked = isConfigListUnsafe || isCreating || isUpdating || isDeleting
+    const isSavingConfig = isCreating || isUpdating
+    const isConfigMutationLocked = isConfigListUnsafe || isSavingConfig || isDeleting
     const statusMap = useMemo(() => new Map((statuses || []).map((status) => [status.id, status.title])), [statuses])
     const filteredConfigs = useMemo(() => {
         const query = configSearch.trim().toLowerCase()
@@ -176,6 +177,10 @@ const OrderNotificationsPage = () => {
             }
             setModalOpen(false)
         } catch (error) {
+            if (error && typeof error === "object" && "errorFields" in error) {
+                return
+            }
+
             message.error(getNestErrorMessage(error))
         }
     }
@@ -406,9 +411,17 @@ const OrderNotificationsPage = () => {
             <Modal
                 title={editing ? "Редактировать правило уведомления" : "Создать правило уведомления"}
                 open={isModalOpen}
-                onCancel={() => setModalOpen(false)}
+                onCancel={() => {
+                    if (!isSavingConfig) setModalOpen(false)
+                }}
                 onOk={saveConfig}
-                confirmLoading={isCreating || isUpdating}
+                confirmLoading={isSavingConfig}
+                okText={isSavingConfig ? "Сохраняем…" : editing ? "Сохранить" : "Создать"}
+                okButtonProps={{disabled: isConfigListUnsafe || isDeleting}}
+                cancelButtonProps={{disabled: isSavingConfig}}
+                closable={!isSavingConfig}
+                maskClosable={!isSavingConfig}
+                keyboard={!isSavingConfig}
             >
                 {isConfigListUnsafe && (
                     <Alert
