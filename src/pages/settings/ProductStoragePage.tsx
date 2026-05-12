@@ -18,6 +18,7 @@ const ProductStoragePage: React.FC = () => {
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingStorage, setEditingStorage] = useState<ProductStorageType | null>(null)
+    const [deletingStorageId, setDeletingStorageId] = useState<number | null>(null)
     const [search, setSearch] = useState("")
     const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all")
 
@@ -50,6 +51,7 @@ const ProductStoragePage: React.FC = () => {
     }, [search, statusFilter, storages])
 
     const hasActiveFilters = Boolean(search.trim()) || statusFilter !== "all"
+    const isMutationInFlight = isCreating || isUpdating || isDeleting
 
     const resetFilters = () => {
         setSearch("")
@@ -88,11 +90,14 @@ const ProductStoragePage: React.FC = () => {
     }
 
     const handleDelete = async (id: number) => {
+        setDeletingStorageId(id)
         try {
             await deleteStorage(id).unwrap()
             message.success("Склад удалён")
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setDeletingStorageId(null)
         }
     }
 
@@ -125,25 +130,30 @@ const ProductStoragePage: React.FC = () => {
         },
         {
             title: "Действия",
-            render: (_: unknown, record: ProductStorageType) => (
-                <Space wrap>
-                    <Button type="link" onClick={() => openEdit(record)}>
-                        Редактировать
-                    </Button>
-                    <Popconfirm
-                        title="Удалить склад?"
-                        description="Перед удалением убедитесь, что к складу не привязаны активные остатки или заказы."
-                        okText="Удалить"
-                        cancelText="Отмена"
-                        okButtonProps={{loading: isDeleting}}
-                        onConfirm={() => handleDelete(record.id)}
-                    >
-                        <Button type="link" danger loading={isDeleting}>
-                            Удалить
+            render: (_: unknown, record: ProductStorageType) => {
+                const isCurrentStorageDeleting = deletingStorageId === record.id
+
+                return (
+                    <Space wrap>
+                        <Button type="link" onClick={() => openEdit(record)} disabled={isMutationInFlight}>
+                            Редактировать
                         </Button>
-                    </Popconfirm>
-                </Space>
-            )
+                        <Popconfirm
+                            title="Удалить склад?"
+                            description="Перед удалением убедитесь, что к складу не привязаны активные остатки или заказы."
+                            okText="Удалить"
+                            cancelText="Отмена"
+                            okButtonProps={{loading: isCurrentStorageDeleting}}
+                            onConfirm={() => handleDelete(record.id)}
+                            disabled={isMutationInFlight && !isCurrentStorageDeleting}
+                        >
+                            <Button type="link" danger loading={isCurrentStorageDeleting} disabled={isMutationInFlight && !isCurrentStorageDeleting}>
+                                {isCurrentStorageDeleting ? "Удаляем..." : "Удалить"}
+                            </Button>
+                        </Popconfirm>
+                    </Space>
+                )
+            }
         }
     ]
 
@@ -154,6 +164,7 @@ const ProductStoragePage: React.FC = () => {
                 subtitle="Склады и привязка к точкам продаж. Проверяйте точку продаж перед изменением — это влияет на остатки и выдачу заказов."
                 addButtonText="Добавить склад"
                 onAdd={openCreate}
+                addButtonDisabled={isMutationInFlight}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     {isError && (
@@ -163,6 +174,14 @@ const ProductStoragePage: React.FC = () => {
                             message="Не удалось загрузить склады"
                             description="Проверьте соединение и повторите загрузку перед изменением складских настроек."
                             action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
+                        />
+                    )}
+                    {!isError && isDeleting && deletingStorageId !== null && (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            message={`Удаляем склад #${deletingStorageId}`}
+                            description="Дождитесь завершения операции перед созданием, редактированием или удалением других складов, чтобы не запутать остатки и точки выдачи."
                         />
                     )}
                     {!isError && storages.length > 0 && (
