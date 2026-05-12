@@ -1,4 +1,4 @@
-import {Avatar, Button, Dropdown, Form, Input, Modal, Space, Typography, message} from "antd"
+import {Alert, Avatar, Button, Dropdown, Form, Input, Modal, Space, Typography, message} from "antd"
 import type {MenuProps} from "antd"
 import {useState} from "react"
 import {useNavigate} from "react-router-dom"
@@ -31,6 +31,8 @@ const HeaderProfile = () => {
     }
 
     const closePasswordModal = () => {
+        if (isChangingPassword) return
+
         setIsPasswordModalOpen(false)
         form.resetFields()
     }
@@ -98,24 +100,37 @@ const HeaderProfile = () => {
                 open={isPasswordModalOpen}
                 onCancel={closePasswordModal}
                 onOk={handleChangePassword}
-                okText="Сохранить пароль"
+                okText={isChangingPassword ? "Сохраняем пароль..." : "Сохранить пароль"}
                 cancelText="Отмена"
                 confirmLoading={isChangingPassword}
                 okButtonProps={{disabled: isChangingPassword}}
+                cancelButtonProps={{disabled: isChangingPassword}}
+                maskClosable={!isChangingPassword}
+                keyboard={!isChangingPassword}
                 destroyOnHidden
             >
-                <Typography.Paragraph type="secondary">
-                    Пароль должен быть длиной от 8 до 100 символов и отличаться от текущего. Повторите новый пароль,
-                    чтобы избежать ошибки при вводе. После сохранения продолжайте работу в текущей сессии, а при
-                    следующем входе используйте новый пароль.
-                </Typography.Paragraph>
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
+                    {isChangingPassword && (
+                        <Alert
+                            showIcon
+                            type="info"
+                            message="Сохраняем новый пароль"
+                            description="Не закрывайте окно и не меняйте поля, пока API подтверждает смену пароля. Это снижает риск повторной отправки разных значений."
+                        />
+                    )}
+                    <Typography.Paragraph type="secondary">
+                        Пароль должен быть длиной от 8 до 100 символов и отличаться от текущего. Повторите новый пароль,
+                        чтобы избежать ошибки при вводе. После сохранения продолжайте работу в текущей сессии, а при
+                        следующем входе используйте новый пароль.
+                    </Typography.Paragraph>
+                </Space>
                 <Form form={form} layout="vertical">
                     <Form.Item
                         label="Текущий пароль"
                         name="currentPassword"
                         rules={[{required: true, message: "Введите текущий пароль"}]}
                     >
-                        <Input.Password autoComplete="current-password" placeholder="Введите действующий пароль" />
+                        <Input.Password autoComplete="current-password" disabled={isChangingPassword} placeholder="Введите действующий пароль" />
                     </Form.Item>
                     <Form.Item
                         label="Новый пароль"
@@ -136,7 +151,7 @@ const HeaderProfile = () => {
                             })
                         ]}
                     >
-                        <Input.Password autoComplete="new-password" placeholder="8–100 символов" />
+                        <Input.Password autoComplete="new-password" disabled={isChangingPassword} placeholder="8–100 символов" />
                     </Form.Item>
                     <Form.Item
                         label="Повторите новый пароль"
@@ -155,7 +170,7 @@ const HeaderProfile = () => {
                             })
                         ]}
                     >
-                        <Input.Password autoComplete="new-password" placeholder="Введите новый пароль ещё раз" />
+                        <Input.Password autoComplete="new-password" disabled={isChangingPassword} placeholder="Введите новый пароль ещё раз" />
                     </Form.Item>
                 </Form>
             </Modal>
