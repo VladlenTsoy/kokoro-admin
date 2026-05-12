@@ -12,18 +12,24 @@ const SearchZeroResultsPage = () => {
     const {data = [], isLoading, isFetching, error, refetch} = useGetSearchZeroResultsQuery()
     const [queryFilter, setQueryFilter] = useState("")
     const [showRepeatedOnly, setShowRepeatedOnly] = useState(false)
+    const [showFreshOnly, setShowFreshOnly] = useState(false)
     const sortedData = [...data].sort((a, b) => dayjs(b.lastSearchedAt).valueOf() - dayjs(a.lastSearchedAt).valueOf())
     const normalizedQueryFilter = queryFilter.trim().toLowerCase()
+    const isFreshSignal = (item: SearchZeroResultItem) => dayjs().diff(dayjs(item.lastSearchedAt), "day") <= 7
+    const isRepeatedSignal = (item: SearchZeroResultItem) => Number(item.count || 0) > 1
     const filteredData = sortedData.filter((item) => {
         const matchesQuery = normalizedQueryFilter ? item.query.toLowerCase().includes(normalizedQueryFilter) : true
-        const matchesRepeat = showRepeatedOnly ? Number(item.count || 0) > 1 : true
+        const matchesRepeat = showRepeatedOnly ? isRepeatedSignal(item) : true
+        const matchesFreshness = showFreshOnly ? isFreshSignal(item) : true
 
-        return matchesQuery && matchesRepeat
+        return matchesQuery && matchesRepeat && matchesFreshness
     })
     const totalSearches = sortedData.reduce((sum, item) => sum + Number(item.count || 0), 0)
     const latest = sortedData[0]?.lastSearchedAt
-    const repeatedSignals = sortedData.filter((item) => Number(item.count || 0) > 1).length
-    const hasActiveFilters = Boolean(normalizedQueryFilter) || showRepeatedOnly
+    const repeatedSignals = sortedData.filter(isRepeatedSignal).length
+    const freshSignals = sortedData.filter(isFreshSignal).length
+    const prioritySignals = sortedData.filter((item) => isRepeatedSignal(item) && isFreshSignal(item)).length
+    const hasActiveFilters = Boolean(normalizedQueryFilter) || showRepeatedOnly || showFreshOnly
     const openCatalogSearch = (query: string) => {
         const params = new URLSearchParams({search: query.trim(), current: "1"})
         navigate(`/products?${params.toString()}`)
@@ -31,6 +37,7 @@ const SearchZeroResultsPage = () => {
     const resetFilters = () => {
         setQueryFilter("")
         setShowRepeatedOnly(false)
+        setShowFreshOnly(false)
     }
 
     const columns: ColumnsType<SearchZeroResultItem> = [
@@ -52,6 +59,24 @@ const SearchZeroResultsPage = () => {
             dataIndex: "lastSearchedAt",
             width: 200,
             render: (value?: string) => (value ? dayjs(value).format("DD.MM.YYYY HH:mm") : "—")
+        },
+        {
+            title: "Приоритет",
+            key: "priority",
+            width: 170,
+            render: (_, item) => {
+                if (isRepeatedSignal(item) && isFreshSignal(item)) {
+                    return <Tag color="red">Разобрать сегодня</Tag>
+                }
+                if (isRepeatedSignal(item)) {
+                    return <Tag color="orange">Повторяется</Tag>
+                }
+                if (isFreshSignal(item)) {
+                    return <Tag color="green">Свежий</Tag>
+                }
+
+                return <Tag>Низкий</Tag>
+            }
         },
         {
             title: "Действие",
@@ -105,6 +130,12 @@ const SearchZeroResultsPage = () => {
                 <Card className="metric-card metric-card--lime">
                     <Statistic title="Повторяются чаще 1 раза" value={repeatedSignals} loading={isLoading} />
                 </Card>
+                <Card className="metric-card metric-card--cyan">
+                    <Statistic title="Свежие за 7 дней" value={freshSignals} loading={isLoading} />
+                </Card>
+                <Card className="metric-card metric-card--blue">
+                    <Statistic title="Разобрать сегодня" value={prioritySignals} loading={isLoading} />
+                </Card>
                 <Card className="metric-card metric-card--blue">
                     <Statistic title="Последний сигнал" value={latest ? dayjs(latest).format("DD.MM HH:mm") : "—"} loading={isLoading} />
                 </Card>
@@ -132,25 +163,29 @@ const SearchZeroResultsPage = () => {
                             <Switch checked={showRepeatedOnly} onChange={setShowRepeatedOnly} />
                             <Typography.Text>Только повторные сигналы</Typography.Text>
                         </Space>
+                        <Space>
+                            <Switch checked={showFreshOnly} onChange={setShowFreshOnly} />
+                            <Typography.Text>Только свежие за 7 дней</Typography.Text>
+                        </Space>
                         {hasActiveFilters ? (
                             <Button onClick={resetFilters}>Сбросить фильтры</Button>
                         ) : null}
                     </Space>
                     <Typography.Text type="secondary">
-                        Показано {filteredData.length} из {sortedData.length}. Повторные запросы помогают быстрее найти пробелы в каталоге, тегах или синонимах.
+                        Показано {filteredData.length} из {sortedData.length}. Метка «Разобрать сегодня» объединяет свежие и повторные запросы — это самый быстрый список для контент-правок.
                     </Typography.Text>
                     <Table<SearchZeroResultItem>
                         rowKey="id"
                         loading={isLoading}
                         columns={columns}
                         dataSource={filteredData}
-                        scroll={{x: 720}}
+                        scroll={{x: 860}}
                         pagination={{pageSize: 20, showSizeChanger: true}}
                         locale={{
                             emptyText: hasActiveFilters ? (
                                 <Empty
                                     image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                    description="По выбранным фильтрам сигналов нет. Сбросьте поиск или повторные сигналы, прежде чем заводить новую задачу на каталог."
+                                    description="По выбранным фильтрам сигналов нет. Сбросьте поиск, повторные или свежие сигналы, прежде чем заводить новую задачу на каталог."
                                 >
                                     <Button onClick={resetFilters}>Сбросить фильтры</Button>
                                 </Empty>
