@@ -50,6 +50,7 @@ const SourcePage: React.FC = () => {
     const [editingSource, setEditingSource] = useState<SourceType | null>(null)
     const [searchValue, setSearchValue] = useState("")
     const [statusFilter, setStatusFilter] = useState<SourceStatusFilter>("all")
+    const [deletingSourceId, setDeletingSourceId] = useState<number | null>(null)
 
     const [form] = Form.useForm()
 
@@ -72,6 +73,7 @@ const SourcePage: React.FC = () => {
     }), [normalizedSearch, sources, statusFilter])
     const hasActiveFilters = Boolean(searchValue) || statusFilter !== "all"
     const isSaving = isCreating || isUpdating
+    const isSourceMutationLocked = isSaving || isDeleting
 
     const resetFilters = () => {
         setSearchValue("")
@@ -79,6 +81,9 @@ const SourcePage: React.FC = () => {
     }
 
     const openCreateModal = () => {
+        if (isSourceMutationLocked) {
+            return
+        }
         setEditingSource(null)
         form.resetFields()
         setIsModalOpen(true)
@@ -103,11 +108,14 @@ const SourcePage: React.FC = () => {
     }
 
     const handleDelete = async (id: number) => {
+        setDeletingSourceId(id)
         try {
             await deleteSource(id).unwrap()
             message.success("Источник удалён")
         } catch (error) {
             message.error(getNestErrorMessage(error))
+        } finally {
+            setDeletingSourceId(null)
         }
     }
 
@@ -134,32 +142,38 @@ const SourcePage: React.FC = () => {
         {
             title: "Действия",
             width: 220,
-            render: (_: unknown, record: SourceType) => (
-                <Space wrap>
-                    <Button
-                        type="link"
-                        onClick={() => {
-                            setEditingSource(record)
-                            form.setFieldsValue(record)
-                            setIsModalOpen(true)
-                        }}
-                    >
-                        Редактировать
-                    </Button>
-                    <Popconfirm
-                        title="Удалить источник?"
-                        description="Перед удалением убедитесь, что источник не используется в заказах и аналитике."
-                        okText="Удалить"
-                        cancelText="Отмена"
-                        onConfirm={() => handleDelete(record.id)}
-                        okButtonProps={{loading: isDeleting}}
-                    >
-                        <Button type="link" danger>
-                            Удалить
+            render: (_: unknown, record: SourceType) => {
+                const isCurrentSourceDeleting = deletingSourceId === record.id
+                const isAnotherSourceDeleting = isDeleting && !isCurrentSourceDeleting
+
+                return (
+                    <Space wrap>
+                        <Button
+                            type="link"
+                            disabled={isSourceMutationLocked}
+                            onClick={() => {
+                                setEditingSource(record)
+                                form.setFieldsValue(record)
+                                setIsModalOpen(true)
+                            }}
+                        >
+                            Редактировать
                         </Button>
-                    </Popconfirm>
-                </Space>
-            )
+                        <Popconfirm
+                            title="Удалить источник?"
+                            description="Перед удалением убедитесь, что источник не используется в заказах и аналитике."
+                            okText={isCurrentSourceDeleting ? "Удаляем…" : "Удалить"}
+                            cancelText="Отмена"
+                            onConfirm={() => handleDelete(record.id)}
+                            okButtonProps={{loading: isCurrentSourceDeleting}}
+                        >
+                            <Button type="link" danger loading={isCurrentSourceDeleting} disabled={isAnotherSourceDeleting}>
+                                {isCurrentSourceDeleting ? "Удаляем…" : "Удалить"}
+                            </Button>
+                        </Popconfirm>
+                    </Space>
+                )
+            }
         }
     ]
 
@@ -170,6 +184,7 @@ const SourcePage: React.FC = () => {
                 subtitle="Управление каналами поступления заказов: сайт, мессенджеры, маркетплейсы и офлайн-точки."
                 addButtonText="Добавить источник"
                 onAdd={openCreateModal}
+                addButtonDisabled={isSourceMutationLocked}
             >
                 <Space direction="vertical" size={12} style={{width: "100%", padding: 16, paddingBottom: 0}}>
                     <Alert
@@ -208,6 +223,14 @@ const SourcePage: React.FC = () => {
                             <Button disabled={!hasActiveFilters} onClick={resetFilters}>Сбросить</Button>
                         </div>
                     </div>
+                    {isDeleting && deletingSourceId !== null ? (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            message="Удаление источника выполняется"
+                            description="Пока канал удаляется, создание и редактирование источников заблокированы, чтобы не смешать изменения в аналитике и интеграциях."
+                        />
+                    ) : null}
                     {isError && (
                         <Alert
                             type="error"
