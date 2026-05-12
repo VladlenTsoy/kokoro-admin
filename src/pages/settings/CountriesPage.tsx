@@ -185,8 +185,8 @@ const CountryCityPage: React.FC = () => {
 
                 return (
                     <Space wrap>
-                        <Button disabled={isDeletingGeography} onClick={() => openModal("country", record)}>Редактировать</Button>
-                        <Button type="primary" disabled={isDeletingGeography} onClick={() => openModal("city", null, record.id)}>
+                        <Button disabled={isDeletingGeography || isSaving} onClick={() => openModal("country", record)}>Редактировать</Button>
+                        <Button type="primary" disabled={isDeletingGeography || isSaving} onClick={() => openModal("city", null, record.id)}>
                             Добавить город
                         </Button>
                         <Popconfirm
@@ -237,7 +237,7 @@ const CountryCityPage: React.FC = () => {
 
                     return (
                         <Space wrap>
-                            <Button disabled={isDeletingGeography} onClick={() => openModal("city", record, country.id)}>
+                            <Button disabled={isDeletingGeography || isSaving} onClick={() => openModal("city", record, country.id)}>
                                 Редактировать
                             </Button>
                             <Popconfirm
@@ -271,7 +271,7 @@ const CountryCityPage: React.FC = () => {
                             image={Empty.PRESENTED_IMAGE_SIMPLE}
                             description="В этой стране ещё нет городов"
                         >
-                            <Button type="primary" onClick={() => openModal("city", null, country.id)}>
+                            <Button type="primary" disabled={isSaving || isDeletingGeography} onClick={() => openModal("city", null, country.id)}>
                                 Добавить первый город
                             </Button>
                         </Empty>
@@ -287,7 +287,7 @@ const CountryCityPage: React.FC = () => {
             subtitle="Справочник географии для точек продаж, доставки и адресов клиентов. Меняйте его осторожно: записи могут быть связаны с операционными данными."
             addButtonText="Добавить страну"
             onAdd={() => openModal("country")}
-            addButtonDisabled={isDeletingGeography}
+            addButtonDisabled={isDeletingGeography || isSaving}
         >
             <Space direction="vertical" size={12} style={{width: "100%"}}>
                 {isError ? (
@@ -360,7 +360,7 @@ const CountryCityPage: React.FC = () => {
                                 {hasActiveFilters ? (
                                     <Button onClick={resetFilters}>Сбросить фильтры</Button>
                                 ) : (
-                                    <Button type="primary" onClick={() => openModal("country")}>Добавить страну</Button>
+                                    <Button type="primary" disabled={isSaving || isDeletingGeography} onClick={() => openModal("country")}>Добавить страну</Button>
                                 )}
                             </Empty>
                         )
@@ -376,10 +376,17 @@ const CountryCityPage: React.FC = () => {
                 }
                 open={isModalOpen}
                 onOk={handleOk}
-                onCancel={closeModal}
-                okText={editingItem ? "Сохранить" : "Создать"}
+                onCancel={() => {
+                    if (!isSaving) {
+                        closeModal()
+                    }
+                }}
+                okText={isSaving ? "Сохраняем…" : editingItem ? "Сохранить" : "Создать"}
                 cancelText="Отмена"
                 confirmLoading={isSaving}
+                cancelButtonProps={{disabled: isSaving}}
+                maskClosable={!isSaving}
+                keyboard={!isSaving}
                 destroyOnClose
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
@@ -405,7 +412,7 @@ const CountryCityPage: React.FC = () => {
                             extra="Например: Казахстан или Алматы. Координаты, если нужны, должны приходить из backend/API-формы отдельным безопасным изменением."
                             rules={[{required: true, message: "Введите название"}]}
                         >
-                            <Input placeholder={modalType === "country" ? "Казахстан" : "Алматы"} />
+                            <Input disabled={isSaving} placeholder={modalType === "country" ? "Казахстан" : "Алматы"} />
                         </Form.Item>
                     </Form>
                 </Space>
