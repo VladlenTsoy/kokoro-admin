@@ -22,6 +22,8 @@ const ProductVariantStatusPage: React.FC = () => {
     const [deletingStatusId, setDeletingStatusId] = useState<number | null>(null)
 
     const [form] = Form.useForm()
+    const isSavingStatus = isCreating || isUpdating
+    const isMutatingStatus = isSavingStatus || isDeleting
 
     const statusSummary = useMemo(() => {
         const items = data ?? []
@@ -33,6 +35,10 @@ const ProductVariantStatusPage: React.FC = () => {
     }, [data])
 
     const closeModal = () => {
+        if (isSavingStatus) {
+            return
+        }
+
         setIsModalOpen(false)
         setEditingProductVariantStatus(null)
         form.resetFields()
@@ -96,7 +102,7 @@ const ProductVariantStatusPage: React.FC = () => {
                     <Space wrap>
                         <Button
                             type="link"
-                            disabled={isDeleting}
+                            disabled={isMutatingStatus}
                             onClick={() => {
                                 setEditingProductVariantStatus(record)
                                 form.setFieldsValue(record)
@@ -129,6 +135,7 @@ const ProductVariantStatusPage: React.FC = () => {
                 title="Статусы вариантов товара"
                 subtitle="Справочник статусов для жизненного цикла товарных вариантов: доступность, витрина, складские состояния."
                 addButtonText="Добавить статус варианта"
+                addButtonDisabled={isMutatingStatus}
                 onAdd={() => {
                     setEditingProductVariantStatus(null)
                     form.resetFields()
@@ -190,18 +197,24 @@ const ProductVariantStatusPage: React.FC = () => {
                 open={isModalOpen}
                 onCancel={closeModal}
                 onOk={handleSubmit}
-                okText={editingProductVariantStatus ? "Сохранить" : "Создать"}
+                okText={isSavingStatus ? "Сохраняем..." : editingProductVariantStatus ? "Сохранить" : "Создать"}
                 cancelText="Отмена"
-                confirmLoading={isCreating || isUpdating}
+                confirmLoading={isSavingStatus}
+                cancelButtonProps={{disabled: isSavingStatus}}
+                closable={!isSavingStatus}
+                maskClosable={!isSavingStatus}
+                keyboard={!isSavingStatus}
             >
                 <Alert
-                    type="warning"
+                    type={isSavingStatus ? "info" : "warning"}
                     showIcon
-                    message="Статус влияет на работу каталога"
-                    description="Не удаляйте и не переименовывайте рабочие статусы без проверки активных вариантов товара и витринных фильтров."
+                    message={isSavingStatus ? "Сохраняем статус варианта" : "Статус влияет на работу каталога"}
+                    description={isSavingStatus
+                        ? "Дождитесь ответа API: поля временно заблокированы, чтобы не отправить смешанные правила SKU."
+                        : "Не удаляйте и не переименовывайте рабочие статусы без проверки активных вариантов товара и витринных фильтров."}
                     style={{marginBottom: 16}}
                 />
-                <Form form={form} layout="vertical" initialValues={{is_default: false}}>
+                <Form form={form} layout="vertical" initialValues={{is_default: false}} disabled={isSavingStatus}>
                     <Form.Item name="title" label="Название" rules={[{required: true, message: "Введите название статуса"}]}>
                         <Input placeholder="Например, В наличии" />
                     </Form.Item>
