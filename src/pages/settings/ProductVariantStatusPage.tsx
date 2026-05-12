@@ -20,19 +20,30 @@ const ProductVariantStatusPage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingProductVariantStatus, setEditingProductVariantStatus] = useState<ProductVariantStatusType | null>(null)
     const [deletingStatusId, setDeletingStatusId] = useState<number | null>(null)
+    const [statusSearch, setStatusSearch] = useState("")
 
     const [form] = Form.useForm()
     const isSavingStatus = isCreating || isUpdating
     const isMutatingStatus = isSavingStatus || isDeleting
+    const statuses = useMemo(() => data ?? [], [data])
+    const normalizedStatusSearch = statusSearch.trim().toLowerCase()
+    const hasStatusSearch = normalizedStatusSearch.length > 0
+    const filteredStatuses = useMemo(
+        () => normalizedStatusSearch
+            ? statuses.filter((status) =>
+                status.title.toLowerCase().includes(normalizedStatusSearch)
+                || String(status.id).includes(normalizedStatusSearch)
+                || (status.is_default ? "основной default по умолчанию" : "нет").includes(normalizedStatusSearch)
+            )
+            : statuses,
+        [normalizedStatusSearch, statuses]
+    )
 
-    const statusSummary = useMemo(() => {
-        const items = data ?? []
-        return {
-            total: items.length,
-            defaultCount: items.filter((item) => item.is_default).length,
-            withoutPosition: items.filter((item) => item.position === null || item.position === undefined).length
-        }
-    }, [data])
+    const statusSummary = useMemo(() => ({
+        total: statuses.length,
+        defaultCount: statuses.filter((item) => item.is_default).length,
+        withoutPosition: statuses.filter((item) => item.position === null || item.position === undefined).length
+    }), [statuses])
 
     const closeModal = () => {
         if (isSavingStatus) {
@@ -178,10 +189,23 @@ const ProductVariantStatusPage: React.FC = () => {
                             )}
                         />
                     ) : null}
+                    <Space wrap>
+                        <Input.Search
+                            allowClear
+                            placeholder="Поиск по названию, ID или основному статусу"
+                            value={statusSearch}
+                            onChange={(event) => setStatusSearch(event.target.value)}
+                            onSearch={setStatusSearch}
+                            style={{width: 340, maxWidth: "100%"}}
+                        />
+                        <Tag color="blue">Всего: {statusSummary.total}</Tag>
+                        {hasStatusSearch ? <Tag>Найдено: {filteredStatuses.length}</Tag> : null}
+                        {hasStatusSearch ? <Button onClick={() => setStatusSearch("")}>Сбросить поиск</Button> : null}
+                    </Space>
                 </Space>
                 <Table<ProductVariantStatusType>
                     loading={isLoading}
-                    dataSource={data || []}
+                    dataSource={filteredStatuses}
                     columns={columns}
                     rowKey="id"
                     scroll={{x: 720}}
@@ -189,8 +213,14 @@ const ProductVariantStatusPage: React.FC = () => {
                         emptyText: (
                             <Empty
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                description="Статусы вариантов ещё не настроены. Добавьте первый статус, чтобы менеджеры понимали состояние SKU в каталоге."
-                            />
+                                description={hasStatusSearch
+                                    ? "Статусы вариантов по поиску не найдены"
+                                    : "Статусы вариантов ещё не настроены. Добавьте первый статус, чтобы менеджеры понимали состояние SKU в каталоге."}
+                            >
+                                {hasStatusSearch ? (
+                                    <Button onClick={() => setStatusSearch("")}>Сбросить поиск</Button>
+                                ) : null}
+                            </Empty>
                         )
                     }}
                 />
