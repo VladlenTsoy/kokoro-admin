@@ -213,6 +213,18 @@ const EmployeesPage = () => {
         rolesForm.resetFields()
     }
 
+    const handleEditModalCancel = () => {
+        if (isSavingEmployee) return
+        closeEditModal()
+    }
+
+    const handleRolesModalCancel = () => {
+        if (isSavingRoles) return
+        closeRolesModal()
+    }
+
+    const isFormValidationError = (error: unknown) => Boolean(error && typeof error === "object" && "errorFields" in error)
+
     const handleSubmit = async () => {
         try {
             const values = await form.validateFields()
@@ -244,6 +256,7 @@ const EmployeesPage = () => {
 
             closeEditModal()
         } catch (error) {
+            if (isFormValidationError(error)) return
             message.error(getNestErrorMessage(error))
         }
     }
@@ -259,6 +272,7 @@ const EmployeesPage = () => {
             message.success("Роли сотрудника обновлены")
             closeRolesModal()
         } catch (error) {
+            if (isFormValidationError(error)) return
             message.error(getNestErrorMessage(error))
         }
     }
@@ -454,11 +468,14 @@ const EmployeesPage = () => {
             <Modal
                 title={editingEmployee ? "Редактирование сотрудника" : "Создание сотрудника"}
                 open={isEditModalOpen}
-                onCancel={closeEditModal}
+                onCancel={handleEditModalCancel}
                 onOk={handleSubmit}
                 confirmLoading={isSavingEmployee}
                 okText={isSavingEmployee ? "Сохраняем доступ…" : undefined}
                 cancelButtonProps={{disabled: isSavingEmployee}}
+                closable={!isSavingEmployee}
+                keyboard={!isSavingEmployee}
+                maskClosable={!isSavingEmployee}
                 width={700}
             >
                 <Form<EmployeeFormValues> form={form} layout="vertical" disabled={isSavingEmployee} initialValues={{isActive: true, roleIds: []}}>
@@ -554,11 +571,14 @@ const EmployeesPage = () => {
             <Modal
                 title={`Роли: ${rolesEmployee?.firstName ?? ""} ${rolesEmployee?.lastName ?? ""}`.trim()}
                 open={isRolesModalOpen}
-                onCancel={closeRolesModal}
+                onCancel={handleRolesModalCancel}
                 onOk={handleRolesSubmit}
                 confirmLoading={isSavingRoles}
                 okText={isSavingRoles ? "Сохраняем роли…" : undefined}
                 cancelButtonProps={{disabled: isSavingRoles}}
+                closable={!isSavingRoles}
+                keyboard={!isSavingRoles}
+                maskClosable={!isSavingRoles}
             >
                 <Typography.Paragraph type="secondary">
                     Быстрое обновление ролей через endpoint PATCH /employees/:id/roles
