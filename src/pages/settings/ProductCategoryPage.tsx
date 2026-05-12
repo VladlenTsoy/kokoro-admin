@@ -73,6 +73,9 @@ const ProductCategoryPage = () => {
     }, [categories, categorySearch, hierarchyFilter, visibilityFilter])
 
     const hasCategoryFilters = Boolean(categorySearch.trim()) || visibilityFilter !== "all" || hierarchyFilter !== "all"
+    const isSaving = isCreating || isUpdating
+    const isCategoryMutationLocked = isSaving || isDeleting
+    const modalOkText = isSaving ? "Сохраняем…" : editingCategory ? "Сохранить" : "Создать"
 
     const resetCategoryFilters = () => {
         setCategorySearch("")
@@ -86,12 +89,20 @@ const ProductCategoryPage = () => {
     )
 
     const closeModal = () => {
+        if (isSaving) {
+            return
+        }
+
         setIsModalOpen(false)
         setEditingCategory(null)
         form.resetFields()
     }
 
     const openCreate = () => {
+        if (isCategoryMutationLocked) {
+            return
+        }
+
         setEditingCategory(null)
         form.setFieldsValue({
             title: "",
@@ -103,6 +114,10 @@ const ProductCategoryPage = () => {
     }
 
     const openEdit = (category: ProductCategoryType) => {
+        if (isCategoryMutationLocked) {
+            return
+        }
+
         setEditingCategory(category)
         form.setFieldsValue({
             title: category.title,
@@ -134,6 +149,10 @@ const ProductCategoryPage = () => {
 
             closeModal()
         } catch (error) {
+            if (typeof error === "object" && error !== null && "errorFields" in error) {
+                return
+            }
+
             message.error(getNestErrorMessage(error))
         }
     }
@@ -194,7 +213,7 @@ const ProductCategoryPage = () => {
                 return (
                     <Space>
                         {canUpdate && (
-                            <Button type="link" disabled={isDeleting} onClick={() => openEdit(record)}>
+                            <Button type="link" disabled={isCategoryMutationLocked} onClick={() => openEdit(record)}>
                                 Редактировать
                             </Button>
                         )}
@@ -207,7 +226,7 @@ const ProductCategoryPage = () => {
                                 okButtonProps={{loading: isCurrentCategoryDeleting, danger: true}}
                                 onConfirm={() => handleDelete(record.id)}
                             >
-                                <Button type="link" danger loading={isCurrentCategoryDeleting} disabled={isAnotherCategoryDeleting}>
+                                <Button type="link" danger loading={isCurrentCategoryDeleting} disabled={isSaving || isAnotherCategoryDeleting}>
                                     {isCurrentCategoryDeleting ? "Удаляем…" : "Удалить"}
                                 </Button>
                             </Popconfirm>
@@ -225,7 +244,7 @@ const ProductCategoryPage = () => {
                 subtitle="Иерархия товарных категорий, URL и видимость в клиентском каталоге."
                 addButtonText="Добавить категорию"
                 onAdd={openCreate}
-                canAdd={canCreate && !isDeleting}
+                canAdd={canCreate && !isCategoryMutationLocked}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Row gutter={[12, 12]}>
@@ -297,6 +316,14 @@ const ProductCategoryPage = () => {
                             description="Дождитесь завершения операции перед созданием или редактированием других категорий, чтобы не получить конфликт в структуре каталога."
                         />
                     ) : null}
+                    {isSaving ? (
+                        <Alert
+                            type="info"
+                            showIcon
+                            message="Сохраняем категорию"
+                            description="Поля и действия временно заблокированы, чтобы не отправить частично изменённую структуру каталога или URL витрины."
+                        />
+                    ) : null}
                     {isError ? (
                         <Alert
                             type="error"
@@ -340,19 +367,25 @@ const ProductCategoryPage = () => {
                 open={isModalOpen}
                 onCancel={closeModal}
                 onOk={handleSubmit}
-                okText={editingCategory ? "Сохранить" : "Создать"}
+                okText={modalOkText}
                 cancelText="Отмена"
-                confirmLoading={isCreating || isUpdating}
+                confirmLoading={isSaving}
+                cancelButtonProps={{disabled: isSaving}}
+                maskClosable={!isSaving}
+                keyboard={!isSaving}
+                closable={!isSaving}
                 destroyOnHidden
             >
                 <Alert
-                    type="info"
+                    type={isSaving ? "info" : "warning"}
                     showIcon
                     style={{marginBottom: 16}}
-                    message="Проверьте URL и родителя перед сохранением"
-                    description="Эти поля влияют на навигацию каталога и клиентские ссылки. Скрывайте категорию, если раздел ещё не готов к витрине."
+                    message={isSaving ? "Сохраняем категорию каталога" : "Проверьте URL и родителя перед сохранением"}
+                    description={isSaving
+                        ? "Дождитесь ответа API: закрытие окна и изменение полей заблокированы, чтобы не смешать структуру каталога."
+                        : "Эти поля влияют на навигацию каталога и клиентские ссылки. Скрывайте категорию, если раздел ещё не готов к витрине."}
                 />
-                <Form form={form} layout="vertical">
+                <Form form={form} layout="vertical" disabled={isSaving}>
                     <Form.Item name="title" label="Название" rules={[{required: true, message: "Введите название категории"}]}>
                         <Input placeholder="Например: Платья" />
                     </Form.Item>
