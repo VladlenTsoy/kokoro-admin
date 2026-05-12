@@ -130,6 +130,7 @@ const ClientsPage = () => {
     const buyersOnPage = clients.filter((client) => (client.ordersCount ?? 0) > 0).length
     const totalSpentOnPage = clients.reduce((sum, client) => sum + Number(client.totalSpent || 0), 0)
     const hasActiveFilters = Boolean(filters.search) || filters.status !== "all"
+    const isClientListMutationUnsafe = Boolean(clientsError) || (isClientsFetching && !isLoading)
 
     useEffect(() => {
         const clientIdFromUrl = getPositiveClientIdFromSearch(searchParams)
@@ -274,11 +275,15 @@ const ClientsPage = () => {
             render: (_, client) => (
                 <Space wrap size={[8, 8]}>
                     <Button onClick={() => updateSelectedClientId(client.id)}>Открыть</Button>
-                    {canUpdateClients && <Button onClick={() => openEdit(client)}>Редактировать</Button>}
+                    {canUpdateClients && (
+                        <Button disabled={isClientListMutationUnsafe} onClick={() => openEdit(client)}>
+                            Редактировать
+                        </Button>
+                    )}
                     {canDeleteClients && (
                         <Button
                             danger={client.isActive}
-                            disabled={Boolean(statusChangingClientId && statusChangingClientId !== client.id)}
+                            disabled={isClientListMutationUnsafe || Boolean(statusChangingClientId && statusChangingClientId !== client.id)}
                             loading={statusChangingClientId === client.id}
                             onClick={() => handleBlockToggle(client)}
                         >
@@ -363,6 +368,9 @@ const ClientsPage = () => {
                         <Typography.Text type="secondary">
                             {data?.total ?? 0} совпадений; на странице {clients.length}, активных {activeClientsOnPage}, с покупками {buyersOnPage}.
                         </Typography.Text>
+                        {isClientListMutationUnsafe && (
+                            <Tag color="orange">Редактирование и блокировка доступны после успешного обновления списка</Tag>
+                        )}
                     </Space>
                 </Space>
             </Card>
