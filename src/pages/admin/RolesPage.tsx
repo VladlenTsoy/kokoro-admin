@@ -301,7 +301,7 @@ const RolesPage = () => {
     ]
 
     return (
-        <Space orientation="vertical" size={16} style={{width: "100%"}}>
+        <Space direction="vertical" size={16} style={{width: "100%"}}>
             <PageHeading
                 title="Роли"
                 subtitle="Управление ролями, статусами и матрицей доступов."
@@ -321,7 +321,7 @@ const RolesPage = () => {
             </Card>
 
             <Card>
-                <Space orientation="vertical" size={16} style={{width: "100%"}}>
+                <Space direction="vertical" size={16} style={{width: "100%"}}>
                     {error ? (
                         <Alert
                             type="error"

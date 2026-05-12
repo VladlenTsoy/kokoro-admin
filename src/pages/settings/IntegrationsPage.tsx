@@ -156,7 +156,7 @@ const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
             extra={<Switch checked={integration.enabled} disabled={locked || !integration.configured || isTesting} loading={isUpdating} onChange={toggleEnabled} />}
         >
             {contextHolder}
-            <Space orientation="vertical" size={16} style={{width: "100%"}}>
+            <Space direction="vertical" size={16} style={{width: "100%"}}>
                 <Typography.Paragraph type="secondary" style={{marginBottom: 0}}>
                     Datra подключается как платная CDP-интеграция. Основной магазин продолжает работать даже если интеграция выключена или Datra недоступна.
                 </Typography.Paragraph>
@@ -276,7 +276,7 @@ const IntegrationsPage = () => {
     )
 
     return (
-        <Space orientation="vertical" size={18} style={{width: "100%"}}>
+        <Space direction="vertical" size={18} style={{width: "100%"}}>
             <PageHeading
                 title="Интеграции"
                 subtitle="Платные и внешние подключения: Datra CDP, Meta/Facebook и будущие сервисы."

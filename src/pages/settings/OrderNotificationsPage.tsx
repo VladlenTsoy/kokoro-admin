@@ -260,7 +260,7 @@ const OrderNotificationsPage = () => {
     ]
 
     return (
-        <Space orientation="vertical" size={16} style={{width: "100%"}}>
+        <Space direction="vertical" size={16} style={{width: "100%"}}>
             <Alert
                 type="info"
                 showIcon

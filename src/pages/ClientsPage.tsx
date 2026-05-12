@@ -31,7 +31,7 @@ const renderClientTabEmpty = (title: string, description: string) => (
     <Empty
         image={Empty.PRESENTED_IMAGE_SIMPLE}
         description={(
-            <Space orientation="vertical" size={4}>
+            <Space direction="vertical" size={4}>
                 <Typography.Text strong>{title}</Typography.Text>
                 <Typography.Text type="secondary">{description}</Typography.Text>
             </Space>
@@ -310,7 +310,7 @@ const ClientsPage = () => {
     ].filter(Boolean) as Array<{color: string; label: string; description: string}> : []
 
     return (
-        <Space orientation="vertical" size={18} style={{width: "100%"}}>
+        <Space direction="vertical" size={18} style={{width: "100%"}}>
             <Card className="admin-hero-card clients-hero">
                 <PageHeading
                     title="Клиенты"
@@ -456,7 +456,7 @@ const ClientsPage = () => {
                     />
                 )}
                 {!isClientLoading && clientDetails && (
-                    <Space orientation="vertical" size={16} style={{width: "100%"}}>
+                    <Space direction="vertical" size={16} style={{width: "100%"}}>
                         {clientAttentionItems.length > 0 && (
                             <Alert
                                 type="warning"

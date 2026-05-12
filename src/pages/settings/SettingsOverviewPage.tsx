@@ -93,7 +93,7 @@ const SettingsOverviewPage = () => {
     const handleRetry = () => setupQueries.forEach((query) => query.refetch())
 
     return (
-        <Space orientation="vertical" size={18} style={{width: "100%"}}>
+        <Space direction="vertical" size={18} style={{width: "100%"}}>
             <PageHeading
                 title="Запуск магазина"
                 subtitle="Практический checklist настроек, без enterprise-конфигуратора и без дубля Datra."

@@ -91,7 +91,7 @@ const ProductVariantTagsFormSelect = () => {
                 />
             )}
             {selectedGroups.length > 0 && (
-                <Space orientation="vertical" size={6} style={{marginTop: -12, marginBottom: 20}}>
+                <Space direction="vertical" size={6} style={{marginTop: -12, marginBottom: 20}}>
                     {selectedGroups.map(([type, tags]) => (
                         <div key={type}>
                             <Typography.Text type="secondary">

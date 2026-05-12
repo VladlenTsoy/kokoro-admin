@@ -50,7 +50,7 @@ const RightBlock: React.FC<Props> = ({imageUrls, setImageUrl, isSaving, saveDisa
                 <Divider size="small" />
                 <ImagesSection imageUrls={imageUrls} setImageUrl={setImageUrl} />
                 <Divider size="middle" />
-                <Space orientation="vertical" style={{width: "100%"}}>
+                <Space direction="vertical" style={{width: "100%"}}>
                     {saveDisabled && saveDisabledReason && (
                         <Alert
                             type="warning"

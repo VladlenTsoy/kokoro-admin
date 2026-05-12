@@ -37,7 +37,7 @@ const SettingsTableSection = ({
     const {styles} = useStyles()
 
     return (
-        <Space orientation="vertical" size={14} style={{width: "100%"}}>
+        <Space direction="vertical" size={14} style={{width: "100%"}}>
             <PageHeading
                 title={title}
                 subtitle={subtitle}

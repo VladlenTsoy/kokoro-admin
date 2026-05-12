@@ -661,7 +661,7 @@ const OrdersPage = () => {
                 key: "orderNumber",
                 width: 130,
                 render: (_, order) => (
-                    <Space orientation="vertical" size={0}>
+                    <Space direction="vertical" size={0}>
                         <Typography.Text strong>{order.orderNumber || `#${order.id}`}</Typography.Text>
                         <Typography.Text type="secondary">{dayjs(order.createdAt).format("HH:mm")}</Typography.Text>
                     </Space>
@@ -689,7 +689,7 @@ const OrdersPage = () => {
                 render: (_, order) => {
                     const phone = order.client?.phone || order.phone
                     return (
-                        <Space orientation="vertical" size={0}>
+                        <Space direction="vertical" size={0}>
                             <Typography.Text>{order.client?.name || order.clientName || "—"}</Typography.Text>
                             <Typography.Text copyable={Boolean(phone)} type="secondary">{phone || "—"}</Typography.Text>
                         </Space>
@@ -809,7 +809,7 @@ const OrdersPage = () => {
     ]
 
     return (
-        <Space orientation="vertical" size={18} style={{width: "100%"}}>
+        <Space direction="vertical" size={18} style={{width: "100%"}}>
             <Card className="admin-hero-card orders-hero">
                 <PageHeading
                     title="Today Order Desk"
@@ -880,7 +880,7 @@ const OrdersPage = () => {
             </Row>
 
             <Card className="filter-card">
-                <Space orientation="vertical" size={14} style={{width: "100%"}}>
+                <Space direction="vertical" size={14} style={{width: "100%"}}>
                     <Space wrap>
                         <Button type={filters.from && filters.to ? "primary" : "default"} onClick={setTodayFilters}>Сегодня</Button>
                         <Button onClick={() => setDeliveryFilter("pending")}>Новые</Button>
@@ -1053,7 +1053,7 @@ const OrdersPage = () => {
                     </Empty>
                 )}
                 {!isOrderLoading && !isOrderError && selectedOrder && (
-                    <Space orientation="vertical" size={16} style={{width: "100%"}}>
+                    <Space direction="vertical" size={16} style={{width: "100%"}}>
                         <Card className="drawer-command-card">
                             <Row gutter={[16, 16]} align="middle">
                                 <Col xs={24} md={8}>
@@ -1078,7 +1078,7 @@ const OrdersPage = () => {
 
                         <Row gutter={[16, 16]}>
                             <Col xs={24} lg={15}>
-                                <Space orientation="vertical" size={16} style={{width: "100%"}}>
+                                <Space direction="vertical" size={16} style={{width: "100%"}}>
                                     <Card className="workflow-card" title="Workflow заказа">
                                         <Space wrap>
                                             {["Новый", "Принят", "Собирается", "Готов", "Выдан/доставлен", "Закрыт"].map((step) => <Tag key={step}>{step}</Tag>)}
@@ -1128,7 +1128,7 @@ const OrdersPage = () => {
                             </Col>
 
                             <Col xs={24} lg={9}>
-                                <Space orientation="vertical" size={16} style={{width: "100%"}}>
+                                <Space direction="vertical" size={16} style={{width: "100%"}}>
                                     <Card className="next-action-card" title="Следующее действие">
                                         <Typography.Text strong>{getNextActionLabel(selectedOrder)}</Typography.Text>
                                         <div style={{marginTop: 12}}>
@@ -1150,7 +1150,7 @@ const OrdersPage = () => {
                                             </Tooltip>
                                         )}
                                     >
-                                        <Space orientation="vertical" size={12} style={{width: "100%"}}>
+                                        <Space direction="vertical" size={12} style={{width: "100%"}}>
                                             <Typography.Text type="secondary">
                                                 Короткий чек-лист перед звонком клиенту, выдачей или передачей курьеру. Кнопка копирования берёт только безопасные операционные поля из карточки.
                                             </Typography.Text>
@@ -1242,7 +1242,7 @@ const OrdersPage = () => {
                 confirmLoading={isUpdatingOrder}
                 okText="Сохранить"
             >
-                <Space orientation="vertical" size={12} style={{width: "100%"}}>
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Alert
                         type="info"
                         showIcon
@@ -1299,7 +1299,7 @@ const OrdersPage = () => {
                 onOk={handleStatusSubmit}
                 confirmLoading={isUpdatingStatus}
             >
-                <Space orientation="vertical" size={12} style={{width: "100%"}}>
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Alert
                         type="info"
                         showIcon
@@ -1327,7 +1327,7 @@ const OrdersPage = () => {
                 onOk={handleCancelSubmit}
                 confirmLoading={isCancelling}
             >
-                <Space orientation="vertical" size={12} style={{width: "100%"}}>
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Alert
                         type={editingOrder?.paymentStatus === "paid" ? "warning" : "info"}
                         showIcon
@@ -1349,7 +1349,7 @@ const OrdersPage = () => {
                 onOk={handleCommentSubmit}
                 confirmLoading={isCreatingComment}
             >
-                <Space orientation="vertical" size={12} style={{width: "100%"}}>
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Alert
                         type="info"
                         showIcon

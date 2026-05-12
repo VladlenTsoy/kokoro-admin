@@ -91,7 +91,7 @@ const SearchZeroResultsPage = () => {
     ]
 
     return (
-        <Space orientation="vertical" size={18} style={{width: "100%"}}>
+        <Space direction="vertical" size={18} style={{width: "100%"}}>
             <Card className="admin-hero-card">
                 <PageHeading
                     title="Поиск без результата"

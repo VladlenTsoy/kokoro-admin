@@ -116,7 +116,7 @@ const LoginPage = () => {
             <Card style={{width: "100%", maxWidth: 1020, borderRadius: 24}}>
                 <Row gutter={[28, 28]} align="middle">
                     <Col xs={24} lg={12}>
-                        <Space orientation="vertical" size={14}>
+                        <Space direction="vertical" size={14}>
                             <Tag color="lime" style={{alignSelf: "flex-start"}}>KOKORO ADMIN</Tag>
                             <Typography.Title level={2} style={{margin: 0}}>
                                 Современная панель управления
@@ -124,7 +124,7 @@ const LoginPage = () => {
                             <Typography.Paragraph type="secondary" style={{marginBottom: 0}}>
                                 Быстрый вход в систему управления сотрудниками, ролями и операционными процессами.
                             </Typography.Paragraph>
-                            <Space orientation="vertical" size={8}>
+                            <Space direction="vertical" size={8}>
                                 <Typography.Text><SafetyOutlined /> Защищённая авторизация и refresh-flow</Typography.Text>
                                 <Typography.Text><ThunderboltOutlined /> Быстрая работа с таблицами и фильтрами</Typography.Text>
                                 <Typography.Text><LockOutlined /> RBAC-доступы для администраторов</Typography.Text>

@@ -341,7 +341,7 @@ const EmployeesPage = () => {
     ]
 
     return (
-        <Space orientation="vertical" size={16} style={{width: "100%"}}>
+        <Space direction="vertical" size={16} style={{width: "100%"}}>
             <PageHeading
                 title="Сотрудники"
                 subtitle="Команда админки, статусы активности и распределение ролей."

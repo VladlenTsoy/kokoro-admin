@@ -42,7 +42,7 @@ const HomePage = () => {
             title: "Событие",
             dataIndex: "event",
             render: (_, item) => (
-                <Space orientation="vertical" size={0}>
+                <Space direction="vertical" size={0}>
                     <Typography.Text strong>{item.orderNumber || (item.orderId ? `#${item.orderId}` : "Заказ")}</Typography.Text>
                     <Typography.Text type="secondary">{item.event || "Статус заказа изменён"}</Typography.Text>
                 </Space>
@@ -89,7 +89,7 @@ const HomePage = () => {
     ]
 
     return (
-        <Space orientation="vertical" size={18} style={{width: "100%"}}>
+        <Space direction="vertical" size={18} style={{width: "100%"}}>
             <Card className="admin-hero-card dashboard-hero">
                 <PageHeading
                     title="Today Operations"
@@ -168,13 +168,13 @@ const HomePage = () => {
             <Row gutter={[16, 16]}>
                 <Col xs={24} xl={8}>
                     <Card className="focus-card" title="Операционный фокус">
-                        <Space orientation="vertical" size={12} style={{width: "100%"}}>
+                        <Space direction="vertical" size={12} style={{width: "100%"}}>
                             <Typography.Text>
                                 {hasProblems
                                     ? "Сначала разберите проблемные заказы: просроченные новые, оплаченные без обработки, неуспешную оплату или оплаченные отмены."
                                     : "Критичных проблем по заказам сегодня не видно. Держите фокус на новых и готовых заказах."}
                             </Typography.Text>
-                            <Space orientation="vertical" size={8} style={{width: "100%"}}>
+                            <Space direction="vertical" size={8} style={{width: "100%"}}>
                                 {nextActionShortcuts.map((shortcut) => (
                                     <Button
                                         key={shortcut.query}
@@ -183,7 +183,7 @@ const HomePage = () => {
                                         danger={shortcut.danger}
                                         onClick={() => openOrders(shortcut.query)}
                                     >
-                                        <Space orientation="vertical" size={0} style={{width: "100%"}}>
+                                        <Space direction="vertical" size={0} style={{width: "100%"}}>
                                             <Typography.Text strong>{shortcut.title}</Typography.Text>
                                             <Typography.Text type="secondary">{shortcut.description}</Typography.Text>
                                         </Space>
