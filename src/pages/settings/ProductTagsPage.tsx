@@ -18,6 +18,7 @@ import {
 } from "../../features/product-variant-tags/productVariantTagApi.ts"
 import {useCan} from "../../features/auth/permissions.ts"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
+import {isAntdFormValidationError} from "../../utils/isAntdFormValidationError.ts"
 
 type ProductTagFormValues = ProductVariantTagPayload
 
@@ -33,7 +34,7 @@ const ACTIVE_FILTER_LABELS: Record<NonNullable<ProductVariantTagFilters["isActiv
 
 const ProductTagsPage = () => {
     const [filters, setFilters] = useState<ProductVariantTagFilters>({})
-    const {data, isLoading, isError, refetch} = useGetAllTagsQuery(filters)
+    const {data, isLoading, isFetching, isError, refetch} = useGetAllTagsQuery(filters)
     const [createTag, {isLoading: isCreating}] = useCreateTagMutation()
     const [updateTag, {isLoading: isUpdating}] = useUpdateTagMutation()
     const [deleteTag, {isLoading: isDeleting}] = useDeleteTagMutation()
@@ -62,8 +63,8 @@ const ProductTagsPage = () => {
     const hasActiveFilters = Boolean(filters.search || filters.type || filters.isActive)
     const isSavingTag = isCreating || isUpdating
     const isTagMutationInFlight = isSavingTag || isDeleting
-    const isTagListUnavailable = isError
-    const areTagActionsBlocked = isTagMutationInFlight || isTagListUnavailable
+    const isTagListUnconfirmed = isLoading || isFetching || isError || !Array.isArray(data)
+    const areTagActionsBlocked = isTagMutationInFlight || isTagListUnconfirmed
 
     const resetFilters = () => setFilters({})
 
@@ -123,7 +124,7 @@ const ProductTagsPage = () => {
 
             closeModal()
         } catch (error) {
-            if (typeof error === "object" && error !== null && "errorFields" in error) {
+            if (isAntdFormValidationError(error)) {
                 return
             }
 
@@ -217,15 +218,15 @@ const ProductTagsPage = () => {
                     <Tag color={isActive ? "green" : "default"}>{isActive ? "Активен" : "Скрыт"}</Tag>
                     <Switch
                         checked={isActive}
-                        disabled={!canUpdate || isTagListUnavailable || (isTagMutationInFlight && activeToggleTagId !== tag.id)}
+                        disabled={!canUpdate || isTagListUnconfirmed || (isTagMutationInFlight && activeToggleTagId !== tag.id)}
                         loading={activeToggleTagId === tag.id}
                         checkedChildren="Вкл"
                         unCheckedChildren="Выкл"
                         onChange={(checked) => handleToggleActive(tag, checked)}
                     />
                     {!canUpdate && <Typography.Text type="secondary">Нет прав на изменение</Typography.Text>}
-                    {canUpdate && isTagListUnavailable && (
-                        <Typography.Text type="secondary">Сначала повторите загрузку списка</Typography.Text>
+                    {canUpdate && isTagListUnconfirmed && (
+                        <Typography.Text type="secondary">Сначала дождитесь подтверждённой загрузки списка</Typography.Text>
                     )}
                 </Space>
             )
@@ -248,9 +249,12 @@ const ProductTagsPage = () => {
                             okText={deletingTagId === tag.id ? "Удаляем…" : "Удалить"}
                             cancelText="Отмена"
                             onConfirm={() => handleDelete(tag)}
-                            okButtonProps={{loading: deletingTagId === tag.id}}
+                            okButtonProps={{
+                                loading: deletingTagId === tag.id,
+                                disabled: isTagListUnconfirmed || (isTagMutationInFlight && deletingTagId !== tag.id)
+                            }}
                         >
-                            <Button type="link" danger loading={deletingTagId === tag.id} disabled={isTagListUnavailable || (isTagMutationInFlight && deletingTagId !== tag.id)}>
+                            <Button type="link" danger loading={deletingTagId === tag.id} disabled={isTagListUnconfirmed || (isTagMutationInFlight && deletingTagId !== tag.id)}>
                                 {deletingTagId === tag.id ? "Удаляем…" : "Удалить"}
                             </Button>
                         </Popconfirm>
@@ -279,13 +283,21 @@ const ProductTagsPage = () => {
                             description="Пока запрос выполняется, создание, редактирование и соседние удаления заблокированы, чтобы не смешать изменения фильтров и подборок."
                         />
                     ) : null}
+                    {isFetching && !isLoading ? (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            message="Проверяем актуальность тегов товаров"
+                            description="Пока список обновляется, создание, редактирование, активация и удаление временно заблокированы, чтобы менеджер не изменил устаревшие фильтры или подборки."
+                        />
+                    ) : null}
                     {isError ? (
                         <Alert
                             type="error"
                             showIcon
                             message="Не удалось загрузить теги товаров"
                             description="Не меняйте теги вслепую: они влияют на фильтры, подборки и карточки товаров. Создание, редактирование, активация и удаление заблокированы до успешной повторной загрузки."
-                            action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
+                            action={<Button size="small" loading={isFetching} onClick={() => refetch()}>Повторить</Button>}
                         />
                     ) : null}
                     <Alert
