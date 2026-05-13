@@ -1,5 +1,5 @@
 import DOMPurify from "dompurify"
-import {Alert, Button, Collapse, Divider, Empty, Form, Input, Modal, Popconfirm, Space, Spin, Switch, Tag, Typography, message} from "antd"
+import {Alert, Button, Collapse, Divider, Empty, Form, Input, Modal, Popconfirm, Space, Spin, Switch, Tag, Tooltip, Typography, message} from "antd"
 import {
     useCreateProductPropertyMutation,
     useDeleteProductPropertyMutation,
@@ -22,7 +22,7 @@ interface ProductPropertyFormValues {
 }
 
 const ProductPropertyPage = () => {
-    const {data, isLoading, isError, refetch} = useGetProductPropertiesQuery(
+    const {data, isLoading, isFetching, isError, refetch} = useGetProductPropertiesQuery(
         {isGlobal: 1},
         {refetchOnMountOrArgChange: true}
     )
@@ -38,7 +38,20 @@ const ProductPropertyPage = () => {
     const canUpdate = useCan("catalog.update")
     const canDelete = useCan("catalog.delete")
     const isSaving = isCreating || isUpdating
+    const isListConfirmed = !isLoading && !isFetching && !isError && Array.isArray(data)
+    const isPropertyActionBlocked = !isListConfirmed || deletingPropertyId !== null || isSaving
     const normalizedSearchText = searchText.trim().toLowerCase()
+
+    const blockedActionReason = (() => {
+        if (isSaving) return "Дождитесь завершения сохранения свойства."
+        if (deletingPropertyId !== null) return "Дождитесь завершения удаления свойства."
+        if (isLoading) return "Список свойств ещё загружается."
+        if (isFetching) return "Список свойств обновляется — дождитесь подтверждённых данных."
+        if (isError) return "Не удалось подтвердить актуальный список свойств. Нажмите «Повторить» перед изменениями."
+        if (!Array.isArray(data)) return "Список свойств пока не подтверждён API."
+
+        return undefined
+    })()
 
     const summary = useMemo(() => {
         const properties = data ?? []
@@ -73,7 +86,7 @@ const ProductPropertyPage = () => {
     }
 
     const openCreate = () => {
-        if (deletingPropertyId !== null || isSaving) return
+        if (isPropertyActionBlocked) return
 
         setEditingProperty(null)
         form.setFieldsValue({
@@ -85,7 +98,7 @@ const ProductPropertyPage = () => {
     }
 
     const openEdit = (property: ProductPropertyType) => {
-        if (deletingPropertyId !== null || isSaving) return
+        if (isPropertyActionBlocked) return
 
         setEditingProperty(property)
         form.setFieldsValue({
@@ -131,48 +144,68 @@ const ProductPropertyPage = () => {
     const genExtra = (property: ProductPropertyType) => {
         const isDeletingCurrentProperty = deletingPropertyId === property.id
         const isAnotherPropertyDeleting = deletingPropertyId !== null && !isDeletingCurrentProperty
-        const isDeleteDisabled = isSaving || isAnotherPropertyDeleting
+        const isDeleteDisabled = !isListConfirmed || isSaving || isAnotherPropertyDeleting
+        const isEditDisabled = isPropertyActionBlocked
 
         return <Space size="middle" wrap>
             {canUpdate && (
-                <Button
-                    type="text"
-                    size="small"
-                    icon={<EditOutlined />}
-                    aria-label={`Редактировать свойство ${property.title}`}
-                    disabled={deletingPropertyId !== null || isSaving}
-                    onClick={(event) => {
-                        event.stopPropagation()
-                        openEdit(property)
-                    }}
-                />
+                <Tooltip title={isEditDisabled ? blockedActionReason : undefined}>
+                    <span onClick={(event) => event.stopPropagation()}>
+                        <Button
+                            type="text"
+                            size="small"
+                            icon={<EditOutlined />}
+                            aria-label={`Редактировать свойство ${property.title}`}
+                            disabled={isEditDisabled}
+                            onClick={(event) => {
+                                event.stopPropagation()
+                                openEdit(property)
+                            }}
+                        />
+                    </span>
+                </Tooltip>
             )}
             {canDelete && (
-                <Popconfirm
-                    title="Удалить свойство?"
-                    description="Проверьте, что свойство не используется в карточках товаров или на витрине. Действие нельзя отменить из админки."
-                    okText="Удалить"
-                    cancelText="Отмена"
-                    onConfirm={() => handleDelete(property.id)}
-                    okButtonProps={{loading: isDeletingCurrentProperty, danger: true}}
-                    disabled={isDeleteDisabled}
-                >
-                    <Button
-                        type="text"
-                        size="small"
-                        danger
-                        icon={isDeletingCurrentProperty ? <LoadingOutlined /> : <DeleteOutlined />}
-                        aria-label={isDeletingCurrentProperty ? `Удаляем свойство ${property.title}` : `Удалить свойство ${property.title}`}
-                        loading={isDeletingCurrentProperty}
-                        disabled={isDeleteDisabled}
-                        onClick={(event) => {
-                            event.stopPropagation()
-                        }}
-                    />
-                </Popconfirm>
+                <Tooltip title={isDeleteDisabled && !isDeletingCurrentProperty ? blockedActionReason : undefined}>
+                    <span onClick={(event) => event.stopPropagation()}>
+                        <Popconfirm
+                            title="Удалить свойство?"
+                            description="Проверьте, что свойство не используется в карточках товаров или на витрине. Действие нельзя отменить из админки."
+                            okText="Удалить"
+                            cancelText="Отмена"
+                            onConfirm={() => handleDelete(property.id)}
+                            okButtonProps={{loading: isDeletingCurrentProperty, danger: true}}
+                            disabled={isDeleteDisabled}
+                        >
+                            <Button
+                                type="text"
+                                size="small"
+                                danger
+                                icon={isDeletingCurrentProperty ? <LoadingOutlined /> : <DeleteOutlined />}
+                                aria-label={isDeletingCurrentProperty ? `Удаляем свойство ${property.title}` : `Удалить свойство ${property.title}`}
+                                loading={isDeletingCurrentProperty}
+                                disabled={isDeleteDisabled}
+                                onClick={(event) => {
+                                    event.stopPropagation()
+                                }}
+                            />
+                        </Popconfirm>
+                    </span>
+                </Tooltip>
             )}
         </Space>
     }
+
+    const createPropertyButton = (
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate} disabled={isPropertyActionBlocked}>
+            Создать свойство
+        </Button>
+    )
+    const createPropertyAction = isPropertyActionBlocked && blockedActionReason ? (
+        <Tooltip title={blockedActionReason}>
+            <span>{createPropertyButton}</span>
+        </Tooltip>
+    ) : createPropertyButton
 
     const propertyItems = filteredProperties.map(item => ({
         key: item.id,
@@ -202,11 +235,7 @@ const ProductPropertyPage = () => {
                     <Title level={3} style={{marginBottom: 0}}>Свойства</Title>
                     <Text type="secondary">Добавленное здесь свойство отображается на всех товарах.</Text>
                 </div>
-                {canCreate && (
-                    <Button type="primary" icon={<PlusOutlined />} onClick={openCreate} disabled={deletingPropertyId !== null || isSaving}>
-                        Создать свойство
-                    </Button>
-                )}
+                {canCreate ? createPropertyAction : null}
             </div>
             <Divider size="middle" />
             <Space direction="vertical" size={12} style={{width: "100%"}}>
@@ -238,6 +267,14 @@ const ProductPropertyPage = () => {
                         description="Дождитесь завершения операции: создание, редактирование и удаление других свойств временно заблокированы, чтобы не смешать изменения справочника."
                     />
                 ) : null}
+                {isFetching && !isLoading ? (
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Обновляем список свойств"
+                        description="Действия создания, редактирования и удаления временно заблокированы, пока API не подтвердит актуальный справочник."
+                    />
+                ) : null}
                 {isError ? (
                     <Alert
                         type="error"
@@ -265,7 +302,7 @@ const ProductPropertyPage = () => {
                     </Empty>
                 ) : (
                     <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Глобальные свойства ещё не созданы">
-                        {canCreate ? <Button type="primary" onClick={openCreate} disabled={deletingPropertyId !== null || isSaving}>Создать первое свойство</Button> : null}
+                        {canCreate ? createPropertyAction : null}
                     </Empty>
                 )}
             </Space>
