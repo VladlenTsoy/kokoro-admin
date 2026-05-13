@@ -1,6 +1,7 @@
 import {Alert, Button, Card, Col, Descriptions, Drawer, Empty, Form, Input, Modal, Row, Segmented, Space, Statistic, Table, Tabs, Tag, Typography, message} from "antd"
 import {CrownOutlined, PhoneOutlined, ReloadOutlined, ShoppingOutlined, TeamOutlined} from "@ant-design/icons"
 import type {ColumnsType} from "antd/es/table"
+import type {KeyboardEvent} from "react"
 import {useEffect, useState} from "react"
 import {useNavigate, useSearchParams} from "react-router-dom"
 import PageHeading from "../components/PageHeading.tsx"
@@ -180,6 +181,35 @@ const ClientsPage = () => {
         }, {replace: true})
     }
 
+    const showActiveClients = () => {
+        setFilters((prev) => ({...prev, search: "", status: "active", page: 1}))
+        setSearchParams((previousParams) => {
+            const nextParams = new URLSearchParams(previousParams)
+            nextParams.delete("search")
+            return nextParams
+        }, {replace: true})
+    }
+
+    const getMetricCardActionProps = (handler: () => void) => ({
+        hoverable: true,
+        role: "button",
+        tabIndex: 0,
+        onClick: handler,
+        onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault()
+                handler()
+            }
+        }
+    })
+
+    const renderMetricTitle = (label: string, hint: string) => (
+        <Space direction="vertical" size={2}>
+            <span>{label}</span>
+            <Typography.Text className="metric-card-hint" type="secondary">{hint}</Typography.Text>
+        </Space>
+    )
+
     const openClientOrder = (order: AdminClientOrder) => {
         navigate(`/orders?orderId=${order.id}`)
     }
@@ -354,16 +384,24 @@ const ClientsPage = () => {
 
             <Row gutter={[16, 16]}>
                 <Col xs={24} md={12} xl={6}>
-                    <Card className="metric-card metric-card--lime"><Statistic prefix={<TeamOutlined />} title="Всего клиентов" value={data?.total ?? 0} loading={isLoading} /></Card>
+                    <Card className="metric-card metric-card--lime" {...getMetricCardActionProps(resetClientFilters)}>
+                        <Statistic prefix={<TeamOutlined />} title={renderMetricTitle("Клиенты", "Открыть полный CRM-список")} value={data?.total ?? 0} loading={isLoading} />
+                    </Card>
                 </Col>
                 <Col xs={24} md={12} xl={6}>
-                    <Card className="metric-card metric-card--cyan"><Statistic prefix={<PhoneOutlined />} title="Активные на странице" value={activeClientsOnPage} loading={isLoading} /></Card>
+                    <Card className="metric-card metric-card--cyan" {...getMetricCardActionProps(showActiveClients)}>
+                        <Statistic prefix={<PhoneOutlined />} title={renderMetricTitle("Активные на странице", "Показать активную CRM-очередь")} value={activeClientsOnPage} loading={isLoading} />
+                    </Card>
                 </Col>
                 <Col xs={24} md={12} xl={6}>
-                    <Card className="metric-card metric-card--blue"><Statistic prefix={<ShoppingOutlined />} title="С покупками" value={buyersOnPage} loading={isLoading} /></Card>
+                    <Card className="metric-card metric-card--blue">
+                        <Statistic prefix={<ShoppingOutlined />} title={renderMetricTitle("С покупками", "Контекст текущей выдачи")} value={buyersOnPage} loading={isLoading} />
+                    </Card>
                 </Col>
                 <Col xs={24} md={12} xl={6}>
-                    <Card className="metric-card metric-card--money"><Statistic prefix={<CrownOutlined />} title="Оборот страницы" value={formatMoney(totalSpentOnPage)} loading={isLoading} /></Card>
+                    <Card className="metric-card metric-card--money">
+                        <Statistic prefix={<CrownOutlined />} title={renderMetricTitle("Оборот страницы", "Сумма в текущей выдаче")} value={formatMoney(totalSpentOnPage)} loading={isLoading} />
+                    </Card>
                 </Col>
             </Row>
 
