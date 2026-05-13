@@ -65,12 +65,17 @@ const getPositiveClientIdFromSearch = (searchParams: URLSearchParams) => {
 
 const getClientSearchFromUrl = (searchParams: URLSearchParams) => searchParams.get("search")?.trim() || ""
 
+const getClientStatusFromUrl = (searchParams: URLSearchParams): ClientStatusFilter => {
+    const status = searchParams.get("status")
+    return status === "active" || status === "blocked" ? status : "all"
+}
+
 const ClientsPage = () => {
     const navigate = useNavigate()
     const [searchParams, setSearchParams] = useSearchParams()
     const [filters, setFilters] = useState<{search?: string; status: ClientStatusFilter; page: number; pageSize: number}>({
         search: getClientSearchFromUrl(searchParams),
-        status: "all",
+        status: getClientStatusFromUrl(searchParams),
         page: 1,
         pageSize: 20
     })
@@ -139,10 +144,11 @@ const ClientsPage = () => {
     useEffect(() => {
         const clientIdFromUrl = getPositiveClientIdFromSearch(searchParams)
         const searchFromUrl = getClientSearchFromUrl(searchParams)
+        const statusFromUrl = getClientStatusFromUrl(searchParams)
         setSelectedClientId((currentClientId) => currentClientId === clientIdFromUrl ? currentClientId : clientIdFromUrl)
-        setFilters((currentFilters) => currentFilters.search === searchFromUrl
+        setFilters((currentFilters) => currentFilters.search === searchFromUrl && currentFilters.status === statusFromUrl
             ? currentFilters
-            : {...currentFilters, search: searchFromUrl, page: 1})
+            : {...currentFilters, search: searchFromUrl, status: statusFromUrl, page: 1})
     }, [searchParams])
 
     const updateSelectedClientId = (id: number | null) => {
@@ -177,6 +183,20 @@ const ClientsPage = () => {
         setSearchParams((previousParams) => {
             const nextParams = new URLSearchParams(previousParams)
             nextParams.delete("search")
+            nextParams.delete("status")
+            return nextParams
+        }, {replace: true})
+    }
+
+    const updateClientStatus = (status: ClientStatusFilter) => {
+        setFilters((prev) => ({...prev, status, page: 1}))
+        setSearchParams((previousParams) => {
+            const nextParams = new URLSearchParams(previousParams)
+            if (status === "all") {
+                nextParams.delete("status")
+            } else {
+                nextParams.set("status", status)
+            }
             return nextParams
         }, {replace: true})
     }
@@ -186,6 +206,7 @@ const ClientsPage = () => {
         setSearchParams((previousParams) => {
             const nextParams = new URLSearchParams(previousParams)
             nextParams.delete("search")
+            nextParams.set("status", "active")
             return nextParams
         }, {replace: true})
     }
@@ -354,6 +375,13 @@ const ClientsPage = () => {
         }
     ]
 
+    const clientFilterSummary = filters.status === "active"
+        ? "Очередь активных клиентов"
+        : filters.status === "blocked"
+            ? "Очередь заблокированных клиентов"
+            : hasActiveFilters
+                ? "Показаны отфильтрованные клиенты"
+                : "Показаны все клиенты"
     const clientOrderCount = clientDetails?.stats?.ordersCount ?? clientDetails?.ordersCount ?? 0
     const clientAttentionItems = clientDetails ? [
         !clientDetails.phone && {
@@ -426,7 +454,7 @@ const ClientsPage = () => {
                         />
                         <Segmented<ClientStatusFilter>
                             value={filters.status}
-                            onChange={(status) => setFilters((prev) => ({...prev, status, page: 1}))}
+                            onChange={updateClientStatus}
                             options={[
                                 {label: "Все", value: "all"},
                                 {label: "Активные", value: "active"},
@@ -437,7 +465,7 @@ const ClientsPage = () => {
                     </Space>
                     <Space wrap size={[8, 8]}>
                         <Tag color={hasActiveFilters ? "blue" : "default"}>
-                            {hasActiveFilters ? "Показаны отфильтрованные клиенты" : "Показаны все клиенты"}
+                            {clientFilterSummary}
                         </Tag>
                         <Typography.Text type="secondary">
                             {data?.total ?? 0} совпадений; на странице {clients.length}, активных {activeClientsOnPage}, с покупками {buyersOnPage}.
