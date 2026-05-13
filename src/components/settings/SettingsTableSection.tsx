@@ -1,5 +1,5 @@
 import {PlusOutlined} from "@ant-design/icons"
-import {Button, Space} from "antd"
+import {Button, Space, Tooltip} from "antd"
 import {createStyles} from "antd-style"
 import type {ReactNode} from "react"
 import PageHeading from "../PageHeading.tsx"
@@ -11,6 +11,7 @@ interface SettingsTableSectionProps {
     onAdd: () => void
     canAdd?: boolean
     addButtonDisabled?: boolean
+    addButtonDisabledReason?: ReactNode
     addButtonIcon?: ReactNode
     children: ReactNode
 }
@@ -31,21 +32,28 @@ const SettingsTableSection = ({
     onAdd,
     canAdd = true,
     addButtonDisabled = false,
+    addButtonDisabledReason,
     addButtonIcon = <PlusOutlined />,
     children
 }: SettingsTableSectionProps) => {
     const {styles} = useStyles()
+    const addButton = (
+        <Button type="primary" icon={addButtonIcon} onClick={onAdd} disabled={addButtonDisabled}>
+            {addButtonText}
+        </Button>
+    )
+    const addButtonExtra = addButtonDisabled && addButtonDisabledReason ? (
+        <Tooltip title={addButtonDisabledReason}>
+            <span>{addButton}</span>
+        </Tooltip>
+    ) : addButton
 
     return (
         <Space direction="vertical" size={14} style={{width: "100%"}}>
             <PageHeading
                 title={title}
                 subtitle={subtitle}
-                extra={canAdd ? (
-                    <Button type="primary" icon={addButtonIcon} onClick={onAdd} disabled={addButtonDisabled}>
-                        {addButtonText}
-                    </Button>
-                ) : null}
+                extra={canAdd ? addButtonExtra : null}
             />
             <div className={styles.tableSurface}>
                 {children}

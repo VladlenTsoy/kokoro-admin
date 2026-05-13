@@ -77,6 +77,15 @@ const OrderNotificationsPage = () => {
     const isSavingConfig = isCreating || isUpdating
     const isConfigFormUnsafe = isConfigListUnsafe || isStatusDictionaryUnsafe
     const isConfigMutationLocked = isConfigFormUnsafe || isSavingConfig || isDeleting
+    const addRuleDisabledReason = isSavingConfig
+        ? "Идёт сохранение правила — дождитесь результата, чтобы не создать дубль."
+        : isDeleting
+            ? "Идёт удаление правила — дождитесь актуального списка перед добавлением нового."
+            : isConfigListUnsafe
+                ? "Список правил ещё не подтверждён API. Повторите загрузку или дождитесь обновления."
+                : isStatusDictionaryUnsafe
+                    ? "Справочник статусов заказа не готов. Сначала загрузите статусы, чтобы правило привязалось к правильному этапу."
+                    : undefined
     const statusMap = useMemo(() => new Map((statuses || []).map((status) => [status.id, status.title])), [statuses])
     const filteredConfigs = useMemo(() => {
         const query = configSearch.trim().toLowerCase()
@@ -332,6 +341,7 @@ const OrderNotificationsPage = () => {
                 addButtonText="Добавить правило"
                 onAdd={openCreate}
                 addButtonDisabled={isConfigMutationLocked}
+                addButtonDisabledReason={addRuleDisabledReason}
             >
                 <Space size={[8, 8]} wrap style={{padding: "16px 16px 0", width: "100%"}}>
                     <Input.Search
