@@ -126,6 +126,15 @@ const PromoCodesPage = () => {
         })
     }, [normalizedSearch, promoCodes, statusFilter])
     const hasActiveFilters = Boolean(normalizedSearch) || statusFilter !== "all"
+    const addPromoDisabledReason = isError
+        ? "Список промокодов не загружен. Нажмите «Повторить» и дождитесь актуальных статусов перед созданием акции."
+        : isLoading || isFetching || !Array.isArray(data)
+            ? "Проверяем актуальность промокодов. Создание будет доступно после ответа API."
+            : deletingPromoId !== null
+                ? "Дождитесь завершения удаления промокода, чтобы не создать конфликтующую акцию."
+                : isSavingPromo
+                    ? "Дождитесь сохранения текущего промокода."
+                    : undefined
 
     const resetFilters = () => {
         setSearchValue("")
@@ -260,6 +269,7 @@ const PromoCodesPage = () => {
                 addButtonText="Добавить промокод"
                 onAdd={openCreate}
                 addButtonDisabled={isPromoListUnsafe || deletingPromoId !== null || isSavingPromo}
+                addButtonDisabledReason={addPromoDisabledReason}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Alert
