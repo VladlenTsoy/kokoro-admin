@@ -1,4 +1,5 @@
 import {Alert, Button, Card, Col, List, Progress, Row, Space, Tag, Typography} from "antd"
+import {ReloadOutlined} from "@ant-design/icons"
 import PageHeading from "../../components/PageHeading.tsx"
 import {useNavigate} from "react-router-dom"
 import {useGetSalesPointsQuery} from "../../features/settings/sales-point/salesPointApi.ts"
@@ -7,12 +8,33 @@ import {useGetCountriesQuery} from "../../features/settings/country/countryApi.t
 import {useGetOrderStatusesQuery} from "../../features/order-status/orderStatusApi.ts"
 import {useGetOrderStatusNotificationsQuery} from "../../features/order-notifications/orderNotificationApi.ts"
 
+type ChecklistVerificationState = "confirmed" | "checking" | "failed"
+
 interface ChecklistItem {
     title: string
     description: string
     done: boolean
     action: string
     path: string
+    verificationState: ChecklistVerificationState
+}
+
+const getVerificationState = (query: {isError?: boolean; isLoading?: boolean; isFetching?: boolean}): ChecklistVerificationState => {
+    if (query.isError) return "failed"
+    if (query.isLoading || query.isFetching) return "checking"
+
+    return "confirmed"
+}
+
+const getChecklistStatus = (item: ChecklistItem) => {
+    if (item.verificationState === "failed") {
+        return {color: "red", label: "Не проверено"}
+    }
+    if (item.verificationState === "checking") {
+        return {color: "blue", label: "Проверяем"}
+    }
+
+    return item.done ? {color: "green", label: "Готово"} : {color: "orange", label: "Нужно"}
 }
 
 const SettingsOverviewPage = () => {
@@ -45,35 +67,40 @@ const SettingsOverviewPage = () => {
             description: "Нужна, чтобы отделить retail-точки и будущие Datra-связки.",
             done: (salesPoints?.length || 0) > 0,
             action: "Настроить точки",
-            path: "/settings/sales-points"
+            path: "/settings/sales-points",
+            verificationState: getVerificationState(salesPointsQuery)
         },
         {
             title: "Склад / остатки",
             description: "База для reservedQty, low stock и выдачи товара без пересорта.",
             done: (storages?.length || 0) > 0,
             action: "Настроить склады",
-            path: "/settings/product-storages"
+            path: "/settings/product-storages",
+            verificationState: getVerificationState(storagesQuery)
         },
         {
             title: "География доставки",
             description: "Страны и города нужны для checkout и адресов клиента.",
             done: countriesWithCities > 0,
             action: "Настроить города",
-            path: "/settings/countries"
+            path: "/settings/countries",
+            verificationState: getVerificationState(countriesQuery)
         },
         {
             title: "Lifecycle заказа",
             description: "Минимум: новый → в работе → готов → доставлен/отменён.",
             done: (statuses?.length || 0) >= 4,
             action: "Настроить статусы",
-            path: "/settings/order-statuses"
+            path: "/settings/order-statuses",
+            verificationState: getVerificationState(statusesQuery)
         },
         {
             title: "Уведомления по статусам",
             description: "Правила уведомлений должны быть явными, чтобы менеджер понимал, что уйдёт клиенту.",
             done: (notifications?.length || 0) > 0,
             action: "Настроить уведомления",
-            path: "/settings/notifications"
+            path: "/settings/notifications",
+            verificationState: getVerificationState(notificationsQuery)
         },
         {
             title: "Payme callback",
@@ -82,7 +109,8 @@ const SettingsOverviewPage = () => {
                 : "Для production нужен публичный HTTPS-домен. Локальный или HTTP callback не переносим в Payme Business.",
             done: isPaymeCallbackReady,
             action: "Открыть платежи",
-            path: "/settings/payments"
+            path: "/settings/payments",
+            verificationState: "confirmed"
         }
     ]
 
@@ -106,7 +134,7 @@ const SettingsOverviewPage = () => {
                     showIcon
                     message="Не удалось проверить часть настроек"
                     description="Checklist может быть неполным: обновите данные перед запуском продаж или изменением операционных настроек."
-                    action={<Button size="small" onClick={handleRetry}>Повторить проверку</Button>}
+                    action={<Button size="small" icon={<ReloadOutlined />} loading={isLoadingSetup} onClick={handleRetry}>Повторить проверку</Button>}
                 />
             )}
 
@@ -117,14 +145,18 @@ const SettingsOverviewPage = () => {
                     message="Следующие настройки требуют внимания перед продажами"
                     description={(
                         <Space direction="vertical" size={8} style={{width: "100%"}}>
-                            {attentionItems.slice(0, 3).map((item) => (
-                                <Space key={item.path} size={8} wrap>
-                                    <Tag color="orange">Нужно</Tag>
-                                    <Typography.Text strong>{item.title}</Typography.Text>
-                                    <Typography.Text type="secondary">{item.description}</Typography.Text>
-                                    <Button size="small" onClick={() => navigate(item.path)}>{item.action}</Button>
-                                </Space>
-                            ))}
+                            {attentionItems.slice(0, 3).map((item) => {
+                                const status = getChecklistStatus(item)
+
+                                return (
+                                    <Space key={item.path} size={8} wrap>
+                                        <Tag color={status.color}>{status.label}</Tag>
+                                        <Typography.Text strong>{item.title}</Typography.Text>
+                                        <Typography.Text type="secondary">{item.description}</Typography.Text>
+                                        <Button size="small" onClick={() => navigate(item.path)}>{item.action}</Button>
+                                    </Space>
+                                )
+                            })}
                             {attentionItems.length > 3 && (
                                 <Typography.Text type="secondary">
                                     Ещё задач: {attentionItems.length - 3}. Полный список ниже в checklist.
@@ -154,16 +186,23 @@ const SettingsOverviewPage = () => {
                         <List
                             loading={isLoadingSetup && !hasSetupError}
                             dataSource={checklist}
-                            renderItem={(item) => (
-                                <List.Item
-                                    actions={[<Button key="open" onClick={() => navigate(item.path)}>{item.action}</Button>]}
-                                >
-                                    <List.Item.Meta
-                                        title={<Space><Tag color={item.done ? "green" : "orange"}>{item.done ? "Готово" : "Нужно"}</Tag>{item.title}</Space>}
-                                        description={item.description}
-                                    />
-                                </List.Item>
-                            )}
+                            renderItem={(item) => {
+                                const status = getChecklistStatus(item)
+                                const description = item.verificationState === "failed"
+                                    ? `${item.description} Проверка недоступна: обновите checklist перед запуском или изменением настроек.`
+                                    : item.description
+
+                                return (
+                                    <List.Item
+                                        actions={[<Button key="open" onClick={() => navigate(item.path)}>{item.action}</Button>]}
+                                    >
+                                        <List.Item.Meta
+                                            title={<Space><Tag color={status.color}>{status.label}</Tag>{item.title}</Space>}
+                                            description={description}
+                                        />
+                                    </List.Item>
+                                )
+                            }}
                         />
                     </Card>
                 </Col>
