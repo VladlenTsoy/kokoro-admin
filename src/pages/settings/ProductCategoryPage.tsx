@@ -17,7 +17,7 @@ type VisibilityFilter = "all" | "visible" | "hidden"
 type HierarchyFilter = "all" | "root" | "child"
 
 const ProductCategoryPage = () => {
-    const {data, isLoading, isError, refetch} = useGetCategoriesQuery()
+    const {data, isLoading, isFetching, isError, refetch} = useGetCategoriesQuery()
     const [createCategory, {isLoading: isCreating}] = useCreateCategoryMutation()
     const [updateCategory, {isLoading: isUpdating}] = useUpdateCategoryMutation()
     const [deleteCategory, {isLoading: isDeleting}] = useDeleteCategoryMutation()
@@ -73,8 +73,9 @@ const ProductCategoryPage = () => {
     }, [categories, categorySearch, hierarchyFilter, visibilityFilter])
 
     const hasCategoryFilters = Boolean(categorySearch.trim()) || visibilityFilter !== "all" || hierarchyFilter !== "all"
+    const isCategoryListConfirmed = Array.isArray(data) && !isLoading && !isFetching && !isError
     const isSaving = isCreating || isUpdating
-    const isCategoryMutationLocked = isSaving || isDeleting
+    const isCategoryMutationLocked = isSaving || isDeleting || !isCategoryListConfirmed
     const modalOkText = isSaving ? "Сохраняем…" : editingCategory ? "Сохранить" : "Создать"
 
     const resetCategoryFilters = () => {
@@ -158,6 +159,10 @@ const ProductCategoryPage = () => {
     }
 
     const handleDelete = async (id: number) => {
+        if (isCategoryMutationLocked) {
+            return
+        }
+
         setDeletingCategoryId(id)
 
         try {
@@ -226,7 +231,7 @@ const ProductCategoryPage = () => {
                                 okButtonProps={{loading: isCurrentCategoryDeleting, danger: true}}
                                 onConfirm={() => handleDelete(record.id)}
                             >
-                                <Button type="link" danger loading={isCurrentCategoryDeleting} disabled={isSaving || isAnotherCategoryDeleting}>
+                                <Button type="link" danger loading={isCurrentCategoryDeleting} disabled={isCategoryMutationLocked || isAnotherCategoryDeleting}>
                                     {isCurrentCategoryDeleting ? "Удаляем…" : "Удалить"}
                                 </Button>
                             </Popconfirm>
@@ -244,7 +249,8 @@ const ProductCategoryPage = () => {
                 subtitle="Иерархия товарных категорий, URL и видимость в клиентском каталоге."
                 addButtonText="Добавить категорию"
                 onAdd={openCreate}
-                canAdd={canCreate && !isCategoryMutationLocked}
+                canAdd={canCreate}
+                addButtonDisabled={isCategoryMutationLocked}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Row gutter={[12, 12]}>
@@ -324,17 +330,25 @@ const ProductCategoryPage = () => {
                             description="Поля и действия временно заблокированы, чтобы не отправить частично изменённую структуру каталога или URL витрины."
                         />
                     ) : null}
+                    {!isCategoryListConfirmed && !isError ? (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            message="Проверяем актуальность категорий"
+                            description="Создание, редактирование и удаление временно заблокированы, пока список категорий загружается или обновляется. Так менеджер не изменит структуру каталога по устаревшей таблице."
+                        />
+                    ) : null}
                     {isError ? (
                         <Alert
                             type="error"
                             showIcon
                             message="Не удалось загрузить категории"
-                            description="Не меняйте структуру каталога вслепую: категории влияют на навигацию, товары и клиентскую витрину. Повторите загрузку или передайте проблему администратору."
+                            description="Создание, редактирование и удаление заблокированы: категории влияют на навигацию, товары и клиентскую витрину. Повторите загрузку или передайте проблему администратору."
                             action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
                         />
                     ) : null}
                     <Table
-                        loading={isLoading}
+                        loading={isLoading || isFetching}
                         dataSource={filteredCategories}
                         columns={columns}
                         rowKey="id"
@@ -352,7 +366,7 @@ const ProductCategoryPage = () => {
                                 >
                                     {hasCategoryFilters ? (
                                         <Button onClick={resetCategoryFilters}>Сбросить фильтры</Button>
-                                    ) : !isError && canCreate ? (
+                                    ) : isCategoryListConfirmed && canCreate ? (
                                         <Button type="primary" onClick={openCreate}>Создать первую категорию</Button>
                                     ) : null}
                                 </Empty>
