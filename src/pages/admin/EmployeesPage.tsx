@@ -14,6 +14,7 @@ import {
     Switch,
     Table,
     Tag,
+    Tooltip,
     Typography,
     message
 } from "antd"
@@ -88,13 +89,15 @@ const EmployeesPage = () => {
     const {
         data: employeesData,
         isLoading: isEmployeesLoading,
+        isFetching: isEmployeesFetching,
         error: employeesError,
         refetch: refetchEmployees
     } = useGetEmployeesQuery()
-    const {data: rolesData, isLoading: isRolesLoading, error: rolesError, refetch: refetchRoles} = useGetRolesQuery()
+    const {data: rolesData, isLoading: isRolesLoading, isFetching: isRolesFetching, error: rolesError, refetch: refetchRoles} = useGetRolesQuery()
     const {
         data: permissionCatalog,
         isLoading: isPermissionCatalogLoading,
+        isFetching: isPermissionCatalogFetching,
         error: permissionCatalogError,
         refetch: refetchPermissionCatalog
     } = useGetRolePermissionsQuery()
@@ -116,6 +119,20 @@ const EmployeesPage = () => {
     const canManageStaff = useCan("staff.manage")
     const isSavingEmployee = isCreating || isUpdating
     const isSavingRoles = isUpdatingRoles
+    const isStaffDirectoryRefreshing = isEmployeesLoading || isEmployeesFetching || isRolesLoading || isRolesFetching || isPermissionCatalogLoading || isPermissionCatalogFetching
+    const hasStaffDirectoryError = Boolean(employeesError || rolesError || permissionCatalogError)
+    const staffActionsDisabledReason = hasStaffDirectoryError
+        ? "Обновите список сотрудников, ролей и матрицу доступов перед изменением прав."
+        : isStaffDirectoryRefreshing
+            ? "Дождитесь проверки сотрудников, ролей и матрицы доступов, чтобы не сохранить устаревшие права."
+            : isSavingEmployee
+                ? "Дождитесь сохранения карточки сотрудника."
+                : isSavingRoles
+                    ? "Дождитесь сохранения ролей сотрудника."
+                    : isDeleting
+                        ? "Дождитесь удаления сотрудника."
+                        : undefined
+    const areStaffActionsDisabled = Boolean(staffActionsDisabledReason)
 
     const employees = useMemo(
         () => (employeesData ? [...employeesData].sort((a, b) => b.id - a.id) : []),
@@ -333,8 +350,12 @@ const EmployeesPage = () => {
 
                     return (
                         <Space wrap>
-                            <Button disabled={isDeleting || isSavingEmployee || isSavingRoles} onClick={() => openEdit(employee)}>Редактировать</Button>
-                            <Button disabled={isDeleting || isSavingEmployee || isSavingRoles} onClick={() => openRolesOnly(employee)}>Только роли</Button>
+                            <Tooltip title={areStaffActionsDisabled ? staffActionsDisabledReason : undefined}>
+                                <Button disabled={areStaffActionsDisabled} onClick={() => openEdit(employee)}>Редактировать</Button>
+                            </Tooltip>
+                            <Tooltip title={areStaffActionsDisabled ? staffActionsDisabledReason : undefined}>
+                                <Button disabled={areStaffActionsDisabled} onClick={() => openRolesOnly(employee)}>Только роли</Button>
+                            </Tooltip>
                             <Popconfirm
                                 title="Удалить сотрудника?"
                                 description="Перед удалением проверьте, что у сотрудника нет активной смены, заказов или незавершённой передачи клиенту. Если нужно только закрыть вход, безопаснее сначала выключить активность."
@@ -343,9 +364,11 @@ const EmployeesPage = () => {
                                 cancelText="Отмена"
                                 okButtonProps={{loading: isCurrentEmployeeDeleting}}
                             >
-                                <Button danger loading={isCurrentEmployeeDeleting} disabled={isAnotherEmployeeDeleting}>
-                                    {isCurrentEmployeeDeleting ? "Удаляем" : "Удалить"}
-                                </Button>
+                                <Tooltip title={areStaffActionsDisabled && !isCurrentEmployeeDeleting ? staffActionsDisabledReason : undefined}>
+                                    <Button danger loading={isCurrentEmployeeDeleting} disabled={areStaffActionsDisabled || isAnotherEmployeeDeleting}>
+                                        {isCurrentEmployeeDeleting ? "Удаляем" : "Удалить"}
+                                    </Button>
+                                </Tooltip>
                             </Popconfirm>
                         </Space>
                     )
@@ -360,9 +383,11 @@ const EmployeesPage = () => {
                 title="Сотрудники"
                 subtitle="Команда админки, статусы активности и распределение ролей."
                 extra={canManageStaff ? (
-                    <Button type="primary" disabled={isSavingEmployee || isSavingRoles || isDeleting} onClick={openCreate}>
-                        Добавить сотрудника
-                    </Button>
+                    <Tooltip title={areStaffActionsDisabled ? staffActionsDisabledReason : undefined}>
+                        <Button type="primary" disabled={areStaffActionsDisabled} onClick={openCreate}>
+                            Добавить сотрудника
+                        </Button>
+                    </Tooltip>
                 ) : null}
             />
 
@@ -456,7 +481,9 @@ const EmployeesPage = () => {
                                             Сбросить фильтры
                                         </Button>
                                     ) : canManageStaff ? (
-                                        <Button type="primary" onClick={openCreate}>Добавить сотрудника</Button>
+                                        <Tooltip title={areStaffActionsDisabled ? staffActionsDisabledReason : undefined}>
+                                            <Button type="primary" disabled={areStaffActionsDisabled} onClick={openCreate}>Добавить сотрудника</Button>
+                                        </Tooltip>
                                     ) : null}
                                 </Empty>
                             )
