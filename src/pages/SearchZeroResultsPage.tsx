@@ -129,6 +129,11 @@ const SearchZeroResultsPage = () => {
                 <PageHeading
                     title="Поиск без результата"
                     subtitle="Агрегированные запросы из сайта, где покупатель ничего не нашёл. Без персональных данных."
+                    extra={(
+                        <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
+                            Обновить сигналы
+                        </Button>
+                    )}
                 />
                 <Alert
                     type="info"
@@ -150,6 +155,15 @@ const SearchZeroResultsPage = () => {
                             Повторить
                         </Button>
                     }
+                />
+            ) : null}
+
+            {isFetching && !isLoading && !error ? (
+                <Alert
+                    type="info"
+                    showIcon
+                    message="Обновляем поисковые сигналы"
+                    description="Таблица пока показывает предыдущую подтверждённую выборку. Дождитесь обновления перед постановкой новых задач каталогу."
                 />
             ) : null}
 
