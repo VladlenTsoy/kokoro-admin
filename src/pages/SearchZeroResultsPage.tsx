@@ -54,10 +54,11 @@ const SearchZeroResultsPage = () => {
         setShowRepeatedOnly(false)
         setShowFreshOnly(false)
     }
-    const getQueueMetricCardActionProps = (onOpen: () => void) => ({
+    const getQueueMetricCardActionProps = (label: string, onOpen: () => void) => ({
         hoverable: true,
         role: "button",
         tabIndex: 0,
+        "aria-label": `Открыть очередь поисковых сигналов: ${label}`,
         onClick: onOpen,
         onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
             if (event.key === "Enter" || event.key === " ") {
@@ -174,13 +175,13 @@ const SearchZeroResultsPage = () => {
                 <Card className="metric-card metric-card--blue">
                     <Statistic title="Всего неуспешных поисков" value={totalSearches} loading={isLoading} />
                 </Card>
-                <Card className="metric-card metric-card--lime" {...getQueueMetricCardActionProps(showRepeatedQueue)}>
+                <Card className="metric-card metric-card--lime" {...getQueueMetricCardActionProps("повторные запросы", showRepeatedQueue)}>
                     <Statistic title={renderMetricTitle("Повторяются чаще 1 раза", "Открыть повторные")} value={repeatedSignals} loading={isLoading} />
                 </Card>
-                <Card className="metric-card metric-card--cyan" {...getQueueMetricCardActionProps(showFreshQueue)}>
+                <Card className="metric-card metric-card--cyan" {...getQueueMetricCardActionProps("свежие за 7 дней", showFreshQueue)}>
                     <Statistic title={renderMetricTitle("Свежие за 7 дней", "Открыть свежие")} value={freshSignals} loading={isLoading} />
                 </Card>
-                <Card className="metric-card metric-card--blue" {...getQueueMetricCardActionProps(showPriorityQueue)}>
+                <Card className="metric-card metric-card--blue" {...getQueueMetricCardActionProps("приоритетные на сегодня", showPriorityQueue)}>
                     <Statistic title={renderMetricTitle("Разобрать сегодня", "Открыть приоритет")} value={prioritySignals} loading={isLoading} />
                 </Card>
                 <Card className="metric-card metric-card--blue">

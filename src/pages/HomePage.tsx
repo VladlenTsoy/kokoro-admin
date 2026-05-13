@@ -18,10 +18,11 @@ const HomePage = () => {
 
     const today = dayjs().format("YYYY-MM-DD")
     const openOrders = (params?: string) => navigate(params ? `/orders?${params}` : "/orders")
-    const getMetricCardActionProps = (params?: string) => ({
+    const getMetricCardActionProps = (label: string, params?: string) => ({
         hoverable: true,
         role: "button",
         tabIndex: 0,
+        "aria-label": `Открыть очередь заказов: ${label}`,
         onClick: () => openOrders(params),
         onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
             if (event.key === "Enter" || event.key === " ") {
@@ -167,32 +168,32 @@ const HomePage = () => {
 
             <Row gutter={[16, 16]}>
                 <Col xs={24} md={12} xl={4}>
-                    <Card className="metric-card metric-card--lime" {...getMetricCardActionProps()}>
+                    <Card className="metric-card metric-card--lime" {...getMetricCardActionProps("все заказы сегодня")}>
                         <Statistic prefix={<ShoppingOutlined />} title={renderMetricTitle("Заказы сегодня", staleMetricHint)} value={summary?.ordersToday ?? 0} loading={isLoading} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={4}>
-                    <Card className="metric-card metric-card--orange" {...getMetricCardActionProps("deliveryStatus=pending")}>
+                    <Card className="metric-card metric-card--orange" {...getMetricCardActionProps("новые заказы", "deliveryStatus=pending")}>
                         <Statistic prefix={<ClockCircleOutlined />} title={renderMetricTitle("Новые", "Принять в работу")} value={summary?.newOrders ?? 0} loading={isLoading} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={4}>
-                    <Card className="metric-card metric-card--blue" {...getMetricCardActionProps("deliveryStatus=preparing")}>
+                    <Card className="metric-card metric-card--blue" {...getMetricCardActionProps("заказы в работе", "deliveryStatus=preparing")}>
                         <Statistic prefix={<ThunderboltOutlined />} title={renderMetricTitle("В работе", "Проверить сборку")} value={summary?.inProgressToday ?? 0} loading={isLoading} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={4}>
-                    <Card className="metric-card metric-card--cyan" {...getMetricCardActionProps("deliveryStatus=ready")}>
+                    <Card className="metric-card metric-card--cyan" {...getMetricCardActionProps("готовые к выдаче заказы", "deliveryStatus=ready")}>
                         <Statistic prefix={<CheckCircleOutlined />} title={renderMetricTitle("Готовы", "Выдать клиенту")} value={summary?.readyToday ?? 0} loading={isLoading} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={4}>
-                    <Card className={hasProblems ? "metric-card metric-card--danger" : "metric-card"} {...getMetricCardActionProps("problemOnly=1")}>
+                    <Card className={hasProblems ? "metric-card metric-card--danger" : "metric-card"} {...getMetricCardActionProps("проблемные заказы", "problemOnly=1")}>
                         <Statistic prefix={<AlertOutlined />} title={renderMetricTitle("Проблемные", hasProblems ? "Разобрать первым" : "Открыть контроль")} value={problemCount} loading={isLoading} valueStyle={{color: hasProblems ? "#cf1322" : undefined}} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={4}>
-                    <Card className="metric-card metric-card--money" {...getMetricCardActionProps(`paymentStatus=paid&from=${today}&to=${today}`)}>
+                    <Card className="metric-card metric-card--money" {...getMetricCardActionProps("оплаченные заказы за сегодня", `paymentStatus=paid&from=${today}&to=${today}`)}>
                         <Statistic prefix={<FireOutlined />} title={renderMetricTitle("Выручка сегодня", "Открыть оплаченные")} value={formatMoney(summary?.revenueToday ?? 0)} loading={isLoading} />
                     </Card>
                 </Col>
