@@ -16,6 +16,7 @@ import {
     useUpdateClientMutation
 } from "../features/clients/clientApi.ts"
 import {getNestErrorMessage} from "../utils/getNestErrorMessage.ts"
+import {isAntdFormValidationError} from "../utils/isAntdFormValidationError.ts"
 import {formatMoney} from "../utils/formatters.ts"
 import {useCan} from "../features/auth/permissions.ts"
 import {getBonusOperationMeta, getDeliveryStatusMeta, getPaymentStatusMeta} from "../utils/adminStatusMeta.ts"
@@ -225,6 +226,7 @@ const ClientsPage = () => {
             message.success("Клиент обновлён")
             closeEdit()
         } catch (error) {
+            if (isAntdFormValidationError(error)) return
             message.error(getNestErrorMessage(error))
         }
     }
