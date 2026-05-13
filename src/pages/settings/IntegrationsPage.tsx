@@ -91,7 +91,7 @@ const UnsupportedIntegrationCard = ({integration}: {integration: IntegrationSett
     </Card>
 )
 
-const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
+const DatraCard = ({integration, isListRefreshing}: {integration: IntegrationSetting; isListRefreshing: boolean}) => {
     const [form] = Form.useForm()
     const [updateIntegration, {isLoading: isUpdating}] = useUpdateIntegrationMutation()
     const [testIntegration, {isLoading: isTesting}] = useTestIntegrationMutation()
@@ -100,6 +100,7 @@ const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
     const paid = integration.billingStatus === "active"
     const locked = integration.status === "billing_locked"
     const mutationInProgress = isUpdating || isTesting
+    const controlsLocked = mutationInProgress || isListRefreshing
 
     useEffect(() => {
         form.setFieldsValue({
@@ -159,7 +160,7 @@ const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
     return (
         <Card
             title={<Space><span>{integration.title}</span><Tag color={statusColor[integration.status]}>{statusLabel[integration.status]}</Tag></Space>}
-            extra={<Switch checked={integration.enabled} disabled={locked || !integration.configured || mutationInProgress} loading={isUpdating} onChange={toggleEnabled} />}
+            extra={<Switch checked={integration.enabled} disabled={locked || !integration.configured || controlsLocked} loading={isUpdating} onChange={toggleEnabled} />}
         >
             {contextHolder}
             <Space direction="vertical" size={16} style={{width: "100%"}}>
@@ -173,6 +174,15 @@ const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
                         showIcon
                         message="Интеграция заблокирована биллингом"
                         description="Datra можно настроить и включить только после оплаты. Для тестового включения администратор может перевести billing status в active."
+                    />
+                )}
+
+                {isListRefreshing && (
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Обновляем состояние интеграции"
+                        description="Дождитесь свежего ответа API перед сохранением, проверкой или включением Datra, чтобы не применить настройки поверх устаревшего статуса оплаты, токена или health check."
                     />
                 )}
 
@@ -202,7 +212,7 @@ const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
                                 label="Статус оплаты Datra"
                                 tooltip="Меняйте только после подтверждения оплаты или тестового доступа."
                             >
-                                <Select options={billingStatusOptions} disabled={mutationInProgress} />
+                                <Select options={billingStatusOptions} disabled={controlsLocked} />
                             </Form.Item>
                         </Col>
                         <Col xs={24} md={12}>
@@ -211,7 +221,7 @@ const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
                                 label="Endpoint Datra"
                                 extra="Оставьте стандартный адрес, если Datra не выдала отдельный API endpoint."
                             >
-                                <Input placeholder="https://api.datra.uz" disabled={!paid || mutationInProgress} />
+                                <Input placeholder="https://api.datra.uz" disabled={!paid || controlsLocked} />
                             </Form.Item>
                         </Col>
                         <Col xs={24} md={12}>
@@ -220,7 +230,7 @@ const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
                                 label="Tenant / client ID"
                                 extra="Публичный идентификатор клиента Datra. Не вставляйте сюда секретные ключи."
                             >
-                                <Input placeholder="Например: kokoro-production" disabled={!paid || mutationInProgress} autoComplete="off" />
+                                <Input placeholder="Например: kokoro-production" disabled={!paid || controlsLocked} autoComplete="off" />
                             </Form.Item>
                         </Col>
                         <Col xs={24} md={12}>
@@ -229,13 +239,13 @@ const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
                                 label={integration.hasSecret ? "API token Datra (сохранён, введите новый только для замены)" : "API token Datra"}
                                 extra="Токен не показывается после сохранения. Вводите новый только при плановой ротации или первичной настройке."
                             >
-                                <Input.Password placeholder="Вставьте токен Datra" disabled={!paid || mutationInProgress} autoComplete="new-password" />
+                                <Input.Password placeholder="Вставьте токен Datra" disabled={!paid || controlsLocked} autoComplete="new-password" />
                             </Form.Item>
                         </Col>
                     </Row>
 
                     <Form.Item name="enabledScopes" label="Что отправлять в Datra">
-                        <Checkbox.Group style={{width: "100%"}} disabled={!paid || mutationInProgress}>
+                        <Checkbox.Group style={{width: "100%"}} disabled={!paid || controlsLocked}>
                             <Row gutter={[12, 12]}>
                                 {DATRA_SCOPES.map((scope) => (
                                     <Col xs={24} md={12} key={scope.value}>
@@ -253,8 +263,8 @@ const DatraCard = ({integration}: {integration: IntegrationSetting}) => {
                 </Form>
 
                 <Space wrap>
-                    <Button type="primary" onClick={saveSettings} loading={isUpdating} disabled={mutationInProgress}>Сохранить настройки</Button>
-                    <Button onClick={runTest} loading={isTesting} disabled={!paid || mutationInProgress}>Проверить</Button>
+                    <Button type="primary" onClick={saveSettings} loading={isUpdating} disabled={controlsLocked}>Сохранить настройки</Button>
+                    <Button onClick={runTest} loading={isTesting} disabled={!paid || controlsLocked}>Проверить</Button>
                 </Space>
 
                 {integration.lastError && <Alert type="error" showIcon message="Последняя ошибка" description={integration.lastError} />}
@@ -372,7 +382,7 @@ const IntegrationsPage = () => {
                     }}
                     renderItem={(integration) => (
                         <List.Item style={{display: "block"}}>
-                            {integration.providerKey === "datra_cdp" ? <DatraCard integration={integration} /> : <UnsupportedIntegrationCard integration={integration} />}
+                            {integration.providerKey === "datra_cdp" ? <DatraCard integration={integration} isListRefreshing={isFetching && !isLoading} /> : <UnsupportedIntegrationCard integration={integration} />}
                         </List.Item>
                     )}
                 />
