@@ -58,6 +58,8 @@ const SizePage: React.FC = () => {
 
     const isSaving = isCreating || isUpdating
     const isMutationLocked = isSaving || isDeleting
+    const isSizeListUnavailable = isError
+    const areSizeActionsBlocked = isMutationLocked || isSizeListUnavailable
     const activeCount = sizes.filter((size) => !size.deleted_at).length
     const archivedCount = sizes.length - activeCount
     const normalizedSearch = searchValue.trim().toLowerCase()
@@ -130,7 +132,7 @@ const SizePage: React.FC = () => {
                     <Space>
                         <Button
                             type="link"
-                            disabled={isMutationLocked}
+                            disabled={areSizeActionsBlocked}
                             onClick={() => {
                                 setEditingSize(record)
                                 form.setFieldsValue(record)
@@ -148,7 +150,7 @@ const SizePage: React.FC = () => {
                             okButtonProps={{loading: isCurrentDeleting}}
                             cancelButtonProps={{disabled: isCurrentDeleting}}
                         >
-                            <Button type="link" danger loading={isCurrentDeleting} disabled={isMutationLocked && !isCurrentDeleting}>
+                            <Button type="link" danger loading={isCurrentDeleting} disabled={isSizeListUnavailable || (isMutationLocked && !isCurrentDeleting)}>
                                 {isCurrentDeleting ? "Удаляем…" : "Удалить"}
                             </Button>
                         </Popconfirm>
@@ -164,7 +166,7 @@ const SizePage: React.FC = () => {
                 title="Размеры"
                 subtitle="Управляйте размерной сеткой каталога: названия должны быть короткими, единообразными и понятными менеджерам при подборе товара."
                 addButtonText="Добавить размер"
-                addButtonDisabled={isMutationLocked}
+                addButtonDisabled={areSizeActionsBlocked}
                 onAdd={() => {
                     setEditingSize(null)
                     form.resetFields()
@@ -216,7 +218,7 @@ const SizePage: React.FC = () => {
                         type="error"
                         showIcon
                         message="Не удалось загрузить размеры"
-                        description="Проверьте подключение или повторите загрузку, чтобы менеджеры не работали со старым справочником."
+                        description="Проверьте подключение или повторите загрузку: создание, редактирование и удаление размеров заблокированы, чтобы менеджеры не меняли старый справочник."
                         action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
                     />
                 )}
@@ -242,7 +244,7 @@ const SizePage: React.FC = () => {
                             >
                                 <Button
                                     type="primary"
-                                    disabled={isMutationLocked}
+                                    disabled={areSizeActionsBlocked}
                                     onClick={() => {
                                         setEditingSize(null)
                                         form.resetFields()
