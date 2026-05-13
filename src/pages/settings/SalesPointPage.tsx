@@ -13,7 +13,7 @@ import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 import {isAntdFormValidationError} from "../../utils/isAntdFormValidationError.ts"
 
 const SalesPointPage: React.FC = () => {
-    const {data: salesPoints = [], isLoading, isError, refetch} = useGetSalesPointsQuery()
+    const {data: salesPoints = [], isLoading, isFetching, isError, refetch} = useGetSalesPointsQuery()
     const [createSalesPoint, {isLoading: isCreatingSalesPoint}] = useCreateSalesPointMutation()
     const [updateSalesPoint, {isLoading: isUpdatingSalesPoint}] = useUpdateSalesPointMutation()
     const [deleteSalesPoint, {isLoading: isDeletingSalesPoint}] = useDeleteSalesPointMutation()
@@ -54,7 +54,20 @@ const SalesPointPage: React.FC = () => {
         setStatusFilter("all")
     }
     const isSaving = isCreatingSalesPoint || isUpdatingSalesPoint
+    const isSalesPointListUnsafe = isLoading || isFetching || isError
     const isMutationInFlight = isSaving || isDeletingSalesPoint
+    const areSalesPointActionsBlocked = isSalesPointListUnsafe || isMutationInFlight
+    const salesPointActionsDisabledReason = isLoading
+        ? "Загружаем точки продаж. Дождитесь подтверждённого списка перед изменениями филиалов."
+        : isFetching
+            ? "Обновляем список точек продаж. Дождитесь свежих данных перед изменениями филиалов."
+            : isError
+                ? "Список точек продаж не подтверждён. Нажмите «Повторить» и меняйте филиалы только после успешной загрузки."
+                : isSaving
+                    ? "Сохраняем точку продаж. Новые изменения временно заблокированы, чтобы не смешать координаты и название."
+                    : isDeletingSalesPoint
+                        ? "Удаляем точку продаж. Дождитесь завершения операции перед новыми изменениями."
+                        : undefined
 
     const closeModal = () => {
         setIsModalOpen(false)
@@ -70,7 +83,7 @@ const SalesPointPage: React.FC = () => {
     }
 
     const openCreateModal = () => {
-        if (isMutationInFlight) {
+        if (areSalesPointActionsBlocked) {
             return
         }
         setEditingPoint(null)
@@ -152,13 +165,12 @@ const SalesPointPage: React.FC = () => {
             width: 220,
             render: (_: unknown, record: SalesPointType) => {
                 const isCurrentSalesPointDeleting = deletingSalesPointId === record.id
-                const isAnotherSalesPointDeleting = isDeletingSalesPoint && !isCurrentSalesPointDeleting
 
                 return (
                     <Space wrap>
                         <Button
                             type="link"
-                            disabled={isMutationInFlight}
+                            disabled={areSalesPointActionsBlocked}
                             onClick={() => {
                                 setEditingPoint(record)
                                 form.setFieldsValue({
@@ -179,7 +191,7 @@ const SalesPointPage: React.FC = () => {
                             onConfirm={() => handleDelete(record.id)}
                             okButtonProps={{loading: isCurrentSalesPointDeleting}}
                         >
-                            <Button type="link" danger loading={isCurrentSalesPointDeleting} disabled={isAnotherSalesPointDeleting || isSaving}>
+                            <Button type="link" danger loading={isCurrentSalesPointDeleting} disabled={areSalesPointActionsBlocked && !isCurrentSalesPointDeleting}>
                                 {isCurrentSalesPointDeleting ? "Удаляем..." : "Удалить"}
                             </Button>
                         </Popconfirm>
@@ -196,7 +208,8 @@ const SalesPointPage: React.FC = () => {
                 subtitle="Филиалы, шоурумы и пункты выдачи. Проверяйте координаты перед сохранением — они влияют на карту, самовывоз и складскую привязку."
                 addButtonText="Добавить точку продаж"
                 onAdd={openCreateModal}
-                addButtonDisabled={isMutationInFlight}
+                addButtonDisabled={areSalesPointActionsBlocked}
+                addButtonDisabledReason={salesPointActionsDisabledReason}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Alert
@@ -248,7 +261,7 @@ const SalesPointPage: React.FC = () => {
                         />
                     )}
                     <Table<SalesPointType>
-                        loading={isLoading}
+                        loading={isLoading || isFetching}
                         dataSource={filteredSalesPoints}
                         columns={columns}
                         rowKey="id"
@@ -266,7 +279,7 @@ const SalesPointPage: React.FC = () => {
                                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                                     description="Точки продаж ещё не настроены"
                                 >
-                                    <Button type="primary" onClick={openCreateModal}>
+                                    <Button type="primary" onClick={openCreateModal} disabled={areSalesPointActionsBlocked}>
                                         Добавить первую точку
                                     </Button>
                                 </Empty>
