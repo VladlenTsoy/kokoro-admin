@@ -89,6 +89,7 @@ const PromoCodesPage = () => {
     const [deletingPromoId, setDeletingPromoId] = useState<number | null>(null)
     const [form] = Form.useForm<PromoForm>()
     const isSavingPromo = isCreating || isUpdating
+    const isPromoListUnsafe = isLoading || isFetching || isError || !Array.isArray(data)
     const promoCodes = useMemo(() => data || [], [data])
     const promoSummary = useMemo(() => {
         const now = dayjs()
@@ -132,6 +133,10 @@ const PromoCodesPage = () => {
     }
 
     const openCreate = () => {
+        if (isPromoListUnsafe) {
+            return
+        }
+
         setEditing(null)
         form.resetFields()
         form.setFieldsValue({discountType: "percent", isActive: true})
@@ -139,6 +144,10 @@ const PromoCodesPage = () => {
     }
 
     const openEdit = (promo: PromoCode) => {
+        if (isPromoListUnsafe) {
+            return
+        }
+
         setEditing(promo)
         form.setFieldsValue({
             code: promo.code,
@@ -179,6 +188,10 @@ const PromoCodesPage = () => {
     }
 
     const removePromo = async (id: number) => {
+        if (isPromoListUnsafe) {
+            return
+        }
+
         setDeletingPromoId(id)
         try {
             await deletePromo(id).unwrap()
@@ -218,7 +231,7 @@ const PromoCodesPage = () => {
 
                 return (
                     <Space wrap>
-                        <Button type="link" onClick={() => openEdit(promo)} disabled={deletingPromoId !== null}>
+                        <Button type="link" onClick={() => openEdit(promo)} disabled={isPromoListUnsafe || deletingPromoId !== null}>
                             Редактировать
                         </Button>
                         <Popconfirm
@@ -226,10 +239,10 @@ const PromoCodesPage = () => {
                             description="Проверьте, что код не используется в активных маркетинговых коммуникациях."
                             okText={isCurrentDeleting ? "Удаляем..." : "Удалить"}
                             cancelText="Отмена"
-                            okButtonProps={{loading: isCurrentDeleting, danger: true}}
+                            okButtonProps={{loading: isCurrentDeleting, danger: true, disabled: isPromoListUnsafe}}
                             onConfirm={() => removePromo(promo.id)}
                         >
-                            <Button type="link" danger loading={isCurrentDeleting} disabled={isAnotherPromoDeleting}>
+                            <Button type="link" danger loading={isCurrentDeleting} disabled={isPromoListUnsafe || isAnotherPromoDeleting}>
                                 {isCurrentDeleting ? "Удаляем..." : "Удалить"}
                             </Button>
                         </Popconfirm>
@@ -246,7 +259,7 @@ const PromoCodesPage = () => {
                 subtitle="Создание и управление скидочными кодами: статус, период действия, лимиты и быстрое копирование кода."
                 addButtonText="Добавить промокод"
                 onAdd={openCreate}
-                canAdd={deletingPromoId === null && !isSavingPromo}
+                addButtonDisabled={isPromoListUnsafe || deletingPromoId !== null || isSavingPromo}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Alert
@@ -281,6 +294,14 @@ const PromoCodesPage = () => {
                         </Typography.Text>
                         {hasActiveFilters ? <Button onClick={resetFilters}>Сбросить фильтры</Button> : null}
                     </Space>
+                    {isPromoListUnsafe && !isError ? (
+                        <Alert
+                            type="info"
+                            showIcon
+                            message="Проверяем актуальность промокодов"
+                            description="Создание, редактирование и удаление временно заблокированы до подтверждения списка API, чтобы менеджер не изменил устаревший маркетинговый код."
+                        />
+                    ) : null}
                     {isDeleting && deletingPromoId !== null ? (
                         <Alert
                             type="warning"
