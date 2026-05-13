@@ -42,6 +42,13 @@ const CollectionsPage = () => {
     const isDeletingCollection = deletingCollectionId !== null
     const isCollectionListUnavailable = isError
     const isCollectionMutationLocked = isSavingCollection || isDeletingCollection || isCollectionListUnavailable
+    const addCollectionDisabledReason = isSavingCollection
+        ? "Дождитесь сохранения текущей коллекции, чтобы не создать дубль витринной подборки."
+        : isDeletingCollection
+            ? "Дождитесь удаления коллекции: создание временно заблокировано, чтобы не смешать изменения витрины."
+            : isCollectionListUnavailable
+                ? "Сначала повторите загрузку списка коллекций, чтобы создавать подборку по подтверждённым данным."
+                : undefined
 
     const openCreate = () => {
         if (isCollectionMutationLocked) {
@@ -158,6 +165,7 @@ const CollectionsPage = () => {
                 addButtonText="Добавить коллекцию"
                 onAdd={openCreate}
                 addButtonDisabled={isCollectionMutationLocked}
+                addButtonDisabledReason={addCollectionDisabledReason}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     {isError ? (
