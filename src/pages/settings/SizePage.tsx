@@ -44,7 +44,7 @@ const useStyles = createStyles(({token}) => ({
 
 const SizePage: React.FC = () => {
     const {styles} = useStyles()
-    const {data: sizes = [], isLoading, isError, refetch} = useGetSizesQuery()
+    const {data: sizes = [], isLoading, isFetching, isError, refetch} = useGetSizesQuery()
     const [createSize, {isLoading: isCreating}] = useCreateSizeMutation()
     const [updateSize, {isLoading: isUpdating}] = useUpdateSizeMutation()
     const [deleteSize, {isLoading: isDeleting}] = useDeleteSizeMutation()
@@ -58,8 +58,18 @@ const SizePage: React.FC = () => {
 
     const isSaving = isCreating || isUpdating
     const isMutationLocked = isSaving || isDeleting
+    const isSizeListRefreshing = isLoading || isFetching
     const isSizeListUnavailable = isError
-    const areSizeActionsBlocked = isMutationLocked || isSizeListUnavailable
+    const areSizeActionsBlocked = isMutationLocked || isSizeListRefreshing || isSizeListUnavailable
+    const sizeActionsDisabledReason = isSizeListUnavailable
+        ? "Повторите загрузку размеров перед изменениями: список не подтверждён API."
+        : isSizeListRefreshing
+            ? "Дождитесь обновления списка размеров, чтобы не изменить устаревшую размерную сетку."
+            : isSaving
+                ? "Дождитесь сохранения текущего размера."
+                : isDeleting
+                    ? "Дождитесь завершения удаления размера."
+                    : undefined
     const activeCount = sizes.filter((size) => !size.deleted_at).length
     const archivedCount = sizes.length - activeCount
     const normalizedSearch = searchValue.trim().toLowerCase()
@@ -150,7 +160,7 @@ const SizePage: React.FC = () => {
                             okButtonProps={{loading: isCurrentDeleting}}
                             cancelButtonProps={{disabled: isCurrentDeleting}}
                         >
-                            <Button type="link" danger loading={isCurrentDeleting} disabled={isSizeListUnavailable || (isMutationLocked && !isCurrentDeleting)}>
+                            <Button type="link" danger loading={isCurrentDeleting} disabled={areSizeActionsBlocked && !isCurrentDeleting}>
                                 {isCurrentDeleting ? "Удаляем…" : "Удалить"}
                             </Button>
                         </Popconfirm>
@@ -167,6 +177,7 @@ const SizePage: React.FC = () => {
                 subtitle="Управляйте размерной сеткой каталога: названия должны быть короткими, единообразными и понятными менеджерам при подборе товара."
                 addButtonText="Добавить размер"
                 addButtonDisabled={areSizeActionsBlocked}
+                addButtonDisabledReason={sizeActionsDisabledReason}
                 onAdd={() => {
                     setEditingSize(null)
                     form.resetFields()
@@ -224,7 +235,7 @@ const SizePage: React.FC = () => {
                 )}
                 <Table
                     rowKey="id"
-                    loading={isLoading}
+                    loading={isSizeListRefreshing}
                     dataSource={filteredSizes}
                     columns={columns}
                     scroll={{x: 640}}
