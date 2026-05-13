@@ -57,7 +57,7 @@ const useStyles = createStyles(({token}) => ({
 
 const ColorPage: React.FC = () => {
     const {styles} = useStyles()
-    const {data: colors = [], isLoading, isError, refetch} = useGetColorsQuery()
+    const {data: colors = [], isLoading, isFetching, isError, refetch} = useGetColorsQuery()
     const [createColor, {isLoading: isCreating}] = useCreateColorMutation()
     const [updateColor, {isLoading: isUpdating}] = useUpdateColorMutation()
     const [deleteColor] = useDeleteColorMutation()
@@ -69,6 +69,16 @@ const ColorPage: React.FC = () => {
     const [statusFilter, setStatusFilter] = useState<ColorStatusFilter>("all")
     const [form] = Form.useForm()
     const isSavingColor = isCreating || isUpdating
+    const isColorListUnsafe = isLoading || isFetching || isError
+    const colorActionsDisabledReason = isError
+        ? "Справочник цветов не подтверждён API. Повторите загрузку перед созданием, редактированием или удалением цвета."
+        : isFetching
+            ? "Обновляем справочник цветов. Дождитесь свежего списка, чтобы не изменить устаревшую палитру."
+            : deletingColorId !== null
+                ? "Дождитесь завершения удаления цвета, чтобы не смешать операции с палитрой."
+                : isSavingColor
+                    ? "Дождитесь завершения сохранения текущего цвета."
+                    : undefined
 
     const activeCount = colors.filter((color) => !color.deleted_at).length
     const archivedCount = colors.length - activeCount
@@ -159,7 +169,7 @@ const ColorPage: React.FC = () => {
                     <Space>
                         <Button
                             type="link"
-                            disabled={deletingColorId !== null || isSavingColor}
+                            disabled={isColorListUnsafe || deletingColorId !== null || isSavingColor}
                             onClick={() => {
                                 setEditingColor(record)
                                 form.setFieldsValue(record)
@@ -176,7 +186,7 @@ const ColorPage: React.FC = () => {
                             onConfirm={() => handleDelete(record.id)}
                             okButtonProps={{loading: isCurrentColorDeleting}}
                         >
-                            <Button type="link" danger loading={isCurrentColorDeleting} disabled={isAnotherColorDeleting}>
+                            <Button type="link" danger loading={isCurrentColorDeleting} disabled={isColorListUnsafe || isAnotherColorDeleting || isSavingColor}>
                                 Удалить
                             </Button>
                         </Popconfirm>
@@ -197,7 +207,8 @@ const ColorPage: React.FC = () => {
                     form.resetFields()
                     setIsModalOpen(true)
                 }}
-                addButtonDisabled={deletingColorId !== null || isSavingColor}
+                addButtonDisabled={isColorListUnsafe || deletingColorId !== null || isSavingColor}
+                addButtonDisabledReason={colorActionsDisabledReason}
             >
                 <div className={styles.summary}>
                     <Tag color="blue">Всего: {colors.length}</Tag>
@@ -239,18 +250,26 @@ const ColorPage: React.FC = () => {
                         description="Дождитесь завершения операции: создание, редактирование и другие удаления временно заблокированы, чтобы не перепутать палитру вариантов товара."
                     />
                 )}
+                {isFetching && !isLoading && !isError && (
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Обновляем справочник цветов"
+                        description="Создание, редактирование и удаление временно заблокированы до подтверждения свежей палитры API."
+                    />
+                )}
                 {isError && (
                     <Alert
                         type="error"
                         showIcon
                         message="Не удалось загрузить цвета"
-                        description="Проверьте подключение или повторите загрузку, чтобы менеджеры не работали со старым справочником."
+                        description="Повторите загрузку перед изменением палитры, чтобы менеджеры не работали со старым справочником."
                         action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
                     />
                 )}
                 <Table
                     rowKey="id"
-                    loading={isLoading}
+                    loading={isLoading || isFetching}
                     dataSource={filteredColors}
                     columns={columns}
                     scroll={{x: 720}}
@@ -270,7 +289,7 @@ const ColorPage: React.FC = () => {
                             >
                                 <Button
                                     type="primary"
-                                    disabled={deletingColorId !== null || isSavingColor}
+                                    disabled={isColorListUnsafe || deletingColorId !== null || isSavingColor}
                                     onClick={() => {
                                         setEditingColor(null)
                                         form.resetFields()
