@@ -76,6 +76,15 @@ const ProductCategoryPage = () => {
     const isCategoryListConfirmed = Array.isArray(data) && !isLoading && !isFetching && !isError
     const isSaving = isCreating || isUpdating
     const isCategoryMutationLocked = isSaving || isDeleting || !isCategoryListConfirmed
+    const categoryActionsDisabledReason = isSaving
+        ? "Дождитесь завершения сохранения категории, чтобы не смешать URL, родителя или видимость."
+        : isDeleting
+            ? "Дождитесь удаления текущей категории перед изменением структуры каталога."
+            : isError
+                ? "Список категорий не загружен. Повторите загрузку перед созданием или редактированием разделов."
+                : !isCategoryListConfirmed
+                    ? "Проверяем актуальный список категорий. Действия откроются после подтверждения свежих данных."
+                    : undefined
     const modalOkText = isSaving ? "Сохраняем…" : editingCategory ? "Сохранить" : "Создать"
 
     const resetCategoryFilters = () => {
@@ -251,6 +260,7 @@ const ProductCategoryPage = () => {
                 onAdd={openCreate}
                 canAdd={canCreate}
                 addButtonDisabled={isCategoryMutationLocked}
+                addButtonDisabledReason={categoryActionsDisabledReason}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Row gutter={[12, 12]}>
