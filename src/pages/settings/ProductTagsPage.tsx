@@ -65,6 +65,17 @@ const ProductTagsPage = () => {
     const isTagMutationInFlight = isSavingTag || isDeleting
     const isTagListUnconfirmed = isLoading || isFetching || isError || !Array.isArray(data)
     const areTagActionsBlocked = isTagMutationInFlight || isTagListUnconfirmed
+    const tagActionsDisabledReason = isSavingTag
+        ? "Дождитесь сохранения текущего тега перед следующим изменением."
+        : isDeleting
+            ? "Дождитесь удаления текущего тега перед следующим изменением."
+            : isLoading
+                ? "Список тегов ещё загружается — сначала подтвердите актуальные фильтры и подборки."
+                : isFetching
+                    ? "Обновляем список тегов — изменения временно заблокированы, чтобы не работать с устаревшими данными."
+                    : isError || !Array.isArray(data)
+                        ? "Повторите загрузку списка тегов перед изменениями: теги влияют на фильтры, подборки и карточки товаров."
+                        : undefined
 
     const resetFilters = () => setFilters({})
 
@@ -75,6 +86,10 @@ const ProductTagsPage = () => {
     }
 
     const openCreate = () => {
+        if (areTagActionsBlocked) {
+            return
+        }
+
         setEditingTag(null)
         form.setFieldsValue({
             title: "",
@@ -88,6 +103,10 @@ const ProductTagsPage = () => {
     }
 
     const openEdit = (tag: ProductVariantTagType) => {
+        if (areTagActionsBlocked) {
+            return
+        }
+
         setEditingTag(tag)
         form.setFieldsValue({
             title: tag.title,
@@ -133,6 +152,10 @@ const ProductTagsPage = () => {
     }
 
     const handleToggleActive = async (tag: ProductVariantTagType, isActive: boolean) => {
+        if (isTagListUnconfirmed || (isTagMutationInFlight && activeToggleTagId !== tag.id)) {
+            return
+        }
+
         setActiveToggleTagId(tag.id)
 
         try {
@@ -146,6 +169,10 @@ const ProductTagsPage = () => {
     }
 
     const handleDelete = async (tag: ProductVariantTagType) => {
+        if (isTagListUnconfirmed || (isTagMutationInFlight && deletingTagId !== tag.id)) {
+            return
+        }
+
         setDeletingTagId(tag.id)
 
         try {
@@ -271,7 +298,9 @@ const ProductTagsPage = () => {
                 subtitle="Управляемый словарь тегов для фильтров, мерчандайзинга и карточек товаров."
                 addButtonText="Создать тег"
                 onAdd={openCreate}
-                canAdd={canCreate && !areTagActionsBlocked}
+                canAdd={canCreate}
+                addButtonDisabled={areTagActionsBlocked}
+                addButtonDisabledReason={tagActionsDisabledReason}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     {deletingTagId ? (
@@ -367,7 +396,7 @@ const ProductTagsPage = () => {
                                     {hasActiveFilters ? (
                                         <Button onClick={resetFilters}>Сбросить фильтры</Button>
                                     ) : (
-                                        canCreate && <Button type="primary" onClick={openCreate}>Создать первый тег</Button>
+                                        canCreate && <Button type="primary" onClick={openCreate} disabled={areTagActionsBlocked}>Создать первый тег</Button>
                                     )}
                                 </Empty>
                             )
