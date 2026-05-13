@@ -326,6 +326,14 @@ const OrdersPage = () => {
     const canUpdateOrders = useCan("orders.update")
     const canDeleteOrders = useCan("orders.delete")
     const isOrderActionSaving = isUpdatingOrder || isUpdatingStatus || isCancelling || isCreatingComment
+    const isSelectedOrderActionBlocked = isOrderActionSaving || isOrderLoading || isOrderError
+    const selectedOrderActionBlockReason = isOrderActionSaving
+        ? "Дождитесь завершения текущего действия"
+        : isOrderLoading
+            ? "Карточка заказа обновляется — дождитесь актуальных данных перед изменением."
+            : isOrderError
+                ? "Карточка заказа не загрузилась — повторите загрузку перед изменением."
+                : undefined
     const currentActionOrderId = actionOrderId ?? selectedOrderId
     const currentItems = useMemo(() => data?.items || [], [data?.items])
     const activeOrderFilterLabels = useMemo(() => {
@@ -1105,8 +1113,23 @@ const OrdersPage = () => {
                 width={1100}
                 extra={selectedOrder && canUpdateOrders ? (
                     <Space wrap size={[6, 6]} className="order-drawer-actions">
-                        <Button size="small" disabled={isOrderActionSaving} onClick={() => openEditModal(selectedOrder)}>Правки</Button>
-                        <Button size="small" type="primary" disabled={isOrderActionSaving} onClick={() => openNextActionModal(selectedOrder)}>{getNextActionLabel(selectedOrder)}</Button>
+                        <Button
+                            size="small"
+                            disabled={isSelectedOrderActionBlocked}
+                            title={selectedOrderActionBlockReason}
+                            onClick={() => openEditModal(selectedOrder)}
+                        >
+                            Правки
+                        </Button>
+                        <Button
+                            size="small"
+                            type="primary"
+                            disabled={isSelectedOrderActionBlocked}
+                            title={selectedOrderActionBlockReason}
+                            onClick={() => openNextActionModal(selectedOrder)}
+                        >
+                            {getNextActionLabel(selectedOrder)}
+                        </Button>
                     </Space>
                 ) : null}
             >
@@ -1181,7 +1204,15 @@ const OrdersPage = () => {
                                     <Card
                                         className="timeline-card"
                                         title="История событий"
-                                        extra={canUpdateOrders ? <Button onClick={() => setCommentModalOpen(true)}>Добавить комментарий</Button> : null}
+                                        extra={canUpdateOrders ? (
+                                            <Button
+                                                disabled={isSelectedOrderActionBlocked}
+                                                title={selectedOrderActionBlockReason}
+                                                onClick={() => setCommentModalOpen(true)}
+                                            >
+                                                Добавить комментарий
+                                            </Button>
+                                        ) : null}
                                     >
                                         {selectedOrderHistory.length ? (
                                             <Timeline
@@ -1216,11 +1247,45 @@ const OrdersPage = () => {
                                         <Typography.Text strong>{getNextActionLabel(selectedOrder)}</Typography.Text>
                                         <div style={{marginTop: 12}}>
                                             <Space wrap>
-                                                {canUpdateOrders && <Button type="primary" disabled={isOrderActionSaving} onClick={() => openNextActionModal(selectedOrder)}>{getNextActionLabel(selectedOrder)}</Button>}
-                                                {canUpdateOrders && <Button disabled={isOrderActionSaving} onClick={() => openEditModal(selectedOrder)}>Операционные правки</Button>}
-                                                {canUpdateOrders && <Button disabled={isOrderActionSaving} onClick={() => openStatusModal(selectedOrder.id)}>Другой статус</Button>}
+                                                {canUpdateOrders && (
+                                                    <Button
+                                                        type="primary"
+                                                        disabled={isSelectedOrderActionBlocked}
+                                                        title={selectedOrderActionBlockReason}
+                                                        onClick={() => openNextActionModal(selectedOrder)}
+                                                    >
+                                                        {getNextActionLabel(selectedOrder)}
+                                                    </Button>
+                                                )}
+                                                {canUpdateOrders && (
+                                                    <Button
+                                                        disabled={isSelectedOrderActionBlocked}
+                                                        title={selectedOrderActionBlockReason}
+                                                        onClick={() => openEditModal(selectedOrder)}
+                                                    >
+                                                        Операционные правки
+                                                    </Button>
+                                                )}
+                                                {canUpdateOrders && (
+                                                    <Button
+                                                        disabled={isSelectedOrderActionBlocked}
+                                                        title={selectedOrderActionBlockReason}
+                                                        onClick={() => openStatusModal(selectedOrder.id)}
+                                                    >
+                                                        Другой статус
+                                                    </Button>
+                                                )}
                                                 {selectedPhone && <Tooltip title="Скопировать телефон"><Button onClick={() => copyPhone(selectedPhone)}>Телефон</Button></Tooltip>}
-                                                {canDeleteOrders && <Button danger disabled={isOrderActionSaving} onClick={() => openCancelModal(selectedOrder.id)}>Отменить</Button>}
+                                                {canDeleteOrders && (
+                                                    <Button
+                                                        danger
+                                                        disabled={isSelectedOrderActionBlocked}
+                                                        title={selectedOrderActionBlockReason}
+                                                        onClick={() => openCancelModal(selectedOrder.id)}
+                                                    >
+                                                        Отменить
+                                                    </Button>
+                                                )}
                                             </Space>
                                         </div>
                                     </Card>
