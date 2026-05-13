@@ -27,6 +27,7 @@ import {
 import type {ColumnsType} from "antd/es/table"
 import {AlertOutlined, CheckCircleOutlined, ClockCircleOutlined, CopyOutlined, FireOutlined, ShoppingOutlined, ThunderboltOutlined} from "@ant-design/icons"
 import {useEffect, useMemo, useRef, useState} from "react"
+import type {KeyboardEvent} from "react"
 import dayjs from "dayjs"
 import PageHeading from "../components/PageHeading.tsx"
 import {
@@ -573,6 +574,36 @@ const OrdersPage = () => {
         setAttentionOnly(false)
         setFilters((prev) => ({...prev, deliveryStatus, page: 1}))
     }
+    const setPaidTodayFilters = () => {
+        setProblemOnly(false)
+        setAttentionOnly(false)
+        setSearchInput("")
+        setFilters({...todayFilters(), paymentStatus: "paid"})
+    }
+    const setProblemTodayFilters = () => {
+        setProblemOnly(true)
+        setAttentionOnly(false)
+        setSearchInput("")
+        setFilters(todayFilters())
+    }
+    const getMetricCardActionProps = (handler: () => void) => ({
+        hoverable: true,
+        role: "button",
+        tabIndex: 0,
+        onClick: handler,
+        onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault()
+                handler()
+            }
+        }
+    })
+    const renderMetricTitle = (label: string, hint: string) => (
+        <Space direction="vertical" size={2}>
+            <span>{label}</span>
+            <Typography.Text className="metric-card-hint" type="secondary">{hint}</Typography.Text>
+        </Space>
+    )
 
     const copyPhone = async (phone?: string | null) => {
         if (!phone) return
@@ -900,22 +931,34 @@ const OrdersPage = () => {
 
             <Row gutter={[16, 16]}>
                 <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card className="metric-card metric-card--lime"><Statistic prefix={<ShoppingOutlined />} title="Заказы сегодня" value={summary?.ordersToday ?? 0} /></Card>
+                    <Card className="metric-card metric-card--lime" {...getMetricCardActionProps(setTodayFilters)}>
+                        <Statistic prefix={<ShoppingOutlined />} title={renderMetricTitle("Заказы сегодня", "Открыть смену")} value={summary?.ordersToday ?? 0} loading={isSummaryFetching} />
+                    </Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card className="metric-card metric-card--orange"><Statistic prefix={<ClockCircleOutlined />} title="Новые" value={summary?.newOrders ?? 0} /></Card>
+                    <Card className="metric-card metric-card--orange" {...getMetricCardActionProps(() => setDeliveryFilter("pending"))}>
+                        <Statistic prefix={<ClockCircleOutlined />} title={renderMetricTitle("Новые", "Принять в работу")} value={summary?.newOrders ?? 0} loading={isSummaryFetching} />
+                    </Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card className="metric-card metric-card--money"><Statistic prefix={<FireOutlined />} title="Выручка сегодня" value={formatMoney(summary?.revenueToday ?? 0)} /></Card>
+                    <Card className="metric-card metric-card--money" {...getMetricCardActionProps(setPaidTodayFilters)}>
+                        <Statistic prefix={<FireOutlined />} title={renderMetricTitle("Выручка сегодня", "Открыть оплаченные")} value={formatMoney(summary?.revenueToday ?? 0)} loading={isSummaryFetching} />
+                    </Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card className="metric-card metric-card--blue"><Statistic prefix={<ThunderboltOutlined />} title="В работе" value={summary?.inProgressToday ?? 0} /></Card>
+                    <Card className="metric-card metric-card--blue" {...getMetricCardActionProps(() => setDeliveryFilter("preparing"))}>
+                        <Statistic prefix={<ThunderboltOutlined />} title={renderMetricTitle("В работе", "Проверить сборку")} value={summary?.inProgressToday ?? 0} loading={isSummaryFetching} />
+                    </Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card className="metric-card metric-card--cyan"><Statistic prefix={<CheckCircleOutlined />} title="Готовы" value={summary?.readyToday ?? 0} /></Card>
+                    <Card className="metric-card metric-card--cyan" {...getMetricCardActionProps(() => setDeliveryFilter("ready"))}>
+                        <Statistic prefix={<CheckCircleOutlined />} title={renderMetricTitle("Готовы", "Выдать клиенту")} value={summary?.readyToday ?? 0} loading={isSummaryFetching} />
+                    </Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card className={(summary?.problemToday ?? 0) > 0 ? "metric-card metric-card--danger" : "metric-card"}><Statistic prefix={<AlertOutlined />} title="Проблемные" value={summary?.problemToday ?? 0} /></Card>
+                    <Card className={(summary?.problemToday ?? 0) > 0 ? "metric-card metric-card--danger" : "metric-card"} {...getMetricCardActionProps(setProblemTodayFilters)}>
+                        <Statistic prefix={<AlertOutlined />} title={renderMetricTitle("Проблемные", "Разобрать первым")} value={summary?.problemToday ?? 0} loading={isSummaryFetching} />
+                    </Card>
                 </Col>
             </Row>
 
