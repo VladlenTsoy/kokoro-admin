@@ -1,5 +1,5 @@
 import {PlusOutlined} from "@ant-design/icons"
-import {Button, Space, Tooltip} from "antd"
+import {Alert, Button, Space, Tooltip} from "antd"
 import {createStyles} from "antd-style"
 import type {ReactNode} from "react"
 import PageHeading from "../PageHeading.tsx"
@@ -17,6 +17,9 @@ interface SettingsTableSectionProps {
 }
 
 const useStyles = createStyles(({token}) => ({
+    disabledReason: {
+        marginTop: -6
+    },
     tableSurface: {
         border: `1px solid ${token.colorBorderSecondary}`,
         borderRadius: token.borderRadiusLG,
@@ -55,6 +58,15 @@ const SettingsTableSection = ({
                 subtitle={subtitle}
                 extra={canAdd ? addButtonExtra : null}
             />
+            {canAdd && addButtonDisabled && addButtonDisabledReason ? (
+                <Alert
+                    className={styles.disabledReason}
+                    type="info"
+                    showIcon
+                    message="Действие временно недоступно"
+                    description={addButtonDisabledReason}
+                />
+            ) : null}
             <div className={styles.tableSurface}>
                 {children}
             </div>
