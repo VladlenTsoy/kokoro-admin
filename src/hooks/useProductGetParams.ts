@@ -126,6 +126,8 @@ export const useGetParams = () => {
                 location.pathname
             )
 
+            let targetPathname = location.pathname
+
             if (isArrayFilterKey(key)) {
                 const currentValuesByKey: Record<ArrayFilterKey, number[]> = {
                     categoryIds: currentCategoryIds,
@@ -184,12 +186,13 @@ export const useGetParams = () => {
                     query.delete("sortField")
                     query.delete("sortOrder")
                     query.set("current", String(1))
+                    targetPathname = "/products/all"
                     break
                 }
             }
 
             const searchString = query.toString()
-            const to = `${location.pathname}${searchString ? `?${searchString}` : ""}`
+            const to = `${targetPathname}${searchString ? `?${searchString}` : ""}`
             // navigate without reloading, pushing new entry to history
             navigate(to, {replace: false})
         },
