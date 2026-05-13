@@ -13,6 +13,7 @@ import type {PermissionAction, PermissionCatalogModule, PermissionCode, Role} fr
 import {useCan} from "../../features/auth/permissions.ts"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 import {getApiStatusCode} from "../../utils/getApiStatusCode.ts"
+import {isAntdFormValidationError} from "../../utils/isAntdFormValidationError.ts"
 import PageHeading from "../../components/PageHeading.tsx"
 
 interface RoleFormValues {
@@ -134,10 +135,11 @@ const PermissionMatrix = ({catalog, selectedPermissions, onToggle, disabled = fa
 }
 
 const RolesPage = () => {
-    const {data, isLoading, error, refetch: refetchRoles} = useGetRolesQuery()
+    const {data, isLoading, isFetching, error, refetch: refetchRoles} = useGetRolesQuery()
     const {
         data: permissionCatalog,
         isLoading: isPermissionCatalogLoading,
+        isFetching: isPermissionCatalogFetching,
         error: permissionCatalogError,
         refetch: refetchPermissionCatalog
     } = useGetRolePermissionsQuery()
@@ -153,6 +155,9 @@ const RolesPage = () => {
     const [roleStatusFilter, setRoleStatusFilter] = useState<RoleStatusFilter>("all")
     const [form] = Form.useForm<RoleFormValues>()
     const isSavingRole = isCreating || isUpdating
+    const isRoleListConfirmed = Boolean(data) && !isLoading && !isFetching && !error
+    const isPermissionCatalogConfirmed = Boolean(permissionCatalog) && !isPermissionCatalogLoading && !isPermissionCatalogFetching && !permissionCatalogError
+    const canMutateRoles = canManageStaff && isRoleListConfirmed && isPermissionCatalogConfirmed
     const isRoleMutationInFlight = isSavingRole || Boolean(deletingRoleId)
     const selectedPermissions = Form.useWatch("permissions", form) ?? []
     const selectedManagePermissions = selectedPermissions.filter((permission) => permission.endsWith(".manage"))
@@ -188,12 +193,20 @@ const RolesPage = () => {
     }
 
     const openCreate = () => {
+        if (!canMutateRoles || isRoleMutationInFlight) {
+            return
+        }
+
         setEditingRole(null)
         form.setFieldsValue({code: "", name: "", isActive: true, permissions: []})
         setIsDrawerOpen(true)
     }
 
     const openEdit = (role: Role) => {
+        if (!canMutateRoles || isRoleMutationInFlight) {
+            return
+        }
+
         setEditingRole(role)
         form.setFieldsValue({
             code: role.code,
@@ -228,6 +241,10 @@ const RolesPage = () => {
 
             closeDrawer()
         } catch (error) {
+            if (isAntdFormValidationError(error)) {
+                return
+            }
+
             const errorMessage = getNestErrorMessage(error)
             if (errorMessage.includes("Unknown permission code")) {
                 refetchPermissionCatalog()
@@ -237,6 +254,10 @@ const RolesPage = () => {
     }
 
     const handleDelete = async (role: Role) => {
+        if (!canMutateRoles || isRoleMutationInFlight) {
+            return
+        }
+
         setDeletingRoleId(role.id)
 
         try {
@@ -275,10 +296,11 @@ const RolesPage = () => {
                 render: (_: unknown, role: Role) => {
                     const isCurrentRoleDeleting = deletingRoleId === role.id
                     const isAnotherRoleDeleting = Boolean(deletingRoleId && !isCurrentRoleDeleting)
+                    const areRoleActionsDisabled = !canMutateRoles || isSavingRole || isCurrentRoleDeleting || isAnotherRoleDeleting
 
                     return (
                         <Space>
-                            <Button disabled={isCurrentRoleDeleting || isAnotherRoleDeleting} onClick={() => openEdit(role)}>
+                            <Button disabled={areRoleActionsDisabled} onClick={() => openEdit(role)}>
                                 Редактировать
                             </Button>
                             <Popconfirm
@@ -289,7 +311,7 @@ const RolesPage = () => {
                                 onConfirm={() => handleDelete(role)}
                                 okButtonProps={{loading: isCurrentRoleDeleting}}
                             >
-                                <Button danger loading={isCurrentRoleDeleting} disabled={isAnotherRoleDeleting}>
+                                <Button danger loading={isCurrentRoleDeleting} disabled={!canMutateRoles || isSavingRole || isAnotherRoleDeleting}>
                                     Удалить
                                 </Button>
                             </Popconfirm>
@@ -306,7 +328,7 @@ const RolesPage = () => {
                 title="Роли"
                 subtitle="Управление ролями, статусами и матрицей доступов."
                 extra={canManageStaff ? (
-                    <Button type="primary" disabled={isRoleMutationInFlight} onClick={openCreate}>
+                    <Button type="primary" disabled={!canMutateRoles || isRoleMutationInFlight} onClick={openCreate}>
                         Создать роль
                     </Button>
                 ) : null}
@@ -338,6 +360,20 @@ const RolesPage = () => {
                             message="Матрица доступов недоступна"
                             description="Без каталога permissions менеджер может видеть только коды доступов. Изменения ролей лучше отложить до восстановления справочника."
                             action={<Button onClick={() => refetchPermissionCatalog()}>Повторить</Button>}
+                        />
+                    ) : null}
+                    {canManageStaff && !canMutateRoles ? (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            message="Изменение ролей временно заблокировано"
+                            description="Дождитесь подтверждённой загрузки списка ролей и матрицы permissions или повторите загрузку. Это защищает staff-доступы от правок по устаревшей таблице."
+                            action={(
+                                <Space wrap>
+                                    <Button onClick={() => refetchRoles()}>Обновить роли</Button>
+                                    <Button onClick={() => refetchPermissionCatalog()}>Обновить permissions</Button>
+                                </Space>
+                            )}
                         />
                     ) : null}
                     <Alert
@@ -380,7 +416,7 @@ const RolesPage = () => {
                     ) : null}
                     <Table<Role>
                         rowKey="id"
-                        loading={isLoading || isPermissionCatalogLoading}
+                        loading={isLoading || isFetching || isPermissionCatalogLoading || isPermissionCatalogFetching}
                         columns={columns}
                         dataSource={filteredRoles}
                         pagination={false}
