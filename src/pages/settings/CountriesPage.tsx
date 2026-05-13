@@ -23,7 +23,7 @@ const formatPosition = (position?: {lat: number; lng: number}) => {
 }
 
 const CountryCityPage: React.FC = () => {
-    const {data: countries, isLoading, isError, refetch} = useGetCountriesQuery()
+    const {data: countries, isLoading, isFetching, isError, refetch} = useGetCountriesQuery()
     const [createCountry, {isLoading: isCreatingCountry}] = useCreateCountryMutation()
     const [updateCountry, {isLoading: isUpdatingCountry}] = useUpdateCountryMutation()
     const [deleteCountry, {isLoading: isDeletingCountry}] = useDeleteCountryMutation()
@@ -74,6 +74,7 @@ const CountryCityPage: React.FC = () => {
     const selectedCountry = sortedCountries.find((country) => country.id === selectedCountryId)
     const isSaving = isCreatingCountry || isUpdatingCountry || isCreatingCity || isUpdatingCity
     const isDeletingGeography = isDeletingCountry || isDeletingCity
+    const isCountryListUnsafe = isError || isLoading || isFetching
     const totalCities = sortedCountries.reduce((sum, country) => sum + (country.cities?.length ?? 0), 0)
     const countriesWithoutCities = sortedCountries.filter((country) => (country.cities?.length ?? 0) === 0).length
     const hasActiveFilters = Boolean(normalizedSearchQuery) || showWithoutCitiesOnly
@@ -91,6 +92,11 @@ const CountryCityPage: React.FC = () => {
     }
 
     const openModal = (type: "country" | "city", item?: CountryType | CityType | null, parentId?: number) => {
+        if (isCountryListUnsafe) {
+            message.warning("Сначала обновите справочник географии, чтобы не менять устаревшие страны или города")
+            return
+        }
+
         setModalType(type)
         setSelectedCountryId(parentId ?? null)
         setEditingItem(item ? {...item, parentId} : null)
@@ -188,8 +194,8 @@ const CountryCityPage: React.FC = () => {
 
                 return (
                     <Space wrap>
-                        <Button disabled={isDeletingGeography || isSaving} onClick={() => openModal("country", record)}>Редактировать</Button>
-                        <Button type="primary" disabled={isDeletingGeography || isSaving} onClick={() => openModal("city", null, record.id)}>
+                        <Button disabled={isCountryListUnsafe || isDeletingGeography || isSaving} onClick={() => openModal("country", record)}>Редактировать</Button>
+                        <Button type="primary" disabled={isCountryListUnsafe || isDeletingGeography || isSaving} onClick={() => openModal("city", null, record.id)}>
                             Добавить город
                         </Button>
                         <Popconfirm
@@ -200,7 +206,7 @@ const CountryCityPage: React.FC = () => {
                             onConfirm={() => handleDelete("country", record.id)}
                             okButtonProps={{loading: isDeletingThisCountry}}
                         >
-                            <Button danger loading={isDeletingThisCountry} disabled={isDeletingGeography && !isDeletingThisCountry}>
+                            <Button danger loading={isDeletingThisCountry} disabled={isCountryListUnsafe || isSaving || (isDeletingGeography && !isDeletingThisCountry)}>
                                 {isDeletingThisCountry ? "Удаляется…" : "Удалить"}
                             </Button>
                         </Popconfirm>
@@ -240,7 +246,7 @@ const CountryCityPage: React.FC = () => {
 
                     return (
                         <Space wrap>
-                            <Button disabled={isDeletingGeography || isSaving} onClick={() => openModal("city", record, country.id)}>
+                            <Button disabled={isCountryListUnsafe || isDeletingGeography || isSaving} onClick={() => openModal("city", record, country.id)}>
                                 Редактировать
                             </Button>
                             <Popconfirm
@@ -251,7 +257,7 @@ const CountryCityPage: React.FC = () => {
                                 onConfirm={() => handleDelete("city", record.id, country.id)}
                                 okButtonProps={{loading: isDeletingThisCity}}
                             >
-                                <Button danger loading={isDeletingThisCity} disabled={isDeletingGeography && !isDeletingThisCity}>
+                                <Button danger loading={isDeletingThisCity} disabled={isCountryListUnsafe || isSaving || (isDeletingGeography && !isDeletingThisCity)}>
                                     {isDeletingThisCity ? "Удаляется…" : "Удалить"}
                                 </Button>
                             </Popconfirm>
@@ -274,7 +280,7 @@ const CountryCityPage: React.FC = () => {
                             image={Empty.PRESENTED_IMAGE_SIMPLE}
                             description="В этой стране ещё нет городов"
                         >
-                            <Button type="primary" disabled={isSaving || isDeletingGeography} onClick={() => openModal("city", null, country.id)}>
+                            <Button type="primary" disabled={isCountryListUnsafe || isSaving || isDeletingGeography} onClick={() => openModal("city", null, country.id)}>
                                 Добавить первый город
                             </Button>
                         </Empty>
@@ -290,7 +296,7 @@ const CountryCityPage: React.FC = () => {
             subtitle="Справочник географии для точек продаж, доставки и адресов клиентов. Меняйте его осторожно: записи могут быть связаны с операционными данными."
             addButtonText="Добавить страну"
             onAdd={() => openModal("country")}
-            addButtonDisabled={isDeletingGeography || isSaving}
+            addButtonDisabled={isCountryListUnsafe || isDeletingGeography || isSaving}
         >
             <Space direction="vertical" size={12} style={{width: "100%"}}>
                 {isError ? (
@@ -298,8 +304,15 @@ const CountryCityPage: React.FC = () => {
                         type="error"
                         showIcon
                         message="Не удалось загрузить страны и города"
-                        description="Не меняйте географию вслепую: справочник влияет на доставку, точки продаж и адреса клиентов. Повторите загрузку или передайте проблему администратору."
-                        action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
+                        description="Создание, редактирование и удаление заблокированы, пока список не подтверждён API. Не меняйте географию вслепую: справочник влияет на доставку, точки продаж и адреса клиентов."
+                        action={<Button size="small" onClick={() => refetch()} loading={isFetching}>Повторить</Button>}
+                    />
+                ) : isFetching && sortedCountries.length > 0 ? (
+                    <Alert
+                        type="warning"
+                        showIcon
+                        message="Справочник географии обновляется"
+                        description="Дождитесь завершения обновления: действия со странами и городами временно заблокированы, чтобы менеджер не изменил устаревшую строку."
                     />
                 ) : null}
 
@@ -363,7 +376,7 @@ const CountryCityPage: React.FC = () => {
                                 {hasActiveFilters ? (
                                     <Button onClick={resetFilters}>Сбросить фильтры</Button>
                                 ) : (
-                                    <Button type="primary" disabled={isSaving || isDeletingGeography} onClick={() => openModal("country")}>Добавить страну</Button>
+                                    <Button type="primary" disabled={isCountryListUnsafe || isSaving || isDeletingGeography} onClick={() => openModal("country")}>Добавить страну</Button>
                                 )}
                             </Empty>
                         )
