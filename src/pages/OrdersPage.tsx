@@ -352,6 +352,12 @@ const OrdersPage = () => {
         return labels
     }, [attentionOnly, filters, problemOnly, statuses])
     const hasActiveOrderFilters = activeOrderFilterLabels.length > 0
+    const todayDate = dayjs().format("YYYY-MM-DD")
+    const isTodayFilterActive = filters.from === todayDate && filters.to === todayDate
+    const isAllFilterActive = !hasActiveOrderFilters
+    const getDeliveryFilterButtonType = (deliveryStatus: OrderDeliveryStatus) => (
+        filters.deliveryStatus === deliveryStatus && !problemOnly && !attentionOnly ? "primary" : "default"
+    )
     const editingOrder = useMemo(
         () => selectedOrder?.id === currentActionOrderId
             ? selectedOrder
@@ -973,12 +979,12 @@ const OrdersPage = () => {
             <Card className="filter-card">
                 <Space direction="vertical" size={14} style={{width: "100%"}}>
                     <Space wrap>
-                        <Button type={filters.from && filters.to ? "primary" : "default"} onClick={setTodayFilters}>Сегодня</Button>
-                        <Button onClick={() => setDeliveryFilter("pending")}>Новые</Button>
-                        <Button onClick={() => setDeliveryFilter("preparing")}>В работе</Button>
-                        <Button onClick={() => setDeliveryFilter("ready")}>Готовы</Button>
-                        <Button onClick={() => setDeliveryFilter("delivered")}>Завершённые</Button>
-                        <Button danger onClick={() => setDeliveryFilter("cancelled")}>Отменённые</Button>
+                        <Button type={isTodayFilterActive && !problemOnly && !attentionOnly ? "primary" : "default"} onClick={setTodayFilters}>Сегодня</Button>
+                        <Button type={getDeliveryFilterButtonType("pending")} onClick={() => setDeliveryFilter("pending")}>Новые</Button>
+                        <Button type={getDeliveryFilterButtonType("preparing")} onClick={() => setDeliveryFilter("preparing")}>В работе</Button>
+                        <Button type={getDeliveryFilterButtonType("ready")} onClick={() => setDeliveryFilter("ready")}>Готовы</Button>
+                        <Button type={getDeliveryFilterButtonType("delivered")} onClick={() => setDeliveryFilter("delivered")}>Завершённые</Button>
+                        <Button danger type={getDeliveryFilterButtonType("cancelled")} onClick={() => setDeliveryFilter("cancelled")}>Отменённые</Button>
                         <Button danger={problemOnly} type={problemOnly ? "primary" : "default"} onClick={() => {
                             setAttentionOnly(false)
                             setProblemOnly((prev) => !prev)
@@ -989,7 +995,7 @@ const OrdersPage = () => {
                             setAttentionOnly((prev) => !prev)
                             setFilters((prev) => ({...prev, page: 1}))
                         }}>Требуют внимания</Button>
-                        <Button onClick={setAllFilters}>Все</Button>
+                        <Button type={isAllFilterActive ? "primary" : "default"} onClick={setAllFilters}>Все</Button>
                     </Space>
                     <Space wrap>
                         <Input.Search
