@@ -181,9 +181,13 @@ const ProductMeasurementsFormList: React.FC<Props> = ({selectedSizes}) => {
                                                         <Input placeholder="Например: длина изделия" style={{minWidth: "170px"}} />
                                                     </Form.Item>
                                                     <Tooltip title="Удалить строку обмера для всех размеров">
-                                                        <MinusCircleOutlined
-                                                            role="button"
-                                                            aria-label="Удалить строку обмера"
+                                                        <Button
+                                                            type="text"
+                                                            danger
+                                                            size="small"
+                                                            shape="circle"
+                                                            icon={<MinusCircleOutlined />}
+                                                            aria-label="Удалить строку обмера для всех размеров"
                                                             onClick={() => remove(field.name)}
                                                         />
                                                     </Tooltip>
