@@ -134,7 +134,7 @@ const HomePage = () => {
                 </div>
             </Card>
 
-            {summaryError && (
+            {summaryError ? (
                 <Alert
                     type="warning"
                     showIcon
@@ -151,7 +151,19 @@ const HomePage = () => {
                         </Space>
                     )}
                 />
-            )}
+            ) : isFetching && !isLoading ? (
+                <Alert
+                    type="info"
+                    showIcon
+                    message="Сводка смены обновляется"
+                    description="Пока идёт live refresh, карточки и последние события могут показывать предыдущие подтверждённые данные. Для срочных решений откройте журнал заказов."
+                    action={(
+                        <Button size="small" type="primary" onClick={() => openOrders()}>
+                            Открыть заказы
+                        </Button>
+                    )}
+                />
+            ) : null}
 
             <Row gutter={[16, 16]}>
                 <Col xs={24} md={12} xl={4}>
