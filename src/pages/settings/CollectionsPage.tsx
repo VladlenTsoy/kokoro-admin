@@ -10,6 +10,7 @@ import {
     useUpdateCollectionMutation
 } from "../../features/settings/collection/collectionApi.ts"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
+import {isAntdFormValidationError} from "../../utils/isAntdFormValidationError.ts"
 
 interface FormValues {
     title: string
@@ -17,7 +18,7 @@ interface FormValues {
 
 const CollectionsPage = () => {
     const [form] = Form.useForm<FormValues>()
-    const {data, isLoading, isError, refetch} = useGetCollectionsQuery()
+    const {data, isLoading, isFetching, isError, refetch} = useGetCollectionsQuery()
     const [createCollection, {isLoading: isCreating}] = useCreateCollectionMutation()
     const [updateCollection, {isLoading: isUpdating}] = useUpdateCollectionMutation()
     const [deleteCollection] = useDeleteCollectionMutation()
@@ -40,15 +41,19 @@ const CollectionsPage = () => {
     const hasSearch = normalizedSearch.length > 0
     const isSavingCollection = isCreating || isUpdating
     const isDeletingCollection = deletingCollectionId !== null
-    const isCollectionListUnavailable = isError
-    const isCollectionMutationLocked = isSavingCollection || isDeletingCollection || isCollectionListUnavailable
+    const isCollectionListUnsafe = isLoading || isFetching || isError || !data
+    const isCollectionMutationLocked = isSavingCollection || isDeletingCollection || isCollectionListUnsafe
     const addCollectionDisabledReason = isSavingCollection
         ? "Дождитесь сохранения текущей коллекции, чтобы не создать дубль витринной подборки."
         : isDeletingCollection
             ? "Дождитесь удаления коллекции: создание временно заблокировано, чтобы не смешать изменения витрины."
-            : isCollectionListUnavailable
+            : isError
                 ? "Сначала повторите загрузку списка коллекций, чтобы создавать подборку по подтверждённым данным."
-                : undefined
+                : isLoading || !data
+                    ? "Дождитесь первичной загрузки коллекций: создание доступно только по подтверждённому списку."
+                    : isFetching
+                        ? "Дождитесь обновления списка коллекций, чтобы не менять витрину по устаревшим данным."
+                        : undefined
 
     const openCreate = () => {
         if (isCollectionMutationLocked) {
@@ -82,7 +87,7 @@ const CollectionsPage = () => {
             setEditing(null)
             form.resetFields()
         } catch (error) {
-            if (typeof error === "object" && error !== null && "errorFields" in error) {
+            if (isAntdFormValidationError(error)) {
                 return
             }
             message.error(getNestErrorMessage(error))
@@ -132,8 +137,10 @@ const CollectionsPage = () => {
                     <Button type="link" onClick={() => openEdit(record)} disabled={isCollectionMutationLocked}>
                         Редактировать
                     </Button>
-                    {isCollectionListUnavailable ? (
-                        <Typography.Text type="secondary">Сначала повторите загрузку списка</Typography.Text>
+                    {isCollectionListUnsafe ? (
+                        <Typography.Text type="secondary">
+                            {isError ? "Сначала повторите загрузку списка" : "Дождитесь свежего списка"}
+                        </Typography.Text>
                     ) : null}
                     <Popconfirm
                         title="Удалить коллекцию?"
@@ -147,7 +154,7 @@ const CollectionsPage = () => {
                             type="link"
                             danger
                             loading={deletingCollectionId === record.id}
-                            disabled={isCollectionListUnavailable || (isDeletingCollection && deletingCollectionId !== record.id)}
+                            disabled={isCollectionListUnsafe || (isDeletingCollection && deletingCollectionId !== record.id)}
                         >
                             {deletingCollectionId === record.id ? "Удаляем…" : "Удалить"}
                         </Button>
@@ -175,6 +182,14 @@ const CollectionsPage = () => {
                             message="Не удалось загрузить коллекции"
                             description="Проверьте подключение или повторите загрузку. Создание, редактирование и удаление заблокированы до успешной повторной загрузки, чтобы менеджер не менял витринные подборки по устаревшему списку."
                             action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
+                        />
+                    ) : null}
+                    {isFetching && !isLoading && !isError ? (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            message="Обновляем список коллекций"
+                            description="Дождитесь свежего ответа API: на время обновления создание, редактирование и удаление коллекций заблокированы, чтобы не изменить витрину по устаревшим данным."
                         />
                     ) : null}
                     <Space style={{padding: 16, paddingBottom: 0}} wrap>
@@ -206,7 +221,7 @@ const CollectionsPage = () => {
                     />
                     <Table
                         rowKey="id"
-                        loading={isLoading}
+                        loading={isLoading || isFetching}
                         dataSource={filteredCollections}
                         columns={columns}
                         pagination={false}
