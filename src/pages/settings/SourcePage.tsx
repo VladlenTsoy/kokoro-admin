@@ -42,7 +42,7 @@ const useStyles = createStyles(({token}) => ({
 
 const SourcePage: React.FC = () => {
     const {styles} = useStyles()
-    const {data: sources = [], isLoading, isError, refetch} = useGetSourcesQuery()
+    const {data: sources = [], isLoading, isFetching, isError, refetch} = useGetSourcesQuery()
     const [createSource, {isLoading: isCreating}] = useCreateSourceMutation()
     const [updateSource, {isLoading: isUpdating}] = useUpdateSourceMutation()
     const [deleteSource, {isLoading: isDeleting}] = useDeleteSourceMutation()
@@ -74,7 +74,9 @@ const SourcePage: React.FC = () => {
     }), [normalizedSearch, sources, statusFilter])
     const hasActiveFilters = Boolean(searchValue) || statusFilter !== "all"
     const isSaving = isCreating || isUpdating
+    const isSourceListUnsafe = isLoading || isFetching || isError
     const isSourceMutationLocked = isSaving || isDeleting
+    const isSourceChangeBlocked = isSourceMutationLocked || isSourceListUnsafe
     const modalOkText = isSaving ? "Сохраняем…" : editingSource ? "Сохранить" : "Создать"
 
     const resetFilters = () => {
@@ -83,7 +85,7 @@ const SourcePage: React.FC = () => {
     }
 
     const openCreateModal = () => {
-        if (isSourceMutationLocked) {
+        if (isSourceChangeBlocked) {
             return
         }
         setEditingSource(null)
@@ -163,7 +165,7 @@ const SourcePage: React.FC = () => {
                     <Space wrap>
                         <Button
                             type="link"
-                            disabled={isSourceMutationLocked}
+                            disabled={isSourceChangeBlocked}
                             onClick={() => {
                                 setEditingSource(record)
                                 form.setFieldsValue(record)
@@ -180,7 +182,7 @@ const SourcePage: React.FC = () => {
                             onConfirm={() => handleDelete(record.id)}
                             okButtonProps={{loading: isCurrentSourceDeleting}}
                         >
-                            <Button type="link" danger loading={isCurrentSourceDeleting} disabled={isAnotherSourceDeleting}>
+                            <Button type="link" danger loading={isCurrentSourceDeleting} disabled={isAnotherSourceDeleting || isSourceChangeBlocked}>
                                 {isCurrentSourceDeleting ? "Удаляем…" : "Удалить"}
                             </Button>
                         </Popconfirm>
@@ -197,14 +199,14 @@ const SourcePage: React.FC = () => {
                 subtitle="Управление каналами поступления заказов: сайт, мессенджеры, маркетплейсы и офлайн-точки."
                 addButtonText="Добавить источник"
                 onAdd={openCreateModal}
-                addButtonDisabled={isSourceMutationLocked}
+                addButtonDisabled={isSourceChangeBlocked}
             >
                 <Space direction="vertical" size={12} style={{width: "100%", padding: 16, paddingBottom: 0}}>
                     <Alert
                         type="info"
                         showIcon
                         message={`Источники заказов: ${activeSourcesCount} активных, ${inactiveSourcesCount} отключённых`}
-                        description="Активные источники помогают быстрее понять, откуда пришёл заказ. Отключайте канал вместо удаления, если по нему уже есть история заказов; удаление используйте только после проверки аналитики и интеграций."
+                        description="Активные источники помогают быстрее понять, откуда пришёл заказ. Отключайте канал вместо удаления, если по нему уже есть история заказов; удаление используйте только после проверки аналитики и интеграций. Создание и изменение каналов доступны только после успешной загрузки актуального списка."
                     />
                     <div className={styles.summary}>
                         <Tag color="blue">Всего: {sources.length}</Tag>
@@ -244,12 +246,20 @@ const SourcePage: React.FC = () => {
                             description="Пока канал удаляется, создание и редактирование источников заблокированы, чтобы не смешать изменения в аналитике и интеграциях."
                         />
                     ) : null}
+                    {isFetching && !isLoading && !isError ? (
+                        <Alert
+                            type="info"
+                            showIcon
+                            message="Обновляем список источников"
+                            description="Создание, редактирование и удаление каналов временно заблокированы, пока админка подтверждает актуальный список источников заказов."
+                        />
+                    ) : null}
                     {isError && (
                         <Alert
                             type="error"
                             showIcon
                             message="Не удалось загрузить источники заказов"
-                            description="Повторите загрузку перед настройкой каналов, чтобы менеджеры не опирались на устаревший список источников."
+                            description="Повторите загрузку перед настройкой каналов: создание, редактирование и удаление заблокированы, чтобы менеджеры не меняли устаревший список источников."
                             action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
                         />
                     )}
@@ -273,7 +283,7 @@ const SourcePage: React.FC = () => {
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                                 description="Источники заказов ещё не настроены. Добавьте первый канал, чтобы менеджеры видели происхождение заказов."
                             >
-                                <Button type="primary" onClick={openCreateModal}>Добавить первый источник</Button>
+                                <Button type="primary" onClick={openCreateModal} disabled={isSourceChangeBlocked}>Добавить первый источник</Button>
                             </Empty>
                         )
                     }}
