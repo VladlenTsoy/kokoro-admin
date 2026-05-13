@@ -77,6 +77,17 @@ const SourcePage: React.FC = () => {
     const isSourceListUnsafe = isLoading || isFetching || isError
     const isSourceMutationLocked = isSaving || isDeleting
     const isSourceChangeBlocked = isSourceMutationLocked || isSourceListUnsafe
+    const sourceActionsDisabledReason = isLoading
+        ? "Загружаем список источников — дождитесь подтверждённых каналов заказов."
+        : isFetching
+            ? "Обновляем источники — изменение каналов временно заблокировано, чтобы не сохранить устаревшую аналитику."
+            : isError
+                ? "Не удалось подтвердить актуальный список через API. Повторите загрузку перед изменением каналов заказов."
+                : isDeleting
+                    ? "Идёт удаление источника — дождитесь завершения операции."
+                    : isSaving
+                        ? "Сохраняем источник — дождитесь окончания операции."
+                        : undefined
     const modalOkText = isSaving ? "Сохраняем…" : editingSource ? "Сохранить" : "Создать"
 
     const resetFilters = () => {
@@ -200,6 +211,7 @@ const SourcePage: React.FC = () => {
                 addButtonText="Добавить источник"
                 onAdd={openCreateModal}
                 addButtonDisabled={isSourceChangeBlocked}
+                addButtonDisabledReason={sourceActionsDisabledReason}
             >
                 <Space direction="vertical" size={12} style={{width: "100%", padding: 16, paddingBottom: 0}}>
                     <Alert

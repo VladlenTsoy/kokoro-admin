@@ -75,6 +75,17 @@ const CountryCityPage: React.FC = () => {
     const isSaving = isCreatingCountry || isUpdatingCountry || isCreatingCity || isUpdatingCity
     const isDeletingGeography = isDeletingCountry || isDeletingCity
     const isCountryListUnsafe = isError || isLoading || isFetching
+    const geographyActionsDisabledReason = isLoading
+        ? "Загружаем справочник географии — дождитесь подтверждённого списка стран и городов."
+        : isFetching
+            ? "Обновляем географию — изменение стран и городов временно заблокировано, чтобы не сохранить устаревшие данные."
+            : isError
+                ? "Не удалось подтвердить актуальный список через API. Повторите загрузку перед изменением доставки и адресов."
+                : isDeletingGeography
+                    ? "Идёт удаление страны или города — дождитесь завершения операции."
+                    : isSaving
+                        ? "Сохраняем страну или город — дождитесь окончания операции."
+                        : undefined
     const totalCities = sortedCountries.reduce((sum, country) => sum + (country.cities?.length ?? 0), 0)
     const countriesWithoutCities = sortedCountries.filter((country) => (country.cities?.length ?? 0) === 0).length
     const hasActiveFilters = Boolean(normalizedSearchQuery) || showWithoutCitiesOnly
@@ -297,6 +308,7 @@ const CountryCityPage: React.FC = () => {
             addButtonText="Добавить страну"
             onAdd={() => openModal("country")}
             addButtonDisabled={isCountryListUnsafe || isDeletingGeography || isSaving}
+            addButtonDisabledReason={geographyActionsDisabledReason}
         >
             <Space direction="vertical" size={12} style={{width: "100%"}}>
                 {isError ? (
