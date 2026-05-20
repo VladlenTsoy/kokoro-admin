@@ -979,23 +979,71 @@ const OrdersPage = () => {
             <Card className="filter-card">
                 <Space direction="vertical" size={14} style={{width: "100%"}}>
                     <Space wrap>
-                        <Button type={isTodayFilterActive && !problemOnly && !attentionOnly ? "primary" : "default"} onClick={setTodayFilters}>Сегодня</Button>
-                        <Button type={getDeliveryFilterButtonType("pending")} onClick={() => setDeliveryFilter("pending")}>Новые</Button>
-                        <Button type={getDeliveryFilterButtonType("preparing")} onClick={() => setDeliveryFilter("preparing")}>В работе</Button>
-                        <Button type={getDeliveryFilterButtonType("ready")} onClick={() => setDeliveryFilter("ready")}>Готовы</Button>
-                        <Button type={getDeliveryFilterButtonType("delivered")} onClick={() => setDeliveryFilter("delivered")}>Завершённые</Button>
-                        <Button danger type={getDeliveryFilterButtonType("cancelled")} onClick={() => setDeliveryFilter("cancelled")}>Отменённые</Button>
-                        <Button danger={problemOnly} type={problemOnly ? "primary" : "default"} onClick={() => {
-                            setAttentionOnly(false)
-                            setProblemOnly((prev) => !prev)
-                            setFilters((prev) => ({...prev, page: 1}))
-                        }}>Проблемные</Button>
-                        <Button danger={attentionOnly} type={attentionOnly ? "primary" : "default"} onClick={() => {
-                            setProblemOnly(false)
-                            setAttentionOnly((prev) => !prev)
-                            setFilters((prev) => ({...prev, page: 1}))
-                        }}>Требуют внимания</Button>
-                        <Button type={isAllFilterActive ? "primary" : "default"} onClick={setAllFilters}>Все</Button>
+                        <Button
+                            type={isTodayFilterActive && !problemOnly && !attentionOnly ? "primary" : "default"}
+                            aria-pressed={isTodayFilterActive && !problemOnly && !attentionOnly}
+                            aria-label={isTodayFilterActive && !problemOnly && !attentionOnly ? "Сегодня — активная очередь заказов" : "Открыть очередь заказов за сегодня"}
+                            onClick={setTodayFilters}
+                        >Сегодня</Button>
+                        <Button
+                            type={getDeliveryFilterButtonType("pending")}
+                            aria-pressed={filters.deliveryStatus === "pending" && !problemOnly && !attentionOnly}
+                            aria-label={filters.deliveryStatus === "pending" && !problemOnly && !attentionOnly ? "Новые — активная очередь заказов" : "Открыть очередь новых заказов"}
+                            onClick={() => setDeliveryFilter("pending")}
+                        >Новые</Button>
+                        <Button
+                            type={getDeliveryFilterButtonType("preparing")}
+                            aria-pressed={filters.deliveryStatus === "preparing" && !problemOnly && !attentionOnly}
+                            aria-label={filters.deliveryStatus === "preparing" && !problemOnly && !attentionOnly ? "В работе — активная очередь заказов" : "Открыть очередь заказов в работе"}
+                            onClick={() => setDeliveryFilter("preparing")}
+                        >В работе</Button>
+                        <Button
+                            type={getDeliveryFilterButtonType("ready")}
+                            aria-pressed={filters.deliveryStatus === "ready" && !problemOnly && !attentionOnly}
+                            aria-label={filters.deliveryStatus === "ready" && !problemOnly && !attentionOnly ? "Готовы — активная очередь заказов" : "Открыть очередь готовых заказов"}
+                            onClick={() => setDeliveryFilter("ready")}
+                        >Готовы</Button>
+                        <Button
+                            type={getDeliveryFilterButtonType("delivered")}
+                            aria-pressed={filters.deliveryStatus === "delivered" && !problemOnly && !attentionOnly}
+                            aria-label={filters.deliveryStatus === "delivered" && !problemOnly && !attentionOnly ? "Завершённые — активная очередь заказов" : "Открыть очередь завершённых заказов"}
+                            onClick={() => setDeliveryFilter("delivered")}
+                        >Завершённые</Button>
+                        <Button
+                            danger
+                            type={getDeliveryFilterButtonType("cancelled")}
+                            aria-pressed={filters.deliveryStatus === "cancelled" && !problemOnly && !attentionOnly}
+                            aria-label={filters.deliveryStatus === "cancelled" && !problemOnly && !attentionOnly ? "Отменённые — активная очередь заказов" : "Открыть очередь отменённых заказов"}
+                            onClick={() => setDeliveryFilter("cancelled")}
+                        >Отменённые</Button>
+                        <Button
+                            danger={problemOnly}
+                            type={problemOnly ? "primary" : "default"}
+                            aria-pressed={problemOnly}
+                            aria-label={problemOnly ? "Проблемные — активная очередь заказов" : "Открыть очередь проблемных заказов"}
+                            onClick={() => {
+                                setAttentionOnly(false)
+                                setProblemOnly((prev) => !prev)
+                                setFilters((prev) => ({...prev, page: 1}))
+                            }}
+                        >Проблемные</Button>
+                        <Button
+                            danger={attentionOnly}
+                            type={attentionOnly ? "primary" : "default"}
+                            aria-pressed={attentionOnly}
+                            aria-label={attentionOnly ? "Требуют внимания — активная очередь заказов" : "Открыть очередь заказов, требующих внимания"}
+                            onClick={() => {
+                                setProblemOnly(false)
+                                setAttentionOnly((prev) => !prev)
+                                setFilters((prev) => ({...prev, page: 1}))
+                            }}
+                        >Требуют внимания</Button>
+                        <Button
+                            type={isAllFilterActive ? "primary" : "default"}
+                            aria-pressed={isAllFilterActive}
+                            aria-label={isAllFilterActive ? "Все — активная очередь заказов без фильтров" : "Показать все заказы без фильтров"}
+                            onClick={setAllFilters}
+                        >Все</Button>
                     </Space>
                     <Space wrap>
                         <Input.Search
