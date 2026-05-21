@@ -43,19 +43,22 @@ const HomePage = () => {
             title: "Оплаченные без обработки",
             description: "Первый риск смены: деньги уже пришли, заказ ещё не принят.",
             query: "paymentStatus=paid&deliveryStatus=pending",
-            danger: true
+            danger: true,
+            actionLabel: "Открыть оплаченные заказы без обработки из операционного фокуса смены"
         },
         {
             title: "Проблемная очередь",
             description: "Просрочки, отмены после оплаты и другие заказы, где нужен менеджер.",
             query: "problemOnly=1",
-            danger: hasProblems
+            danger: hasProblems,
+            actionLabel: `Открыть проблемную очередь заказов из операционного фокуса смены, сейчас ${problemCount}`
         },
         {
             title: "Готовые к выдаче",
             description: "Заказы, которые можно быстрее закрыть или передать клиенту/курьеру.",
             query: "deliveryStatus=ready",
-            danger: false
+            danger: false,
+            actionLabel: "Открыть готовые к выдаче заказы из операционного фокуса смены"
         }
     ]
 
@@ -129,10 +132,21 @@ const HomePage = () => {
                     subtitle="Живой пульт магазина: что горит, где деньги и какие заказы требуют реакции прямо сейчас."
                     extra={(
                         <Space wrap>
-                            <Button danger={hasProblems} type={hasProblems ? "primary" : "default"} onClick={() => openOrders("problemOnly=1")}>
+                            <Button
+                                danger={hasProblems}
+                                type={hasProblems ? "primary" : "default"}
+                                aria-label={`Открыть проблемные заказы смены, сейчас ${problemCount}`}
+                                title={`Открыть проблемные заказы смены, сейчас ${problemCount}`}
+                                onClick={() => openOrders("problemOnly=1")}
+                            >
                                 Проблемные заказы
                             </Button>
-                            <Button type="primary" onClick={() => openOrders("deliveryStatus=pending")}>
+                            <Button
+                                type="primary"
+                                aria-label={`Открыть новые заказы смены, сейчас ${summary?.newOrders ?? 0}`}
+                                title={`Открыть новые заказы смены, сейчас ${summary?.newOrders ?? 0}`}
+                                onClick={() => openOrders("deliveryStatus=pending")}
+                            >
                                 Новые заказы
                             </Button>
                         </Space>
@@ -226,6 +240,8 @@ const HomePage = () => {
                                         block
                                         className="dashboard-focus-action"
                                         danger={shortcut.danger}
+                                        aria-label={shortcut.actionLabel}
+                                        title={shortcut.actionLabel}
                                         onClick={() => openOrders(shortcut.query)}
                                     >
                                         <Space direction="vertical" size={0} style={{width: "100%"}}>
