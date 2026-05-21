@@ -22,6 +22,26 @@ const formatPosition = (position?: {lat: number; lng: number}) => {
     return `${position.lat}, ${position.lng}`
 }
 
+const formatGeographyModalTitle = (
+    modalType: "country" | "city",
+    editingItem: ((CountryType | CityType) & {parentId?: number}) | null,
+    selectedCountry?: CountryType
+) => {
+    if (editingItem) {
+        if (modalType === "country") {
+            return `Редактирование страны: ${editingItem.name}`
+        }
+
+        return `Редактирование города: ${editingItem.name}${selectedCountry ? `, страна ${selectedCountry.name}` : ""}`
+    }
+
+    if (modalType === "city") {
+        return `Создание города${selectedCountry ? ` для страны ${selectedCountry.name}` : ""}`
+    }
+
+    return "Создание страны"
+}
+
 const CountryCityPage: React.FC = () => {
     const {data: countries, isLoading, isFetching, isError, refetch} = useGetCountriesQuery()
     const [createCountry, {isLoading: isCreatingCountry}] = useCreateCountryMutation()
@@ -203,10 +223,19 @@ const CountryCityPage: React.FC = () => {
             render: (_, record) => {
                 const isDeletingThisCountry = deletingCountryId === record.id
                 const cityCount = record.cities?.length ?? 0
-                const countryActionContext = `страна «${record.name}», ID ${record.id}, ${cityCount} ${cityCount === 1 ? "город" : "городов"}`
-                const editCountryLabel = `Редактировать ${countryActionContext}`
-                const addCityLabel = `Добавить город в ${countryActionContext}`
-                const deleteCountryLabel = `Удалить ${countryActionContext}`
+                const countryPosition = formatPosition(record.position)
+                const countryActionContext = `страна «${record.name}», ID ${record.id}, ${cityCount} ${cityCount === 1 ? "город" : "городов"}, ${countryPosition}`
+                const editCountryLabel = geographyActionsDisabledReason
+                    ? `Редактирование страны недоступно: ${geographyActionsDisabledReason}`
+                    : `Редактировать ${countryActionContext}`
+                const addCityLabel = geographyActionsDisabledReason
+                    ? `Добавление города недоступно: ${geographyActionsDisabledReason}`
+                    : `Добавить город в ${countryActionContext}`
+                const deleteCountryLabel = geographyActionsDisabledReason
+                    ? `Удаление страны недоступно: ${geographyActionsDisabledReason}`
+                    : isDeletingThisCountry
+                        ? `Удаляется ${countryActionContext}`
+                        : `Удалить ${countryActionContext}`
 
                 return (
                     <Space wrap>
@@ -214,7 +243,7 @@ const CountryCityPage: React.FC = () => {
                             disabled={isCountryListUnsafe || isDeletingGeography || isSaving}
                             onClick={() => openModal("country", record)}
                             aria-label={editCountryLabel}
-                            title={geographyActionsDisabledReason || editCountryLabel}
+                            title={editCountryLabel}
                         >
                             Редактировать
                         </Button>
@@ -223,7 +252,7 @@ const CountryCityPage: React.FC = () => {
                             disabled={isCountryListUnsafe || isDeletingGeography || isSaving}
                             onClick={() => openModal("city", null, record.id)}
                             aria-label={addCityLabel}
-                            title={geographyActionsDisabledReason || addCityLabel}
+                            title={addCityLabel}
                         >
                             Добавить город
                         </Button>
@@ -240,7 +269,7 @@ const CountryCityPage: React.FC = () => {
                                 loading={isDeletingThisCountry}
                                 disabled={isCountryListUnsafe || isSaving || (isDeletingGeography && !isDeletingThisCountry)}
                                 aria-label={deleteCountryLabel}
-                                title={geographyActionsDisabledReason || deleteCountryLabel}
+                                title={deleteCountryLabel}
                             >
                                 {isDeletingThisCountry ? "Удаляется…" : "Удалить"}
                             </Button>
@@ -278,9 +307,16 @@ const CountryCityPage: React.FC = () => {
                 render: (_, record) => {
                     const cityKey = `${country.id}:${record.id}`
                     const isDeletingThisCity = deletingCityKey === cityKey
-                    const cityActionContext = `город «${record.name}», ID ${record.id}, страна «${country.name}», ID страны ${country.id}`
-                    const editCityLabel = `Редактировать ${cityActionContext}`
-                    const deleteCityLabel = `Удалить ${cityActionContext}`
+                    const cityPosition = formatPosition(record.position)
+                    const cityActionContext = `город «${record.name}», ID ${record.id}, страна «${country.name}», ID страны ${country.id}, ${cityPosition}`
+                    const editCityLabel = geographyActionsDisabledReason
+                        ? `Редактирование города недоступно: ${geographyActionsDisabledReason}`
+                        : `Редактировать ${cityActionContext}`
+                    const deleteCityLabel = geographyActionsDisabledReason
+                        ? `Удаление города недоступно: ${geographyActionsDisabledReason}`
+                        : isDeletingThisCity
+                            ? `Удаляется ${cityActionContext}`
+                            : `Удалить ${cityActionContext}`
 
                     return (
                         <Space wrap>
@@ -288,7 +324,7 @@ const CountryCityPage: React.FC = () => {
                                 disabled={isCountryListUnsafe || isDeletingGeography || isSaving}
                                 onClick={() => openModal("city", record, country.id)}
                                 aria-label={editCityLabel}
-                                title={geographyActionsDisabledReason || editCityLabel}
+                                title={editCityLabel}
                             >
                                 Редактировать
                             </Button>
@@ -305,7 +341,7 @@ const CountryCityPage: React.FC = () => {
                                     loading={isDeletingThisCity}
                                     disabled={isCountryListUnsafe || isSaving || (isDeletingGeography && !isDeletingThisCity)}
                                     aria-label={deleteCityLabel}
-                                    title={geographyActionsDisabledReason || deleteCityLabel}
+                                    title={deleteCityLabel}
                                 >
                                     {isDeletingThisCity ? "Удаляется…" : "Удалить"}
                                 </Button>
@@ -442,9 +478,7 @@ const CountryCityPage: React.FC = () => {
 
             <Modal
                 title={
-                    editingItem
-                        ? `Редактирование ${modalType === "country" ? "страны" : "города"}`
-                        : `Создание ${modalType === "country" ? "страны" : "города"}`
+                    formatGeographyModalTitle(modalType, editingItem, selectedCountry)
                 }
                 open={isModalOpen}
                 onOk={handleOk}
