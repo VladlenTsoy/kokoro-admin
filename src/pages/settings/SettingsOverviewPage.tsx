@@ -168,7 +168,14 @@ const SettingsOverviewPage = () => {
                                         <Tag color={status.color}>{status.label}</Tag>
                                         <Typography.Text strong>{item.title}</Typography.Text>
                                         <Typography.Text type="secondary">{item.description}</Typography.Text>
-                                        <Button size="small" onClick={() => navigate(item.path)}>{item.action}</Button>
+                                        <Button
+                                            size="small"
+                                            aria-label={`${item.action}: ${item.title}, статус ${status.label}`}
+                                            title={`${item.action}: ${item.title}, статус ${status.label}`}
+                                            onClick={() => navigate(item.path)}
+                                        >
+                                            {item.action}
+                                        </Button>
                                     </Space>
                                 )
                             })}
@@ -209,7 +216,16 @@ const SettingsOverviewPage = () => {
 
                                 return (
                                     <List.Item
-                                        actions={[<Button key="open" onClick={() => navigate(item.path)}>{item.action}</Button>]}
+                                        actions={[
+                                            <Button
+                                                key="open"
+                                                aria-label={`${item.action}: ${item.title}, статус ${status.label}`}
+                                                title={`${item.action}: ${item.title}, статус ${status.label}`}
+                                                onClick={() => navigate(item.path)}
+                                            >
+                                                {item.action}
+                                            </Button>
+                                        ]}
                                     >
                                         <List.Item.Meta
                                             title={<Space><Tag color={status.color}>{status.label}</Tag>{item.title}</Space>}
