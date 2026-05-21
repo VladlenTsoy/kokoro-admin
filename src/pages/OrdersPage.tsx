@@ -372,6 +372,7 @@ const OrdersPage = () => {
         [currentActionOrderId, currentItems, selectedOrder]
     )
     const selectedOrderHistory = orderHistory || selectedOrder?.histories || []
+    const selectedOrderActionContext = selectedOrder ? getOrderActionContext(selectedOrder) : undefined
 
     useEffect(() => {
         localStorage.setItem(LIVE_ALERT_STORAGE_KEY, liveAlertsEnabled ? "1" : "0")
@@ -1194,7 +1195,8 @@ const OrdersPage = () => {
                         <Button
                             size="small"
                             disabled={isSelectedOrderActionBlocked}
-                            title={selectedOrderActionBlockReason}
+                            aria-label={`Открыть операционные правки заказа ${selectedOrderActionContext}`}
+                            title={selectedOrderActionBlockReason || `Открыть операционные правки заказа ${selectedOrderActionContext}`}
                             onClick={() => openEditModal(selectedOrder)}
                         >
                             Правки
@@ -1203,7 +1205,8 @@ const OrdersPage = () => {
                             size="small"
                             type="primary"
                             disabled={isSelectedOrderActionBlocked}
-                            title={selectedOrderActionBlockReason}
+                            aria-label={`${getNextActionLabel(selectedOrder)}: заказ ${selectedOrderActionContext}`}
+                            title={selectedOrderActionBlockReason || `${getNextActionLabel(selectedOrder)}: заказ ${selectedOrderActionContext}`}
                             onClick={() => openNextActionModal(selectedOrder)}
                         >
                             {getNextActionLabel(selectedOrder)}
@@ -1329,7 +1332,8 @@ const OrdersPage = () => {
                                                     <Button
                                                         type="primary"
                                                         disabled={isSelectedOrderActionBlocked}
-                                                        title={selectedOrderActionBlockReason}
+                                                        aria-label={`${getNextActionLabel(selectedOrder)}: заказ ${selectedOrderActionContext}`}
+                                                        title={selectedOrderActionBlockReason || `${getNextActionLabel(selectedOrder)}: заказ ${selectedOrderActionContext}`}
                                                         onClick={() => openNextActionModal(selectedOrder)}
                                                     >
                                                         {getNextActionLabel(selectedOrder)}
@@ -1338,7 +1342,8 @@ const OrdersPage = () => {
                                                 {canUpdateOrders && (
                                                     <Button
                                                         disabled={isSelectedOrderActionBlocked}
-                                                        title={selectedOrderActionBlockReason}
+                                                        aria-label={`Открыть операционные правки заказа ${selectedOrderActionContext}`}
+                                                        title={selectedOrderActionBlockReason || `Открыть операционные правки заказа ${selectedOrderActionContext}`}
                                                         onClick={() => openEditModal(selectedOrder)}
                                                     >
                                                         Операционные правки
@@ -1347,18 +1352,30 @@ const OrdersPage = () => {
                                                 {canUpdateOrders && (
                                                     <Button
                                                         disabled={isSelectedOrderActionBlocked}
-                                                        title={selectedOrderActionBlockReason}
+                                                        aria-label={`Изменить статус заказа ${selectedOrderActionContext}`}
+                                                        title={selectedOrderActionBlockReason || `Изменить статус заказа ${selectedOrderActionContext}`}
                                                         onClick={() => openStatusModal(selectedOrder.id)}
                                                     >
                                                         Другой статус
                                                     </Button>
                                                 )}
-                                                {selectedPhone && <Tooltip title="Скопировать телефон"><Button onClick={() => copyPhone(selectedPhone)}>Телефон</Button></Tooltip>}
+                                                {selectedPhone && (
+                                                    <Tooltip title={`Скопировать телефон клиента из заказа ${selectedOrderActionContext}`}>
+                                                        <Button
+                                                            aria-label={`Скопировать телефон клиента из заказа ${selectedOrderActionContext}`}
+                                                            title={`Скопировать телефон клиента из заказа ${selectedOrderActionContext}`}
+                                                            onClick={() => copyPhone(selectedPhone)}
+                                                        >
+                                                            Телефон
+                                                        </Button>
+                                                    </Tooltip>
+                                                )}
                                                 {canDeleteOrders && (
                                                     <Button
                                                         danger
                                                         disabled={isSelectedOrderActionBlocked}
-                                                        title={selectedOrderActionBlockReason}
+                                                        aria-label={`Отменить заказ ${selectedOrderActionContext}`}
+                                                        title={selectedOrderActionBlockReason || `Отменить заказ ${selectedOrderActionContext}`}
                                                         onClick={() => openCancelModal(selectedOrder.id)}
                                                     >
                                                         Отменить
@@ -1371,8 +1388,15 @@ const OrdersPage = () => {
                                     <Card
                                         title="Сводка для передачи"
                                         extra={(
-                                            <Tooltip title="Скопировать краткую сводку для чата, звонка или курьера">
-                                                <Button icon={<CopyOutlined />} onClick={() => copyOrderHandoff(selectedOrder)}>Скопировать</Button>
+                                            <Tooltip title={`Скопировать краткую сводку по заказу ${selectedOrderActionContext} для чата, звонка или курьера`}>
+                                                <Button
+                                                    icon={<CopyOutlined />}
+                                                    aria-label={`Скопировать сводку по заказу ${selectedOrderActionContext}`}
+                                                    title={`Скопировать сводку по заказу ${selectedOrderActionContext}`}
+                                                    onClick={() => copyOrderHandoff(selectedOrder)}
+                                                >
+                                                    Скопировать
+                                                </Button>
                                             </Tooltip>
                                         )}
                                     >
