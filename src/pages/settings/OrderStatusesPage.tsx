@@ -188,24 +188,54 @@ const OrderStatusesPage = () => {
             title: "Действия",
             key: "actions",
             width: 300,
-            render: (_, status) => (
-                <Space wrap>
-                    <Button type="link" disabled={areStatusActionsBlocked} onClick={() => openEdit(status)}>Редактировать</Button>
-                    <Button type="link" disabled={areStatusActionsBlocked} onClick={() => openTransitions(status)}>Переходы</Button>
-                    <Popconfirm
-                        title="Удалить статус заказа?"
-                        description="Перед удалением убедитесь, что статус не используется в заказах, фильтрах и отчётах. Для системных статусов безопаснее менять переходы, а не удалять запись."
-                        okText={deletingStatusId === status.id ? "Удаляем..." : "Удалить"}
-                        cancelText="Отмена"
-                        onConfirm={() => removeStatus(status.id)}
-                        okButtonProps={{loading: deletingStatusId === status.id}}
-                    >
-                        <Button type="link" danger loading={deletingStatusId === status.id} disabled={areStatusActionsBlocked && deletingStatusId !== status.id}>
-                            {deletingStatusId === status.id ? "Удаляем..." : "Удалить"}
+            render: (_, status) => {
+                const statusContext = `«${status.title}», ID ${status.id}, ${status.fixed ? "системный" : "настраиваемый"} статус${status.access ? `, доступ ${status.access}` : ""}`
+                const editActionTitle = statusActionsDisabledReason || `Редактировать статус заказа ${statusContext}`
+                const transitionActionTitle = statusActionsDisabledReason || `Настроить переходы для статуса заказа ${statusContext}`
+                const deleteActionTitle = statusActionsDisabledReason || `Удалить статус заказа ${statusContext}`
+
+                return (
+                    <Space wrap>
+                        <Button
+                            type="link"
+                            disabled={areStatusActionsBlocked}
+                            aria-label={`Редактировать статус заказа ${statusContext}`}
+                            title={editActionTitle}
+                            onClick={() => openEdit(status)}
+                        >
+                            Редактировать
                         </Button>
-                    </Popconfirm>
-                </Space>
-            )
+                        <Button
+                            type="link"
+                            disabled={areStatusActionsBlocked}
+                            aria-label={`Настроить переходы для статуса заказа ${statusContext}`}
+                            title={transitionActionTitle}
+                            onClick={() => openTransitions(status)}
+                        >
+                            Переходы
+                        </Button>
+                        <Popconfirm
+                            title={`Удалить статус заказа «${status.title}»?`}
+                            description="Перед удалением убедитесь, что статус не используется в заказах, фильтрах и отчётах. Для системных статусов безопаснее менять переходы, а не удалять запись."
+                            okText={deletingStatusId === status.id ? "Удаляем..." : "Удалить"}
+                            cancelText="Отмена"
+                            onConfirm={() => removeStatus(status.id)}
+                            okButtonProps={{loading: deletingStatusId === status.id}}
+                        >
+                            <Button
+                                type="link"
+                                danger
+                                loading={deletingStatusId === status.id}
+                                disabled={areStatusActionsBlocked && deletingStatusId !== status.id}
+                                aria-label={deletingStatusId === status.id ? `Удаляем статус заказа ${statusContext}` : `Удалить статус заказа ${statusContext}`}
+                                title={deleteActionTitle}
+                            >
+                                {deletingStatusId === status.id ? "Удаляем..." : "Удалить"}
+                            </Button>
+                        </Popconfirm>
+                    </Space>
+                )
+            }
         }
     ]
 
