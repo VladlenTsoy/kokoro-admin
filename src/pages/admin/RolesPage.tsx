@@ -120,10 +120,19 @@ const PermissionMatrix = ({catalog, selectedPermissions, onToggle, disabled = fa
                             return <Typography.Text type="secondary">—</Typography.Text>
                         }
 
+                        const isChecked = selectedPermissions.includes(permission.code) || (action !== "manage" && isManageSelected)
+                        const isDisabled = disabled || (action !== "manage" && isManageSelected)
+                        const permissionActionLabel = ACTION_LABELS[action].toLowerCase()
+                        const permissionLabel = isManageSelected && action !== "manage"
+                            ? `${permissionActionLabel} модуля «${module.title}» уже покрыт полным доступом; код ${permission.code}`
+                            : `${isChecked ? "Отключить" : "Включить"} ${permissionActionLabel} для модуля «${module.title}»; код ${permission.code}`
+
                         return (
                             <Checkbox
-                                checked={selectedPermissions.includes(permission.code) || (action !== "manage" && isManageSelected)}
-                                disabled={disabled || (action !== "manage" && isManageSelected)}
+                                checked={isChecked}
+                                disabled={isDisabled}
+                                aria-label={permissionLabel}
+                                title={permissionLabel}
                                 onChange={() => onToggle(permission.code)}
                             />
                         )
