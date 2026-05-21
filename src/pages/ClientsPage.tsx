@@ -477,6 +477,20 @@ const ClientsPage = () => {
                 </Space>
             </Card>
 
+            {isClientsFetching && !isLoading && !clientsError && (
+                <Alert
+                    type="info"
+                    showIcon
+                    message="CRM-список обновляется в фоне"
+                    description="Пока refresh не завершён, таблица показывает последнюю подтверждённую выдачу. Перед блокировкой клиента или правкой контакта дождитесь актуального списка."
+                    action={(
+                        <Button size="small" icon={<ReloadOutlined />} loading={isClientsFetching} onClick={() => refetchClients()}>
+                            Обновляется
+                        </Button>
+                    )}
+                />
+            )}
+
             <Card className="admin-table-card clients-table-card">
                 {clientsError && (
                     <Alert
