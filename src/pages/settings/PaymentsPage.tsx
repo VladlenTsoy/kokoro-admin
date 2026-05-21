@@ -8,6 +8,13 @@ const callbackUrl = `${publicApiUrl.replace(/\/$/, "")}${callbackEndpointPath}`
 const callbackLocation = new URL(callbackUrl)
 const callbackPath = callbackLocation.pathname
 
+const getCallbackCopyActionLabel = (isHttpsCallback: boolean, isLocalHost: boolean) => {
+    const protocolContext = isHttpsCallback ? "HTTPS включён" : "не HTTPS, только для проверки"
+    const domainContext = isLocalHost ? "локальный домен" : `домен ${callbackLocation.hostname}`
+
+    return `Скопировать Payme callback URL ${callbackUrl}: путь ${callbackPath}, ${protocolContext}, ${domainContext}. Перед production-настройкой нужен тестовый заказ и подтверждение владельца.`
+}
+
 const PaymentsPage = () => {
     const {hostname, protocol} = callbackLocation
     const isLocalHost = ["localhost", "127.0.0.1", "0.0.0.0"].includes(hostname)
@@ -39,6 +46,7 @@ const PaymentsPage = () => {
         }
     ]
     const hasReadinessWarning = readinessItems.some((item) => !item.ok)
+    const copyActionLabel = getCallbackCopyActionLabel(isHttpsCallback, isLocalHost)
     const handoffItems = [
         "Сделать тестовый заказ и убедиться, что статус оплаты обновился в заказе без ручной правки.",
         "Проверить очередь проблемных/ожидающих оплат после теста: менеджер должен видеть, что делать дальше.",
@@ -87,6 +95,7 @@ const PaymentsPage = () => {
                             <Descriptions.Item label="Где указать">Кабинет Payme Business</Descriptions.Item>
                             <Descriptions.Item label="После настройки">Проверить оплату тестовым заказом</Descriptions.Item>
                             <Descriptions.Item label="Если ошибка">Сверить домен, протокол HTTPS и путь {callbackPath}</Descriptions.Item>
+                            <Descriptions.Item label="Перед production-копированием">Тестовый заказ и approval владельца</Descriptions.Item>
                         </Descriptions>
 
                         <Alert
@@ -138,7 +147,13 @@ const PaymentsPage = () => {
                             />
                         </Card>
 
-                        <Button type="primary" icon={<CopyOutlined />} onClick={copyCallback}>
+                        <Button
+                            type="primary"
+                            icon={<CopyOutlined />}
+                            onClick={copyCallback}
+                            aria-label={copyActionLabel}
+                            title={copyActionLabel}
+                        >
                             Скопировать callback URL
                         </Button>
                     </Space>
