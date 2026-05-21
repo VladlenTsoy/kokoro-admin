@@ -141,11 +141,22 @@ const ProductPropertyPage = () => {
         }
     }
 
+    const getPropertyActionContext = (property: ProductPropertyType) => {
+        const scopeLabel = property.is_global ? "глобальное свойство" : "локальное свойство"
+        const hasDescription = DOMPurify.sanitize(property.description, {ALLOWED_TAGS: [], ALLOWED_ATTR: []}).trim().length > 0
+        const descriptionLabel = hasDescription ? "описание заполнено" : "описание пустое"
+
+        return `«${property.title}», ID ${property.id}, ${scopeLabel}, ${descriptionLabel}`
+    }
+
     const genExtra = (property: ProductPropertyType) => {
         const isDeletingCurrentProperty = deletingPropertyId === property.id
         const isAnotherPropertyDeleting = deletingPropertyId !== null && !isDeletingCurrentProperty
         const isDeleteDisabled = !isListConfirmed || isSaving || isAnotherPropertyDeleting
         const isEditDisabled = isPropertyActionBlocked
+        const propertyActionContext = getPropertyActionContext(property)
+        const editPropertyLabel = `Редактировать свойство ${propertyActionContext}`
+        const deletePropertyLabel = isDeletingCurrentProperty ? `Удаляем свойство ${propertyActionContext}` : `Удалить свойство ${propertyActionContext}`
 
         return <Space size="middle" wrap>
             {canUpdate && (
@@ -155,7 +166,8 @@ const ProductPropertyPage = () => {
                             type="text"
                             size="small"
                             icon={<EditOutlined />}
-                            aria-label={`Редактировать свойство ${property.title}`}
+                            aria-label={editPropertyLabel}
+                            title={editPropertyLabel}
                             disabled={isEditDisabled}
                             onClick={(event) => {
                                 event.stopPropagation()
@@ -169,8 +181,8 @@ const ProductPropertyPage = () => {
                 <Tooltip title={isDeleteDisabled && !isDeletingCurrentProperty ? blockedActionReason : undefined}>
                     <span onClick={(event) => event.stopPropagation()}>
                         <Popconfirm
-                            title="Удалить свойство?"
-                            description="Проверьте, что свойство не используется в карточках товаров или на витрине. Действие нельзя отменить из админки."
+                            title={`Удалить свойство ${propertyActionContext}?`}
+                            description="Проверьте, что именно это свойство не используется в карточках товаров или на витрине. Действие нельзя отменить из админки."
                             okText="Удалить"
                             cancelText="Отмена"
                             onConfirm={() => handleDelete(property.id)}
@@ -182,7 +194,8 @@ const ProductPropertyPage = () => {
                                 size="small"
                                 danger
                                 icon={isDeletingCurrentProperty ? <LoadingOutlined /> : <DeleteOutlined />}
-                                aria-label={isDeletingCurrentProperty ? `Удаляем свойство ${property.title}` : `Удалить свойство ${property.title}`}
+                                aria-label={deletePropertyLabel}
+                                title={deletePropertyLabel}
                                 loading={isDeletingCurrentProperty}
                                 disabled={isDeleteDisabled}
                                 onClick={(event) => {
