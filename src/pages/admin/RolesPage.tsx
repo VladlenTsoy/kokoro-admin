@@ -304,21 +304,44 @@ const RolesPage = () => {
                     const isCurrentRoleDeleting = deletingRoleId === role.id
                     const isAnotherRoleDeleting = Boolean(deletingRoleId && !isCurrentRoleDeleting)
                     const areRoleActionsDisabled = !canMutateRoles || isSavingRole || isCurrentRoleDeleting || isAnotherRoleDeleting
+                    const roleStatusLabel = role.isActive ? "активна" : "отключена"
+                    const permissionsCount = role.permissions?.length ?? 0
+                    const roleActionContext = `роль ${role.name} (${role.code}), ${roleStatusLabel}, доступов: ${permissionsCount}`
+                    const editRoleLabel = `Редактировать ${roleActionContext}`
+                    const deleteRoleLabel = `Удалить ${roleActionContext}`
+                    const mutationBlockedReason = !canMutateRoles
+                        ? "Дождитесь подтверждённой загрузки ролей и матрицы permissions перед изменением доступа."
+                        : isSavingRole
+                            ? "Дождитесь завершения сохранения роли."
+                            : isAnotherRoleDeleting
+                                ? "Дождитесь завершения удаления другой роли."
+                                : undefined
 
                     return (
                         <Space>
-                            <Button disabled={areRoleActionsDisabled} onClick={() => openEdit(role)}>
+                            <Button
+                                disabled={areRoleActionsDisabled}
+                                onClick={() => openEdit(role)}
+                                aria-label={editRoleLabel}
+                                title={mutationBlockedReason || editRoleLabel}
+                            >
                                 Редактировать
                             </Button>
                             <Popconfirm
-                                title="Удалить роль?"
+                                title={`Удалить роль ${role.name}?`}
                                 description="Удаление может сломать доступ сотрудников, если роль уже используется. Для временного ограничения безопаснее отключить роль."
                                 okText="Удалить"
                                 cancelText="Отмена"
                                 onConfirm={() => handleDelete(role)}
                                 okButtonProps={{loading: isCurrentRoleDeleting}}
                             >
-                                <Button danger loading={isCurrentRoleDeleting} disabled={!canMutateRoles || isSavingRole || isAnotherRoleDeleting}>
+                                <Button
+                                    danger
+                                    loading={isCurrentRoleDeleting}
+                                    disabled={!canMutateRoles || isSavingRole || isAnotherRoleDeleting}
+                                    aria-label={deleteRoleLabel}
+                                    title={mutationBlockedReason || deleteRoleLabel}
+                                >
                                     Удалить
                                 </Button>
                             </Popconfirm>
