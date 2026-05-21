@@ -349,17 +349,42 @@ const EmployeesPage = () => {
                 render: (_: unknown, employee: EmployeeSafe) => {
                     const isCurrentEmployeeDeleting = deletingEmployeeId === employee.id
                     const isAnotherEmployeeDeleting = isDeleting && deletingEmployeeId !== null && !isCurrentEmployeeDeleting
+                    const employeeFullName = `${employee.firstName} ${employee.lastName}`.trim() || `сотрудник #${employee.id}`
+                    const employeeStatusLabel = employee.isActive ? "активен" : "вход закрыт"
+                    const employeeRolesLabel = employee.roles.length
+                        ? `${employee.roles.length} ролей: ${employee.roles.map((role) => role.code).join(", ")}`
+                        : "без ролей"
+                    const employeeActionContext = `${employeeFullName}, ${employee.email}, ${employeeStatusLabel}, ${employeeRolesLabel}`
+                    const editEmployeeLabel = `Редактировать сотрудника: ${employeeActionContext}`
+                    const rolesEmployeeLabel = `Изменить только роли сотрудника: ${employeeActionContext}`
+                    const deleteEmployeeLabel = isCurrentEmployeeDeleting
+                        ? `Удаляем сотрудника: ${employeeActionContext}`
+                        : `Удалить сотрудника: ${employeeActionContext}`
 
                     return (
                         <Space wrap>
                             <Tooltip title={areStaffActionsDisabled ? staffActionsDisabledReason : undefined}>
-                                <Button disabled={areStaffActionsDisabled} onClick={() => openEdit(employee)}>Редактировать</Button>
+                                <Button
+                                    disabled={areStaffActionsDisabled}
+                                    aria-label={editEmployeeLabel}
+                                    title={staffActionsDisabledReason || editEmployeeLabel}
+                                    onClick={() => openEdit(employee)}
+                                >
+                                    Редактировать
+                                </Button>
                             </Tooltip>
                             <Tooltip title={areStaffActionsDisabled ? staffActionsDisabledReason : undefined}>
-                                <Button disabled={areStaffActionsDisabled} onClick={() => openRolesOnly(employee)}>Только роли</Button>
+                                <Button
+                                    disabled={areStaffActionsDisabled}
+                                    aria-label={rolesEmployeeLabel}
+                                    title={staffActionsDisabledReason || rolesEmployeeLabel}
+                                    onClick={() => openRolesOnly(employee)}
+                                >
+                                    Только роли
+                                </Button>
                             </Tooltip>
                             <Popconfirm
-                                title="Удалить сотрудника?"
+                                title={`Удалить сотрудника ${employeeFullName}?`}
                                 description="Перед удалением проверьте, что у сотрудника нет активной смены, заказов или незавершённой передачи клиенту. Если нужно только закрыть вход, безопаснее сначала выключить активность."
                                 onConfirm={() => handleDelete(employee.id)}
                                 okText="Удалить"
@@ -367,7 +392,13 @@ const EmployeesPage = () => {
                                 okButtonProps={{loading: isCurrentEmployeeDeleting}}
                             >
                                 <Tooltip title={areStaffActionsDisabled && !isCurrentEmployeeDeleting ? staffActionsDisabledReason : undefined}>
-                                    <Button danger loading={isCurrentEmployeeDeleting} disabled={areStaffActionsDisabled || isAnotherEmployeeDeleting}>
+                                    <Button
+                                        danger
+                                        loading={isCurrentEmployeeDeleting}
+                                        disabled={areStaffActionsDisabled || isAnotherEmployeeDeleting}
+                                        aria-label={deleteEmployeeLabel}
+                                        title={staffActionsDisabledReason || deleteEmployeeLabel}
+                                    >
                                         {isCurrentEmployeeDeleting ? "Удаляем" : "Удалить"}
                                     </Button>
                                 </Tooltip>
