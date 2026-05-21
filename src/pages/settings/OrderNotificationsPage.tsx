@@ -154,6 +154,34 @@ const OrderNotificationsPage = () => {
         }
     }, [configs, logs])
 
+    const getRuleContext = (item: OrderStatusNotification) => {
+        const statusTitle = statusMap.get(item.statusId) || `статус ID ${item.statusId}`
+        const channelLabel = typeLabelMap[item.type] || item.type
+        const recipientLabel = recipientLabelMap[item.sendTo] || item.sendTo
+        const stateLabel = item.isActive ? "активно" : "выключено"
+
+        return {
+            statusTitle,
+            channelLabel,
+            recipientLabel,
+            stateLabel,
+            actionContext: `правило #${item.id}, статус «${statusTitle}», канал ${channelLabel}, получатель ${recipientLabel}, ${stateLabel}`
+        }
+    }
+
+    const editingRuleId = editing?.id
+    const editingRuleContext = editing ? getRuleContext(editing) : null
+    const modalTitle = editingRuleContext && editingRuleId
+        ? `Редактировать правило уведомления #${editingRuleId}: «${editingRuleContext.statusTitle}» → ${editingRuleContext.channelLabel} для ${editingRuleContext.recipientLabel}`
+        : "Создать правило уведомления"
+    const modalSubmitLabel = editingRuleContext
+        ? isSavingConfig
+            ? `Сохраняем ${editingRuleContext.actionContext}`
+            : `Сохранить ${editingRuleContext.actionContext}`
+        : isSavingConfig
+            ? "Создаём новое правило уведомления"
+            : "Создать новое правило уведомления"
+
     const openCreate = () => {
         if (isConfigListUnsafe) {
             message.warning("Сначала дождитесь актуального списка правил или повторите загрузку")
@@ -251,11 +279,7 @@ const OrderNotificationsPage = () => {
             width: 220,
             render: (_, item) => {
                 const isCurrentDeleting = deletingConfigId === item.id
-                const statusTitle = statusMap.get(item.statusId) || `статус ID ${item.statusId}`
-                const channelLabel = typeLabelMap[item.type] || item.type
-                const recipientLabel = recipientLabelMap[item.sendTo] || item.sendTo
-                const stateLabel = item.isActive ? "активно" : "выключено"
-                const ruleActionContext = `правило #${item.id}, статус «${statusTitle}», канал ${channelLabel}, получатель ${recipientLabel}, ${stateLabel}`
+                const {statusTitle, channelLabel, recipientLabel, actionContext: ruleActionContext} = getRuleContext(item)
                 const editRuleLabel = isConfigMutationLocked
                     ? addRuleDisabledReason || `Редактировать ${ruleActionContext}`
                     : `Редактировать ${ruleActionContext}`
@@ -483,7 +507,7 @@ const OrderNotificationsPage = () => {
             </SettingsTableSection>
 
             <Modal
-                title={editing ? "Редактировать правило уведомления" : "Создать правило уведомления"}
+                title={modalTitle}
                 open={isModalOpen}
                 onCancel={() => {
                     if (!isSavingConfig) setModalOpen(false)
@@ -491,12 +515,21 @@ const OrderNotificationsPage = () => {
                 onOk={saveConfig}
                 confirmLoading={isSavingConfig}
                 okText={isSavingConfig ? "Сохраняем…" : editing ? "Сохранить" : "Создать"}
-                okButtonProps={{disabled: isConfigFormUnsafe || isDeleting}}
-                cancelButtonProps={{disabled: isSavingConfig}}
+                okButtonProps={{disabled: isConfigFormUnsafe || isDeleting, "aria-label": modalSubmitLabel, title: modalSubmitLabel}}
+                cancelButtonProps={{disabled: isSavingConfig, "aria-label": editingRuleContext ? `Отменить редактирование ${editingRuleContext.actionContext}` : "Отменить создание правила уведомления"}}
                 closable={!isSavingConfig}
                 maskClosable={!isSavingConfig}
                 keyboard={!isSavingConfig}
             >
+                {editingRuleContext && (
+                    <Alert
+                        type="info"
+                        showIcon
+                        message={`Проверьте правило #${editingRuleId} перед сохранением`}
+                        description={`Статус: «${editingRuleContext.statusTitle}», канал: ${editingRuleContext.channelLabel}, получатель: ${editingRuleContext.recipientLabel}, состояние: ${editingRuleContext.stateLabel}. Так менеджер видит, какой сценарий отправки меняет, прежде чем затронуть коммуникацию по заказу.`}
+                        style={{marginBottom: 16}}
+                    />
+                )}
                 {isConfigListUnsafe && (
                     <Alert
                         type="warning"
