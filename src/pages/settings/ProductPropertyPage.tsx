@@ -245,6 +245,14 @@ const ProductPropertyPage = () => {
                     message="Свойства помогают менеджерам одинаково заполнять карточки товаров"
                     description="Используйте понятные названия и короткие описания. HTML в описании очищается перед показом, но перед публикацией всё равно проверяйте, что текст выглядит корректно на витрине."
                 />
+                {canCreate && isPropertyActionBlocked && blockedActionReason ? (
+                    <Alert
+                        type={isError || deletingPropertyId !== null || isSaving ? "warning" : "info"}
+                        showIcon
+                        message="Создание свойства временно недоступно"
+                        description={blockedActionReason}
+                    />
+                ) : null}
                 <Space size={8} wrap>
                     <Tag color="blue">Всего: {summary.total}</Tag>
                     <Tag color="green">Глобальных: {summary.global}</Tag>
