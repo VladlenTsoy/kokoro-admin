@@ -119,11 +119,26 @@ const SearchZeroResultsPage = () => {
             title: "Действие",
             key: "action",
             width: 190,
-            render: (_, item) => (
-                <Button size="small" icon={<SearchOutlined />} onClick={() => openCatalogSearch(item.query)} disabled={!item.query.trim()}>
-                    Проверить каталог
-                </Button>
-            )
+            render: (_, item) => {
+                const normalizedQuery = item.query.trim()
+                const isCatalogHandoffDisabled = !normalizedQuery
+                const catalogHandoffLabel = isCatalogHandoffDisabled
+                    ? "Проверка каталога недоступна: пустой поисковый запрос"
+                    : `Проверить каталог по запросу ${normalizedQuery}, ${item.count} неуспешных поисков`
+
+                return (
+                    <Button
+                        size="small"
+                        icon={<SearchOutlined />}
+                        onClick={() => openCatalogSearch(item.query)}
+                        disabled={isCatalogHandoffDisabled}
+                        aria-label={catalogHandoffLabel}
+                        title={catalogHandoffLabel}
+                    >
+                        Проверить каталог
+                    </Button>
+                )
+            }
         }
     ]
 
