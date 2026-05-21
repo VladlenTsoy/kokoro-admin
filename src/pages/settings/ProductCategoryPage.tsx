@@ -223,24 +223,46 @@ const ProductCategoryPage = () => {
             render: (_, record) => {
                 const isCurrentCategoryDeleting = deletingCategoryId === record.id
                 const isAnotherCategoryDeleting = isDeleting && !isCurrentCategoryDeleting
+                const parentContext = record.parent_category_id
+                    ? `родитель: ${parentTitleById.get(record.parent_category_id) ?? `ID ${record.parent_category_id}`}`
+                    : "корневая категория"
+                const visibilityContext = record.is_hide ? "скрыта с витрины" : "видна на витрине"
+                const categoryContext = `«${record.title}», ID ${record.id}, URL /${record.url}, ${parentContext}, ${visibilityContext}`
+                const editCategoryLabel = categoryActionsDisabledReason || `Редактировать категорию ${categoryContext}`
+                const deleteCategoryLabel = isCurrentCategoryDeleting
+                    ? `Удаляем категорию ${categoryContext}`
+                    : categoryActionsDisabledReason || `Удалить категорию ${categoryContext}`
 
                 return (
                     <Space>
                         {canUpdate && (
-                            <Button type="link" disabled={isCategoryMutationLocked} onClick={() => openEdit(record)}>
+                            <Button
+                                type="link"
+                                disabled={isCategoryMutationLocked}
+                                onClick={() => openEdit(record)}
+                                aria-label={editCategoryLabel}
+                                title={editCategoryLabel}
+                            >
                                 Редактировать
                             </Button>
                         )}
                         {canDelete && (
                             <Popconfirm
-                                title="Удалить категорию?"
-                                description="Перед удалением проверьте, что в категории нет товаров и дочерних разделов. Действие нельзя отменить из админки."
+                                title={`Удалить категорию «${record.title}»?`}
+                                description={`ID ${record.id}, URL /${record.url}, ${parentContext}, ${visibilityContext}. Перед удалением проверьте, что в категории нет товаров и дочерних разделов. Действие нельзя отменить из админки.`}
                                 okText={isCurrentCategoryDeleting ? "Удаляем…" : "Удалить"}
                                 cancelText="Отмена"
                                 okButtonProps={{loading: isCurrentCategoryDeleting, danger: true}}
                                 onConfirm={() => handleDelete(record.id)}
                             >
-                                <Button type="link" danger loading={isCurrentCategoryDeleting} disabled={isCategoryMutationLocked || isAnotherCategoryDeleting}>
+                                <Button
+                                    type="link"
+                                    danger
+                                    loading={isCurrentCategoryDeleting}
+                                    disabled={isCategoryMutationLocked || isAnotherCategoryDeleting}
+                                    aria-label={deleteCategoryLabel}
+                                    title={deleteCategoryLabel}
+                                >
                                     {isCurrentCategoryDeleting ? "Удаляем…" : "Удалить"}
                                 </Button>
                             </Popconfirm>
