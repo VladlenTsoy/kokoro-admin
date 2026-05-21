@@ -29,6 +29,9 @@ const SearchZeroResultsPage = () => {
     const repeatedSignals = sortedData.filter(isRepeatedSignal).length
     const freshSignals = sortedData.filter(isFreshSignal).length
     const prioritySignals = sortedData.filter((item) => isRepeatedSignal(item) && isFreshSignal(item)).length
+    const isPriorityQueueActive = showRepeatedOnly && showFreshOnly && !normalizedQueryFilter
+    const isRepeatedQueueActive = showRepeatedOnly && !showFreshOnly && !normalizedQueryFilter
+    const isFreshQueueActive = !showRepeatedOnly && showFreshOnly && !normalizedQueryFilter
     const hasActiveFilters = Boolean(normalizedQueryFilter) || showRepeatedOnly || showFreshOnly
     const openCatalogSearch = (query: string) => {
         const params = new URLSearchParams({search: query.trim(), current: "1"})
@@ -201,16 +204,36 @@ const SearchZeroResultsPage = () => {
                     <Space direction="vertical" size={8} style={{width: "100%"}}>
                         <Typography.Text strong>Быстрые очереди менеджера</Typography.Text>
                         <Space size={8} wrap>
-                            <Button type={showRepeatedOnly && showFreshOnly && !normalizedQueryFilter ? "primary" : "default"} onClick={showPriorityQueue}>
+                            <Button
+                                type={isPriorityQueueActive ? "primary" : "default"}
+                                aria-pressed={isPriorityQueueActive}
+                                aria-label={`Открыть очередь поисковых сигналов: разобрать сегодня, ${prioritySignals}`}
+                                onClick={showPriorityQueue}
+                            >
                                 Разобрать сегодня ({prioritySignals})
                             </Button>
-                            <Button type={showRepeatedOnly && !showFreshOnly && !normalizedQueryFilter ? "primary" : "default"} onClick={showRepeatedQueue}>
+                            <Button
+                                type={isRepeatedQueueActive ? "primary" : "default"}
+                                aria-pressed={isRepeatedQueueActive}
+                                aria-label={`Открыть очередь поисковых сигналов: повторные, ${repeatedSignals}`}
+                                onClick={showRepeatedQueue}
+                            >
                                 Повторные ({repeatedSignals})
                             </Button>
-                            <Button type={!showRepeatedOnly && showFreshOnly && !normalizedQueryFilter ? "primary" : "default"} onClick={showFreshQueue}>
+                            <Button
+                                type={isFreshQueueActive ? "primary" : "default"}
+                                aria-pressed={isFreshQueueActive}
+                                aria-label={`Открыть очередь поисковых сигналов: свежие за 7 дней, ${freshSignals}`}
+                                onClick={showFreshQueue}
+                            >
                                 Свежие 7 дней ({freshSignals})
                             </Button>
-                            <Button onClick={resetFilters} disabled={!hasActiveFilters}>
+                            <Button
+                                aria-pressed={!hasActiveFilters}
+                                aria-label={`Показать все поисковые сигналы, ${sortedData.length}`}
+                                onClick={resetFilters}
+                                disabled={!hasActiveFilters}
+                            >
                                 Все сигналы ({sortedData.length})
                             </Button>
                         </Space>
@@ -228,11 +251,11 @@ const SearchZeroResultsPage = () => {
                             style={{maxWidth: 360}}
                         />
                         <Space>
-                            <Switch checked={showRepeatedOnly} onChange={setShowRepeatedOnly} />
+                            <Switch aria-label="Фильтр: только повторные поисковые сигналы" checked={showRepeatedOnly} onChange={setShowRepeatedOnly} />
                             <Typography.Text>Только повторные сигналы</Typography.Text>
                         </Space>
                         <Space>
-                            <Switch checked={showFreshOnly} onChange={setShowFreshOnly} />
+                            <Switch aria-label="Фильтр: только свежие поисковые сигналы за 7 дней" checked={showFreshOnly} onChange={setShowFreshOnly} />
                             <Typography.Text>Только свежие за 7 дней</Typography.Text>
                         </Space>
                         {hasActiveFilters ? (
