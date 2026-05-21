@@ -159,6 +159,13 @@ const RolesPage = () => {
     const isPermissionCatalogConfirmed = Boolean(permissionCatalog) && !isPermissionCatalogLoading && !isPermissionCatalogFetching && !permissionCatalogError
     const canMutateRoles = canManageStaff && isRoleListConfirmed && isPermissionCatalogConfirmed
     const isRoleMutationInFlight = isSavingRole || Boolean(deletingRoleId)
+    const roleCreateDisabledReason = !canManageStaff
+        ? "Создавать роли может только сотрудник с правом staff.manage."
+        : !isRoleListConfirmed || !isPermissionCatalogConfirmed
+            ? "Дождитесь подтверждённой загрузки ролей и матрицы permissions перед созданием первой роли."
+            : isRoleMutationInFlight
+                ? "Дождитесь завершения текущего сохранения или удаления роли."
+                : null
     const selectedPermissions = Form.useWatch("permissions", form) ?? []
     const selectedManagePermissions = selectedPermissions.filter((permission) => permission.endsWith(".manage"))
     const selectedDeletePermissions = selectedPermissions.filter((permission) => permission.endsWith(".delete"))
@@ -429,7 +436,24 @@ const RolesPage = () => {
                                         ? "По выбранным фильтрам роли не найдены. Сбросьте поиск и статус перед созданием новой роли, чтобы избежать дублей."
                                         : "Роли ещё не настроены. Создайте первую роль и выдайте только необходимые доступы для работы смены."}
                                 >
-                                    {hasRoleFilters ? <Button onClick={() => { setRoleSearch(""); setRoleStatusFilter("all") }}>Сбросить фильтры</Button> : null}
+                                    {hasRoleFilters ? (
+                                        <Button onClick={() => { setRoleSearch(""); setRoleStatusFilter("all") }}>Сбросить фильтры</Button>
+                                    ) : canManageStaff ? (
+                                        <Space direction="vertical" size={8} align="center">
+                                            <Button
+                                                type="primary"
+                                                disabled={Boolean(roleCreateDisabledReason)}
+                                                onClick={openCreate}
+                                            >
+                                                Создать первую роль
+                                            </Button>
+                                            {roleCreateDisabledReason ? (
+                                                <Typography.Text type="secondary">
+                                                    {roleCreateDisabledReason}
+                                                </Typography.Text>
+                                            ) : null}
+                                        </Space>
+                                    ) : null}
                                 </Empty>
                             )
                         }}
