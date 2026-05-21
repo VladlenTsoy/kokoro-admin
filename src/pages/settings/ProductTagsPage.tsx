@@ -32,6 +32,15 @@ const ACTIVE_FILTER_LABELS: Record<NonNullable<ProductVariantTagFilters["isActiv
     false: "Только неактивные"
 }
 
+const getTagActionContext = (tag: ProductVariantTagType) => {
+    const typeLabel = PRODUCT_TAG_TYPE_LABELS[tag.type]
+    const slugLabel = tag.slug ? `slug ${tag.slug}` : "slug создаёт backend"
+    const colorLabel = tag.colorHex ? `цвет ${tag.colorHex}` : "цвет не задан"
+    const statusLabel = tag.isActive ? "активен" : "скрыт"
+
+    return `тег «${tag.title}», ID ${tag.id}, тип ${typeLabel}, ${slugLabel}, ${colorLabel}, сортировка ${tag.sortOrder}, статус ${statusLabel}`
+}
+
 const ProductTagsPage = () => {
     const [filters, setFilters] = useState<ProductVariantTagFilters>({})
     const {data, isLoading, isFetching, isError, refetch} = useGetAllTagsQuery(filters)
@@ -240,54 +249,84 @@ const ProductTagsPage = () => {
         {
             title: "Статус",
             dataIndex: "isActive",
-            render: (isActive: boolean, tag) => (
-                <Space direction="vertical" size={4}>
-                    <Tag color={isActive ? "green" : "default"}>{isActive ? "Активен" : "Скрыт"}</Tag>
-                    <Switch
-                        checked={isActive}
-                        disabled={!canUpdate || isTagListUnconfirmed || (isTagMutationInFlight && activeToggleTagId !== tag.id)}
-                        loading={activeToggleTagId === tag.id}
-                        checkedChildren="Вкл"
-                        unCheckedChildren="Выкл"
-                        onChange={(checked) => handleToggleActive(tag, checked)}
-                    />
-                    {!canUpdate && <Typography.Text type="secondary">Нет прав на изменение</Typography.Text>}
-                    {canUpdate && isTagListUnconfirmed && (
-                        <Typography.Text type="secondary">Сначала дождитесь подтверждённой загрузки списка</Typography.Text>
-                    )}
-                </Space>
-            )
+            render: (isActive: boolean, tag) => {
+                const tagActionContext = getTagActionContext(tag)
+                const toggleLabel = activeToggleTagId === tag.id
+                    ? `Обновляем статус: ${tagActionContext}`
+                    : `${isActive ? "Скрыть" : "Активировать"} ${tagActionContext}`
+
+                return (
+                    <Space direction="vertical" size={4}>
+                        <Tag color={isActive ? "green" : "default"}>{isActive ? "Активен" : "Скрыт"}</Tag>
+                        <Switch
+                            checked={isActive}
+                            disabled={!canUpdate || isTagListUnconfirmed || (isTagMutationInFlight && activeToggleTagId !== tag.id)}
+                            loading={activeToggleTagId === tag.id}
+                            checkedChildren="Вкл"
+                            unCheckedChildren="Выкл"
+                            onChange={(checked) => handleToggleActive(tag, checked)}
+                            aria-label={toggleLabel}
+                            title={tagActionsDisabledReason || toggleLabel}
+                        />
+                        {!canUpdate && <Typography.Text type="secondary">Нет прав на изменение</Typography.Text>}
+                        {canUpdate && isTagListUnconfirmed && (
+                            <Typography.Text type="secondary">Сначала дождитесь подтверждённой загрузки списка</Typography.Text>
+                        )}
+                    </Space>
+                )
+            }
         },
         {title: "Сортировка", dataIndex: "sortOrder", sorter: (a, b) => a.sortOrder - b.sortOrder},
         {
             title: "Действия",
             key: "actions",
-            render: (_, tag) => (
-                <Space>
-                    {canUpdate && (
-                        <Button type="link" disabled={areTagActionsBlocked} onClick={() => openEdit(tag)}>
-                            Редактировать
-                        </Button>
-                    )}
-                    {canDelete && (
-                        <Popconfirm
-                            title="Удалить тег?"
-                            description="Проверьте, что тег не используется в активных товарах, фильтрах или промо-подборках. Действие нельзя отменить из админки."
-                            okText={deletingTagId === tag.id ? "Удаляем…" : "Удалить"}
-                            cancelText="Отмена"
-                            onConfirm={() => handleDelete(tag)}
-                            okButtonProps={{
-                                loading: deletingTagId === tag.id,
-                                disabled: isTagListUnconfirmed || (isTagMutationInFlight && deletingTagId !== tag.id)
-                            }}
-                        >
-                            <Button type="link" danger loading={deletingTagId === tag.id} disabled={isTagListUnconfirmed || (isTagMutationInFlight && deletingTagId !== tag.id)}>
-                                {deletingTagId === tag.id ? "Удаляем…" : "Удалить"}
+            render: (_, tag) => {
+                const tagActionContext = getTagActionContext(tag)
+                const editTagLabel = `Редактировать ${tagActionContext}`
+                const deleteTagLabel = deletingTagId === tag.id
+                    ? `Удаляем ${tagActionContext}`
+                    : `Удалить ${tagActionContext}`
+
+                return (
+                    <Space>
+                        {canUpdate && (
+                            <Button
+                                type="link"
+                                disabled={areTagActionsBlocked}
+                                onClick={() => openEdit(tag)}
+                                aria-label={editTagLabel}
+                                title={tagActionsDisabledReason || editTagLabel}
+                            >
+                                Редактировать
                             </Button>
-                        </Popconfirm>
-                    )}
-                </Space>
-            )
+                        )}
+                        {canDelete && (
+                            <Popconfirm
+                                title={`Удалить тег «${tag.title}»?`}
+                                description={`Проверьте, что ${tagActionContext} не используется в активных товарах, фильтрах или промо-подборках. Действие нельзя отменить из админки.`}
+                                okText={deletingTagId === tag.id ? "Удаляем…" : "Удалить"}
+                                cancelText="Отмена"
+                                onConfirm={() => handleDelete(tag)}
+                                okButtonProps={{
+                                    loading: deletingTagId === tag.id,
+                                    disabled: isTagListUnconfirmed || (isTagMutationInFlight && deletingTagId !== tag.id)
+                                }}
+                            >
+                                <Button
+                                    type="link"
+                                    danger
+                                    loading={deletingTagId === tag.id}
+                                    disabled={isTagListUnconfirmed || (isTagMutationInFlight && deletingTagId !== tag.id)}
+                                    aria-label={deleteTagLabel}
+                                    title={tagActionsDisabledReason || deleteTagLabel}
+                                >
+                                    {deletingTagId === tag.id ? "Удаляем…" : "Удалить"}
+                                </Button>
+                            </Popconfirm>
+                        )}
+                    </Space>
+                )
+            }
         }
     ]
 
