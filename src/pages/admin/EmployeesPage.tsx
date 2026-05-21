@@ -119,7 +119,9 @@ const EmployeesPage = () => {
     const canManageStaff = useCan("staff.manage")
     const isSavingEmployee = isCreating || isUpdating
     const isSavingRoles = isUpdatingRoles
-    const isStaffDirectoryRefreshing = isEmployeesLoading || isEmployeesFetching || isRolesLoading || isRolesFetching || isPermissionCatalogLoading || isPermissionCatalogFetching
+    const isStaffDirectoryInitialLoading = isEmployeesLoading || isRolesLoading || isPermissionCatalogLoading
+    const isStaffDirectoryBackgroundRefreshing = !isStaffDirectoryInitialLoading && (isEmployeesFetching || isRolesFetching || isPermissionCatalogFetching)
+    const isStaffDirectoryRefreshing = isStaffDirectoryInitialLoading || isStaffDirectoryBackgroundRefreshing
     const hasStaffDirectoryError = Boolean(employeesError || rolesError || permissionCatalogError)
     const staffActionsDisabledReason = hasStaffDirectoryError
         ? "Обновите список сотрудников, ролей и матрицу доступов перед изменением прав."
@@ -419,6 +421,15 @@ const EmployeesPage = () => {
                             Повторить
                         </Button>
                     )}
+                />
+            )}
+
+            {isStaffDirectoryBackgroundRefreshing && !hasStaffDirectoryError && (
+                <Alert
+                    showIcon
+                    type="info"
+                    message="Проверяем актуальность сотрудников и ролей"
+                    description="Показываем предыдущий подтверждённый список. Создание, роли и удаление временно заблокированы, чтобы не сохранить доступы поверх устаревшей матрицы."
                 />
             )}
 
