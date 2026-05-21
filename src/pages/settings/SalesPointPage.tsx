@@ -165,12 +165,22 @@ const SalesPointPage: React.FC = () => {
             width: 220,
             render: (_: unknown, record: SalesPointType) => {
                 const isCurrentSalesPointDeleting = deletingSalesPointId === record.id
+                const salesPointStatus = record.deleted_at ? "архивная" : "активная"
+                const salesPointContext = `«${record.title}», ID ${record.id}, ${salesPointStatus}, координаты ${record.location.lat}, ${record.location.lng}`
+                const editSalesPointLabel = `Редактировать точку продаж ${salesPointContext}`
+                const deleteSalesPointLabel = isCurrentSalesPointDeleting
+                    ? `Удаляем точку продаж ${salesPointContext}`
+                    : `Удалить точку продаж ${salesPointContext}`
+                const rowActionTitle = salesPointActionsDisabledReason || editSalesPointLabel
+                const deleteActionTitle = salesPointActionsDisabledReason || deleteSalesPointLabel
 
                 return (
                     <Space wrap>
                         <Button
                             type="link"
                             disabled={areSalesPointActionsBlocked}
+                            aria-label={editSalesPointLabel}
+                            title={rowActionTitle}
                             onClick={() => {
                                 setEditingPoint(record)
                                 form.setFieldsValue({
@@ -184,14 +194,21 @@ const SalesPointPage: React.FC = () => {
                             Редактировать
                         </Button>
                         <Popconfirm
-                            title="Удалить точку продаж?"
-                            description="Перед удалением проверьте склады, зоны доставки и заказы, которые могут быть привязаны к этой точке. Если есть история операций, безопаснее сначала отключить её на уровне бизнес-процесса."
+                            title={`Удалить точку продаж «${record.title}»?`}
+                            description={`Перед удалением проверьте склады, зоны доставки и заказы, которые могут быть привязаны к этой точке. Контекст: ID ${record.id}, ${salesPointStatus}, координаты ${record.location.lat}, ${record.location.lng}. Если есть история операций, безопаснее сначала отключить её на уровне бизнес-процесса.`}
                             okText="Удалить"
                             cancelText="Отмена"
                             onConfirm={() => handleDelete(record.id)}
                             okButtonProps={{loading: isCurrentSalesPointDeleting}}
                         >
-                            <Button type="link" danger loading={isCurrentSalesPointDeleting} disabled={areSalesPointActionsBlocked && !isCurrentSalesPointDeleting}>
+                            <Button
+                                type="link"
+                                danger
+                                loading={isCurrentSalesPointDeleting}
+                                disabled={areSalesPointActionsBlocked && !isCurrentSalesPointDeleting}
+                                aria-label={deleteSalesPointLabel}
+                                title={deleteActionTitle}
+                            >
                                 {isCurrentSalesPointDeleting ? "Удаляем..." : "Удалить"}
                             </Button>
                         </Popconfirm>
