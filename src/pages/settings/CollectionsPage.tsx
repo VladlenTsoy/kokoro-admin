@@ -132,35 +132,51 @@ const CollectionsPage = () => {
             title: "Действия",
             key: "actions",
             width: 220,
-            render: (_, record) => (
-                <Space wrap>
-                    <Button type="link" onClick={() => openEdit(record)} disabled={isCollectionMutationLocked}>
-                        Редактировать
-                    </Button>
-                    {isCollectionListUnsafe ? (
-                        <Typography.Text type="secondary">
-                            {isError ? "Сначала повторите загрузку списка" : "Дождитесь свежего списка"}
-                        </Typography.Text>
-                    ) : null}
-                    <Popconfirm
-                        title="Удалить коллекцию?"
-                        description="Проверьте, что коллекция не используется в активных товарах или промо-подборках. Действие нельзя отменить из админки."
-                        okText="Удалить"
-                        cancelText="Отмена"
-                        okButtonProps={{loading: deletingCollectionId === record.id, danger: true}}
-                        onConfirm={() => handleDelete(record.id)}
-                    >
+            render: (_, record) => {
+                const collectionActionContext = `коллекцию «${record.title}», ID ${record.id}`
+                const editCollectionLabel = `Редактировать ${collectionActionContext}`
+                const deleteCollectionLabel = deletingCollectionId === record.id
+                    ? `Удаляется ${collectionActionContext}`
+                    : `Удалить ${collectionActionContext}`
+
+                return (
+                    <Space wrap>
                         <Button
                             type="link"
-                            danger
-                            loading={deletingCollectionId === record.id}
-                            disabled={isCollectionListUnsafe || (isDeletingCollection && deletingCollectionId !== record.id)}
+                            onClick={() => openEdit(record)}
+                            disabled={isCollectionMutationLocked}
+                            aria-label={editCollectionLabel}
+                            title={editCollectionLabel}
                         >
-                            {deletingCollectionId === record.id ? "Удаляем…" : "Удалить"}
+                            Редактировать
                         </Button>
-                    </Popconfirm>
-                </Space>
-            )
+                        {isCollectionListUnsafe ? (
+                            <Typography.Text type="secondary">
+                                {isError ? "Сначала повторите загрузку списка" : "Дождитесь свежего списка"}
+                            </Typography.Text>
+                        ) : null}
+                        <Popconfirm
+                            title={`Удалить коллекцию «${record.title}»?`}
+                            description={`ID ${record.id}. Проверьте, что коллекция не используется в активных товарах или промо-подборках. Действие нельзя отменить из админки.`}
+                            okText="Удалить"
+                            cancelText="Отмена"
+                            okButtonProps={{loading: deletingCollectionId === record.id, danger: true}}
+                            onConfirm={() => handleDelete(record.id)}
+                        >
+                            <Button
+                                type="link"
+                                danger
+                                loading={deletingCollectionId === record.id}
+                                disabled={isCollectionListUnsafe || (isDeletingCollection && deletingCollectionId !== record.id)}
+                                aria-label={deleteCollectionLabel}
+                                title={deleteCollectionLabel}
+                            >
+                                {deletingCollectionId === record.id ? "Удаляем…" : "Удалить"}
+                            </Button>
+                        </Popconfirm>
+                    </Space>
+                )
+            }
         }
     ]
 
