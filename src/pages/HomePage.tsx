@@ -100,13 +100,24 @@ const HomePage = () => {
             title: "Действие",
             key: "action",
             width: 140,
-            render: (_, item) => item.orderId ? (
-                <Button size="small" icon={<EyeOutlined />} onClick={() => openOrders(`orderId=${item.orderId}`)}>
-                    Открыть
-                </Button>
-            ) : (
-                <Typography.Text type="secondary">Нет ссылки</Typography.Text>
-            )
+            render: (_, item) => {
+                if (!item.orderId) return <Typography.Text type="secondary">Нет ссылки</Typography.Text>
+
+                const orderLabel = item.orderNumber || `#${item.orderId}`
+                const openActivityLabel = `Открыть заказ ${orderLabel} из последних событий смены`
+
+                return (
+                    <Button
+                        size="small"
+                        icon={<EyeOutlined />}
+                        aria-label={openActivityLabel}
+                        title={openActivityLabel}
+                        onClick={() => openOrders(`orderId=${item.orderId}`)}
+                    >
+                        Открыть
+                    </Button>
+                )
+            }
         }
     ]
 
