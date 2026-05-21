@@ -170,6 +170,13 @@ const getNextActionLabel = (order: AdminOrder) => {
     return "Проверить"
 }
 
+const getOrderActionContext = (order: AdminOrder) => {
+    const orderLabel = order.orderNumber || `#${order.id}`
+    const clientName = order.client?.name || order.clientName
+
+    return clientName ? `${orderLabel}, ${clientName}` : orderLabel
+}
+
 const getFallbackSlaSnapshot = (order: AdminOrder): OrderSlaSnapshot => {
     const thresholdMinutes = order.deliveryStatus ? slaThresholdMinutes[order.deliveryStatus] ?? null : null
     const lastStatusChangedAt = order.updatedAt || order.createdAt
@@ -822,53 +829,70 @@ const OrdersPage = () => {
                 key: "actions",
                 width: 320,
                 fixed: "right",
-                render: (_, order) => (
-                    <Space wrap size={[6, 6]} className="order-row-actions">
-                        <Button size="small" onClick={() => openOrder(order.id)}>Открыть</Button>
-                        {canUpdateOrders && (
+                render: (_, order) => {
+                    const orderActionContext = getOrderActionContext(order)
+                    const nextActionLabel = getNextActionLabel(order)
+                    const blockedActionTitle = isQueueActionBlocked ? queueActionBlockReason : isOrderActionSaving ? "Дождитесь завершения текущего действия" : undefined
+
+                    return (
+                        <Space wrap size={[6, 6]} className="order-row-actions">
                             <Button
                                 size="small"
-                                type="primary"
-                                disabled={isQueueActionBlocked || isOrderActionSaving}
-                                title={isQueueActionBlocked ? queueActionBlockReason : isOrderActionSaving ? "Дождитесь завершения текущего действия" : undefined}
-                                onClick={() => openNextActionModal(order)}
+                                aria-label={`Открыть карточку заказа ${orderActionContext}`}
+                                title={`Открыть карточку заказа ${orderActionContext}`}
+                                onClick={() => openOrder(order.id)}
                             >
-                                {getNextActionLabel(order)}
+                                Открыть
                             </Button>
-                        )}
-                        {canUpdateOrders && (
-                            <Button
-                                size="small"
-                                disabled={isQueueActionBlocked || isOrderActionSaving}
-                                title={isQueueActionBlocked ? queueActionBlockReason : isOrderActionSaving ? "Дождитесь завершения текущего действия" : undefined}
-                                onClick={() => openEditModal(order)}
-                            >
-                                Правки
-                            </Button>
-                        )}
-                        {canUpdateOrders && (
-                            <Button
-                                size="small"
-                                disabled={isQueueActionBlocked || isOrderActionSaving}
-                                title={isQueueActionBlocked ? queueActionBlockReason : isOrderActionSaving ? "Дождитесь завершения текущего действия" : undefined}
-                                onClick={() => openStatusModal(order.id)}
-                            >
-                                Статус
-                            </Button>
-                        )}
-                        {canDeleteOrders && (
-                            <Button
-                                size="small"
-                                danger
-                                disabled={isQueueActionBlocked || isOrderActionSaving}
-                                title={isQueueActionBlocked ? queueActionBlockReason : isOrderActionSaving ? "Дождитесь завершения текущего действия" : undefined}
-                                onClick={() => openCancelModal(order.id)}
-                            >
-                                Отмена
-                            </Button>
-                        )}
-                    </Space>
-                )
+                            {canUpdateOrders && (
+                                <Button
+                                    size="small"
+                                    type="primary"
+                                    disabled={isQueueActionBlocked || isOrderActionSaving}
+                                    aria-label={`${nextActionLabel}: заказ ${orderActionContext}`}
+                                    title={blockedActionTitle || `${nextActionLabel}: заказ ${orderActionContext}`}
+                                    onClick={() => openNextActionModal(order)}
+                                >
+                                    {nextActionLabel}
+                                </Button>
+                            )}
+                            {canUpdateOrders && (
+                                <Button
+                                    size="small"
+                                    disabled={isQueueActionBlocked || isOrderActionSaving}
+                                    aria-label={`Открыть правки заказа ${orderActionContext}`}
+                                    title={blockedActionTitle || `Открыть правки заказа ${orderActionContext}`}
+                                    onClick={() => openEditModal(order)}
+                                >
+                                    Правки
+                                </Button>
+                            )}
+                            {canUpdateOrders && (
+                                <Button
+                                    size="small"
+                                    disabled={isQueueActionBlocked || isOrderActionSaving}
+                                    aria-label={`Изменить статус заказа ${orderActionContext}`}
+                                    title={blockedActionTitle || `Изменить статус заказа ${orderActionContext}`}
+                                    onClick={() => openStatusModal(order.id)}
+                                >
+                                    Статус
+                                </Button>
+                            )}
+                            {canDeleteOrders && (
+                                <Button
+                                    size="small"
+                                    danger
+                                    disabled={isQueueActionBlocked || isOrderActionSaving}
+                                    aria-label={`Отменить заказ ${orderActionContext}`}
+                                    title={blockedActionTitle || `Отменить заказ ${orderActionContext}`}
+                                    onClick={() => openCancelModal(order.id)}
+                                >
+                                    Отмена
+                                </Button>
+                            )}
+                        </Space>
+                    )
+                }
             }
     ]
 
