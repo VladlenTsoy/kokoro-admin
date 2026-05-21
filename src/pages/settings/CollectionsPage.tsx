@@ -43,6 +43,18 @@ const CollectionsPage = () => {
     const isDeletingCollection = deletingCollectionId !== null
     const isCollectionListUnsafe = isLoading || isFetching || isError || !data
     const isCollectionMutationLocked = isSavingCollection || isDeletingCollection || isCollectionListUnsafe
+    const editingCollectionContext = editing ? `коллекцию «${editing.title}», ID ${editing.id}` : null
+    const collectionModalTitle = editingCollectionContext ? `Редактировать ${editingCollectionContext}` : "Создать коллекцию"
+    const collectionSaveButtonText = isSavingCollection
+        ? editingCollectionContext
+            ? `Сохраняем ${editingCollectionContext}…`
+            : "Создаём коллекцию…"
+        : editingCollectionContext
+            ? `Сохранить ${editingCollectionContext}`
+            : "Создать коллекцию"
+    const collectionCancelLabel = editingCollectionContext
+        ? `Отменить редактирование ${editingCollectionContext}`
+        : "Отменить создание коллекции"
     const addCollectionDisabledReason = isSavingCollection
         ? "Дождитесь сохранения текущей коллекции, чтобы не создать дубль витринной подборки."
         : isDeletingCollection
@@ -215,11 +227,22 @@ const CollectionsPage = () => {
                             value={collectionSearch}
                             onChange={(event) => setCollectionSearch(event.target.value)}
                             onSearch={setCollectionSearch}
+                            aria-label="Поиск коллекций витрины по названию или ID перед созданием дубля"
+                            title="Поиск коллекций витрины по названию или ID перед созданием дубля"
+                            enterButton="Найти"
                             style={{width: 280}}
                         />
                         <Tag color="blue">Всего коллекций: {collections.length}</Tag>
                         {hasSearch ? <Tag>Найдено: {filteredCollections.length}</Tag> : null}
-                        {hasSearch ? <Button onClick={() => setCollectionSearch("")}>Сбросить поиск</Button> : null}
+                        {hasSearch ? (
+                            <Button
+                                onClick={() => setCollectionSearch("")}
+                                aria-label={`Сбросить поиск коллекций: сейчас найдено ${filteredCollections.length} из ${collections.length}`}
+                                title={`Сбросить поиск коллекций: сейчас найдено ${filteredCollections.length} из ${collections.length}`}
+                            >
+                                Сбросить поиск
+                            </Button>
+                        ) : null}
                     </Space>
                     {isDeletingCollection ? (
                         <Alert
@@ -262,15 +285,17 @@ const CollectionsPage = () => {
 
             <Modal
                 open={isOpen}
-                title={editing ? "Редактировать коллекцию" : "Создать коллекцию"}
+                title={collectionModalTitle}
                 onCancel={() => {
                     if (!isSavingCollection) {
                         setIsOpen(false)
                     }
                 }}
                 onOk={handleSave}
-                okText={isSavingCollection ? "Сохраняем…" : editing ? "Сохранить коллекцию" : "Создать коллекцию"}
-                cancelButtonProps={{disabled: isSavingCollection}}
+                okText={collectionSaveButtonText}
+                cancelText={editingCollectionContext ? "Не менять эту коллекцию" : "Отмена"}
+                okButtonProps={{title: collectionSaveButtonText, "aria-label": collectionSaveButtonText}}
+                cancelButtonProps={{disabled: isSavingCollection, title: collectionCancelLabel, "aria-label": collectionCancelLabel}}
                 maskClosable={!isSavingCollection}
                 keyboard={!isSavingCollection}
                 confirmLoading={isSavingCollection}
