@@ -154,22 +154,43 @@ const ProductStoragePage: React.FC = () => {
             title: "Действия",
             render: (_: unknown, record: ProductStorageType) => {
                 const isCurrentStorageDeleting = deletingStorageId === record.id
+                const storageStatusLabel = record.deleted_at ? "архивный" : "активный"
+                const storageContext = `«${record.title}», ID ${record.id}, точка продаж #${record.salesPointId}, ${storageStatusLabel}`
+                const editStorageLabel = `Редактировать склад ${storageContext}`
+                const deleteStorageLabel = isCurrentStorageDeleting
+                    ? `Удаляем склад ${storageContext}`
+                    : `Удалить склад ${storageContext}`
+                const rowActionTitle = storageActionsDisabledReason || editStorageLabel
+                const deleteActionTitle = storageActionsDisabledReason || deleteStorageLabel
 
                 return (
                     <Space wrap>
-                        <Button type="link" onClick={() => openEdit(record)} disabled={areStorageActionsBlocked}>
+                        <Button
+                            type="link"
+                            onClick={() => openEdit(record)}
+                            disabled={areStorageActionsBlocked}
+                            aria-label={editStorageLabel}
+                            title={rowActionTitle}
+                        >
                             Редактировать
                         </Button>
                         <Popconfirm
-                            title="Удалить склад?"
-                            description="Перед удалением убедитесь, что к складу не привязаны активные остатки или заказы."
+                            title={`Удалить склад «${record.title}»?`}
+                            description={`Склад ID ${record.id}, точка продаж #${record.salesPointId}. Перед удалением убедитесь, что к нему не привязаны активные остатки или заказы.`}
                             okText="Удалить"
                             cancelText="Отмена"
                             okButtonProps={{loading: isCurrentStorageDeleting}}
                             onConfirm={() => handleDelete(record.id)}
                             disabled={areStorageActionsBlocked && !isCurrentStorageDeleting}
                         >
-                            <Button type="link" danger loading={isCurrentStorageDeleting} disabled={areStorageActionsBlocked && !isCurrentStorageDeleting}>
+                            <Button
+                                type="link"
+                                danger
+                                loading={isCurrentStorageDeleting}
+                                disabled={areStorageActionsBlocked && !isCurrentStorageDeleting}
+                                aria-label={deleteStorageLabel}
+                                title={deleteActionTitle}
+                            >
                                 {isCurrentStorageDeleting ? "Удаляем..." : "Удалить"}
                             </Button>
                         </Popconfirm>
