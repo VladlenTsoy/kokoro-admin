@@ -114,32 +114,52 @@ export const useProductColumns = ({actionsDisabled = false, actionsDisabledReaso
         ...(canUpdateCatalog || canDeleteCatalog
             ? [{
                 key: "actions",
-                render: (_: unknown, record: ProductType) => (
-                    <Space>
-                        {canUpdateCatalog && (
-                            isDeletingProduct || actionsDisabled ? (
-                                <Tooltip title={actionsDisabledReason || "Редактирование товара заблокировано на время удаления"}>
-                                    <Button icon={<EditOutlined />} disabled aria-label={`Редактирование товара ${record.title} временно заблокировано`} />
+                render: (_: unknown, record: ProductType) => {
+                    const productStatusLabel = record.status?.title ? `статус: ${record.status.title}` : "статус не указан"
+                    const productColorLabel = record.color?.title ? `цвет: ${record.color.title}` : "цвет не указан"
+                    const productStockLabel = record.sizes.length
+                        ? `остаток: ${record.sizes.reduce((sum, size) => sum + size.qty, 0)}`
+                        : "размеры и остаток не указаны"
+                    const productActionContext = `товар ${record.title}, ID ${record.id}, ${productStatusLabel}, ${productColorLabel}, ${productStockLabel}`
+                    const editProductLabel = `Редактировать ${productActionContext}`
+                    const editProductBlockedLabel = `Редактирование временно заблокировано: ${productActionContext}`
+
+                    return (
+                        <Space>
+                            {canUpdateCatalog && (
+                                isDeletingProduct || actionsDisabled ? (
+                                    <Tooltip title={actionsDisabledReason || "Редактирование товара заблокировано на время удаления"}>
+                                        <Button
+                                            icon={<EditOutlined />}
+                                            disabled
+                                            aria-label={editProductBlockedLabel}
+                                            title={actionsDisabledReason || editProductBlockedLabel}
+                                        />
+                                    </Tooltip>
+                                ) : (
+                                    <Link to={`/products/product/${record.id}`}>
+                                        <Button
+                                            icon={<EditOutlined />}
+                                            aria-label={editProductLabel}
+                                            title={editProductLabel}
+                                        />
+                                    </Link>
+                                )
+                            )}
+                            {canDeleteCatalog && (
+                                <Tooltip title={actionsDisabled && deletingProductId !== record.id ? actionsDisabledReason : undefined}>
+                                    <ProductTableDeleteAction
+                                        productId={record.id}
+                                        productTitle={record.title}
+                                        disabled={(isDeletingProduct && deletingProductId !== record.id) || actionsDisabled}
+                                        isDeleting={deletingProductId === record.id}
+                                        onDelete={onDeleteProduct}
+                                    />
                                 </Tooltip>
-                            ) : (
-                                <Link to={`/products/product/${record.id}`}>
-                                    <Button icon={<EditOutlined />} />
-                                </Link>
-                            )
-                        )}
-                        {canDeleteCatalog && (
-                            <Tooltip title={actionsDisabled && deletingProductId !== record.id ? actionsDisabledReason : undefined}>
-                                <ProductTableDeleteAction
-                                    productId={record.id}
-                                    productTitle={record.title}
-                                    disabled={(isDeletingProduct && deletingProductId !== record.id) || actionsDisabled}
-                                    isDeleting={deletingProductId === record.id}
-                                    onDelete={onDeleteProduct}
-                                />
-                            </Tooltip>
-                        )}
-                    </Space>
-                )
+                            )}
+                        </Space>
+                    )
+                }
             } satisfies ColumnsType<ProductType>[number]]
             : [])
     ]
