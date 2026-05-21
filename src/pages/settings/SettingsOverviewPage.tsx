@@ -7,6 +7,10 @@ import {useGetStoragesQuery} from "../../features/settings/product-storage/produ
 import {useGetCountriesQuery} from "../../features/settings/country/countryApi.ts"
 import {useGetOrderStatusesQuery} from "../../features/order-status/orderStatusApi.ts"
 import {useGetOrderStatusNotificationsQuery} from "../../features/order-notifications/orderNotificationApi.ts"
+import {publicApiUrl} from "../../utils/appApiConfig.ts"
+
+const paymeCallbackUrl = `${publicApiUrl.replace(/\/$/, "")}/payme`
+const paymeCallbackLocation = new URL(paymeCallbackUrl)
 
 type ChecklistVerificationState = "confirmed" | "checking" | "failed"
 
@@ -57,8 +61,8 @@ const SettingsOverviewPage = () => {
     const hasSetupError = setupQueries.some((query) => query.isError)
 
     const countriesWithCities = (countries || []).filter((country) => (country.cities?.length || 0) > 0).length
-    const {hostname, protocol} = window.location
-    const callbackUrl = `${window.location.origin}/api/payme`
+    const callbackUrl = paymeCallbackUrl
+    const {hostname, protocol} = paymeCallbackLocation
     const isLocalHost = ["localhost", "127.0.0.1", "0.0.0.0"].includes(hostname)
     const isHttpsCallback = protocol === "https:"
     const isPaymeCallbackReady = isHttpsCallback && !isLocalHost
@@ -107,8 +111,8 @@ const SettingsOverviewPage = () => {
         {
             title: "Payme callback",
             description: isPaymeCallbackReady
-                ? "URL открыт на публичном HTTPS-домене; перед запуском всё равно проверьте тестовый заказ."
-                : "Для production нужен публичный HTTPS-домен. Локальный или HTTP callback не переносим в Payme Business.",
+                ? "API callback открыт на публичном HTTPS-домене; перед запуском всё равно проверьте тестовый заказ."
+                : "Для production нужен публичный HTTPS API-домен. Локальный или HTTP callback не переносим в Payme Business.",
             done: isPaymeCallbackReady,
             action: "Открыть платежи",
             path: "/settings/payments",

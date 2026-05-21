@@ -1,12 +1,15 @@
 import {CopyOutlined} from "@ant-design/icons"
 import {Alert, Button, Card, Descriptions, List, Space, Tag, Typography, message} from "antd"
 import SettingsTableSection from "../../components/settings/SettingsTableSection.tsx"
+import {publicApiUrl} from "../../utils/appApiConfig.ts"
 
-const callbackPath = "/api/payme"
+const callbackEndpointPath = "/payme"
+const callbackUrl = `${publicApiUrl.replace(/\/$/, "")}${callbackEndpointPath}`
+const callbackLocation = new URL(callbackUrl)
+const callbackPath = callbackLocation.pathname
 
 const PaymentsPage = () => {
-    const {hostname, protocol} = window.location
-    const callbackUrl = `${window.location.origin}${callbackPath}`
+    const {hostname, protocol} = callbackLocation
     const isLocalHost = ["localhost", "127.0.0.1", "0.0.0.0"].includes(hostname)
     const isHttpsCallback = protocol === "https:"
     const readinessItems = [
@@ -27,6 +30,11 @@ const PaymentsPage = () => {
         {
             title: `Путь callback: ${callbackPath}`,
             description: "Скопируйте адрес без ручного изменения пути, чтобы платежные уведомления попадали в API.",
+            ok: true
+        },
+        {
+            title: "Callback строится от API-домена",
+            description: "Админка берёт адрес из VITE_API_ADMIN_URL без /admin, а не из домена текущей панели управления.",
             ok: true
         }
     ]
@@ -59,7 +67,7 @@ const PaymentsPage = () => {
                     showIcon
                     type="info"
                     message="Перед включением платежей проверьте окружение и callback"
-                    description="Эта страница не меняет настройки мерчанта автоматически. Скопируйте URL, внесите его в Payme Business и проверьте тестовый заказ до запуска продаж."
+                    description="Эта страница не меняет настройки мерчанта автоматически. URL формируется от API-домена магазина, а не от домена админки. Скопируйте его в Payme Business и проверьте тестовый заказ до запуска продаж."
                 />
 
                 <Card>
@@ -75,6 +83,7 @@ const PaymentsPage = () => {
 
                         <Descriptions column={{xs: 1, sm: 1, md: 2}} size="small" bordered>
                             <Descriptions.Item label="Что скопировать">Callback URL</Descriptions.Item>
+                            <Descriptions.Item label="Источник домена">API base URL без /admin</Descriptions.Item>
                             <Descriptions.Item label="Где указать">Кабинет Payme Business</Descriptions.Item>
                             <Descriptions.Item label="После настройки">Проверить оплату тестовым заказом</Descriptions.Item>
                             <Descriptions.Item label="Если ошибка">Сверить домен, протокол HTTPS и путь {callbackPath}</Descriptions.Item>
