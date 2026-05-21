@@ -286,6 +286,22 @@ const RolesPage = () => {
         }
     }
 
+    const editingRoleStatusLabel = editingRole?.isActive ? "активна" : "отключена"
+    const editingRolePermissionCount = editingRole?.permissions?.length ?? 0
+    const roleDrawerTitle = editingRole
+        ? `Редактирование роли «${editingRole.name}» (${editingRole.code}), ID ${editingRole.id}, ${editingRoleStatusLabel}, доступов: ${editingRolePermissionCount}`
+        : "Создание роли: проверьте код, название и минимальные permissions"
+    const roleSaveButtonText = editingRole
+        ? isSavingRole
+            ? `Сохраняем роль «${editingRole.name}»…`
+            : `Сохранить роль «${editingRole.name}»`
+        : isSavingRole
+            ? "Создаём роль…"
+            : "Создать роль"
+    const roleCancelLabel = editingRole
+        ? `Отменить редактирование роли «${editingRole.name}» (${editingRole.code})`
+        : "Отменить создание роли"
+
     const columns: ColumnsType<Role> = [
         {title: "ID", dataIndex: "id", width: 70},
         {
@@ -494,7 +510,7 @@ const RolesPage = () => {
             </Card>
 
             <Drawer
-                title={editingRole ? "Редактирование роли" : "Создание роли"}
+                title={roleDrawerTitle}
                 open={isDrawerOpen}
                 onClose={closeDrawer}
                 width="min(920px, 100vw)"
@@ -503,9 +519,9 @@ const RolesPage = () => {
                 closable={!isSavingRole}
                 extra={(
                     <Space>
-                        <Button disabled={isSavingRole} onClick={closeDrawer}>Отмена</Button>
-                        <Button type="primary" loading={isSavingRole} onClick={handleSubmit}>
-                            {isSavingRole ? "Сохраняем…" : "Сохранить"}
+                        <Button disabled={isSavingRole} onClick={closeDrawer} aria-label={roleCancelLabel} title={roleCancelLabel}>Отмена</Button>
+                        <Button type="primary" loading={isSavingRole} onClick={handleSubmit} aria-label={roleSaveButtonText} title={roleSaveButtonText}>
+                            {roleSaveButtonText}
                         </Button>
                     </Space>
                 )}
@@ -552,7 +568,7 @@ const RolesPage = () => {
                             type="info"
                             showIcon
                             style={{marginBottom: 16}}
-                            message="Сохраняем роль"
+                            message={editingRole ? `Сохраняем роль «${editingRole.name}» (${editingRole.code})` : "Создаём роль"}
                             description="Поля и матрица доступов временно заблокированы, чтобы не отправить смешанные права или повторный запрос. Дождитесь ответа API."
                         />
                     ) : null}
