@@ -211,10 +211,12 @@ const ClientsPage = () => {
         }, {replace: true})
     }
 
-    const getMetricCardActionProps = (handler: () => void) => ({
+    const getMetricCardActionProps = (handler: () => void, label: string, isActive = false) => ({
         hoverable: true,
         role: "button",
         tabIndex: 0,
+        "aria-label": label,
+        "aria-pressed": isActive,
         onClick: handler,
         onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
             if (event.key === "Enter" || event.key === " ") {
@@ -412,12 +414,26 @@ const ClientsPage = () => {
 
             <Row gutter={[16, 16]}>
                 <Col xs={24} md={12} xl={6}>
-                    <Card className="metric-card metric-card--lime" {...getMetricCardActionProps(resetClientFilters)}>
+                    <Card
+                        className="metric-card metric-card--lime"
+                        {...getMetricCardActionProps(
+                            resetClientFilters,
+                            filters.status === "all" && !filters.search ? "Полный CRM-список — активная очередь клиентов" : `Открыть полный CRM-список, всего клиентов ${data?.total ?? 0}`,
+                            filters.status === "all" && !filters.search
+                        )}
+                    >
                         <Statistic prefix={<TeamOutlined />} title={renderMetricTitle("Клиенты", "Открыть полный CRM-список")} value={data?.total ?? 0} loading={isLoading} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={6}>
-                    <Card className="metric-card metric-card--cyan" {...getMetricCardActionProps(showActiveClients)}>
+                    <Card
+                        className="metric-card metric-card--cyan"
+                        {...getMetricCardActionProps(
+                            showActiveClients,
+                            filters.status === "active" && !filters.search ? "Активная CRM-очередь — выбранная очередь клиентов" : `Открыть активную CRM-очередь, активных на странице ${activeClientsOnPage}`,
+                            filters.status === "active" && !filters.search
+                        )}
+                    >
                         <Statistic prefix={<PhoneOutlined />} title={renderMetricTitle("Активные на странице", "Показать активную CRM-очередь")} value={activeClientsOnPage} loading={isLoading} />
                     </Card>
                 </Col>
