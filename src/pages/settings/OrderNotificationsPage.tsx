@@ -251,21 +251,47 @@ const OrderNotificationsPage = () => {
             width: 220,
             render: (_, item) => {
                 const isCurrentDeleting = deletingConfigId === item.id
+                const statusTitle = statusMap.get(item.statusId) || `статус ID ${item.statusId}`
+                const channelLabel = typeLabelMap[item.type] || item.type
+                const recipientLabel = recipientLabelMap[item.sendTo] || item.sendTo
+                const stateLabel = item.isActive ? "активно" : "выключено"
+                const ruleActionContext = `правило #${item.id}, статус «${statusTitle}», канал ${channelLabel}, получатель ${recipientLabel}, ${stateLabel}`
+                const editRuleLabel = isConfigMutationLocked
+                    ? addRuleDisabledReason || `Редактировать ${ruleActionContext}`
+                    : `Редактировать ${ruleActionContext}`
+                const deleteRuleLabel = isConfigMutationLocked && !isCurrentDeleting
+                    ? addRuleDisabledReason || `Удалить ${ruleActionContext}`
+                    : isCurrentDeleting
+                        ? `Удаляется ${ruleActionContext}`
+                        : `Удалить ${ruleActionContext}`
 
                 return (
                     <Space>
-                        <Button type="link" onClick={() => openEdit(item)} disabled={isConfigMutationLocked}>
+                        <Button
+                            type="link"
+                            onClick={() => openEdit(item)}
+                            disabled={isConfigMutationLocked}
+                            aria-label={editRuleLabel}
+                            title={editRuleLabel}
+                        >
                             Редактировать
                         </Button>
                         <Popconfirm
-                            title="Удалить правило уведомления?"
-                            description="Перед удалением проверьте, что менеджеры не потеряют важное уведомление по этому статусу. Логи отправки останутся для аудита."
+                            title={`Удалить правило уведомления #${item.id}?`}
+                            description={`Статус: «${statusTitle}», канал: ${channelLabel}, получатель: ${recipientLabel}. Перед удалением проверьте, что менеджеры не потеряют важное уведомление по этому статусу. Логи отправки останутся для аудита.`}
                             okText="Удалить"
                             cancelText="Отмена"
                             okButtonProps={{loading: isCurrentDeleting}}
                             onConfirm={() => removeConfig(item.id)}
                         >
-                            <Button type="link" danger loading={isCurrentDeleting} disabled={isConfigMutationLocked && !isCurrentDeleting}>
+                            <Button
+                                type="link"
+                                danger
+                                loading={isCurrentDeleting}
+                                disabled={isConfigMutationLocked && !isCurrentDeleting}
+                                aria-label={deleteRuleLabel}
+                                title={deleteRuleLabel}
+                            >
                                 {isCurrentDeleting ? "Удаляем" : "Удалить"}
                             </Button>
                         </Popconfirm>
