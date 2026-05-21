@@ -78,6 +78,16 @@ const getClientStatusFromUrl = (searchParams: URLSearchParams): ClientStatusFilt
     return status === "active" || status === "blocked" ? status : "all"
 }
 
+const getClientActionContext = (client: AdminClient) => {
+    const name = client.name?.trim() || `клиент #${client.id}`
+    const phone = client.phone?.trim() ? `, телефон ${client.phone.trim()}` : ", телефон не указан"
+    const status = client.isActive ? "активен" : "заблокирован"
+    const orders = client.ordersCount ?? 0
+    const total = formatMoney(client.totalSpent || 0)
+
+    return `${name}${phone}, статус ${status}, заказов ${orders}, сумма покупок ${total}`
+}
+
 const ClientsPage = () => {
     const navigate = useNavigate()
     const [searchParams, setSearchParams] = useSearchParams()
@@ -375,26 +385,52 @@ const ClientsPage = () => {
             title: "Действия",
             key: "actions",
             width: 280,
-            render: (_, client) => (
-                <Space wrap size={[8, 8]}>
-                    <Button onClick={() => updateSelectedClientId(client.id)}>Открыть</Button>
-                    {canUpdateClients && (
-                        <Button disabled={isClientListMutationUnsafe} onClick={() => openEdit(client)}>
-                            Редактировать
-                        </Button>
-                    )}
-                    {canDeleteClients && (
+            render: (_, client) => {
+                const clientActionContext = getClientActionContext(client)
+                const openClientLabel = `Открыть CRM-карточку: ${clientActionContext}`
+                const editClientLabel = `Редактировать CRM-контакт: ${clientActionContext}`
+                const statusActionText = client.isActive ? "Блок" : "Разблок"
+                const statusActionLabel = client.isActive
+                    ? `Заблокировать клиента: ${clientActionContext}`
+                    : `Разблокировать клиента: ${clientActionContext}`
+                const mutationBlockedReason = isClientListMutationUnsafe
+                    ? "Действие временно заблокировано: CRM-список обновляется или не подтверждён API"
+                    : undefined
+
+                return (
+                    <Space wrap size={[8, 8]}>
                         <Button
-                            danger={client.isActive}
-                            disabled={isClientListMutationUnsafe || Boolean(statusChangingClientId && statusChangingClientId !== client.id)}
-                            loading={statusChangingClientId === client.id}
-                            onClick={() => handleBlockToggle(client)}
+                            onClick={() => updateSelectedClientId(client.id)}
+                            aria-label={openClientLabel}
+                            title={openClientLabel}
                         >
-                            {client.isActive ? "Блок" : "Разблок"}
+                            Открыть
                         </Button>
-                    )}
-                </Space>
-            )
+                        {canUpdateClients && (
+                            <Button
+                                disabled={isClientListMutationUnsafe}
+                                onClick={() => openEdit(client)}
+                                aria-label={editClientLabel}
+                                title={mutationBlockedReason || editClientLabel}
+                            >
+                                Редактировать
+                            </Button>
+                        )}
+                        {canDeleteClients && (
+                            <Button
+                                danger={client.isActive}
+                                disabled={isClientListMutationUnsafe || Boolean(statusChangingClientId && statusChangingClientId !== client.id)}
+                                loading={statusChangingClientId === client.id}
+                                onClick={() => handleBlockToggle(client)}
+                                aria-label={statusActionLabel}
+                                title={mutationBlockedReason || statusActionLabel}
+                            >
+                                {statusActionText}
+                            </Button>
+                        )}
+                    </Space>
+                )
+            }
         }
     ]
 
