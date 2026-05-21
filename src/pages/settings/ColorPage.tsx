@@ -164,11 +164,17 @@ const ColorPage: React.FC = () => {
             render: (_: undefined, record: ColorType) => {
                 const isCurrentColorDeleting = deletingColorId === record.id
                 const isAnotherColorDeleting = deletingColorId !== null && !isCurrentColorDeleting
+                const colorStatusLabel = record.deleted_at ? "удалён" : "активен"
+                const colorActionContext = `${record.title}, ${record.hex}, ID ${record.id}, ${colorStatusLabel}`
+                const editColorActionLabel = `Редактировать цвет: ${colorActionContext}`
+                const deleteColorActionLabel = `Удалить цвет: ${colorActionContext}`
 
                 return (
                     <Space>
                         <Button
                             type="link"
+                            aria-label={editColorActionLabel}
+                            title={editColorActionLabel}
                             disabled={isColorListUnsafe || deletingColorId !== null || isSavingColor}
                             onClick={() => {
                                 setEditingColor(record)
@@ -179,14 +185,21 @@ const ColorPage: React.FC = () => {
                             Редактировать
                         </Button>
                         <Popconfirm
-                            title="Удалить цвет?"
-                            description="Проверьте, что цвет не используется в активных товарах. Это действие может убрать вариант из выбора менеджеров."
+                            title={`Удалить цвет «${record.title}»?`}
+                            description={`Проверьте, что цвет ${record.hex} не используется в активных товарах. Это действие может убрать вариант из выбора менеджеров.`}
                             okText="Удалить"
                             cancelText="Отмена"
                             onConfirm={() => handleDelete(record.id)}
                             okButtonProps={{loading: isCurrentColorDeleting}}
                         >
-                            <Button type="link" danger loading={isCurrentColorDeleting} disabled={isColorListUnsafe || isAnotherColorDeleting || isSavingColor}>
+                            <Button
+                                type="link"
+                                danger
+                                loading={isCurrentColorDeleting}
+                                aria-label={deleteColorActionLabel}
+                                title={deleteColorActionLabel}
+                                disabled={isColorListUnsafe || isAnotherColorDeleting || isSavingColor}
+                            >
                                 Удалить
                             </Button>
                         </Popconfirm>
