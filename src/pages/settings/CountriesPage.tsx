@@ -202,22 +202,46 @@ const CountryCityPage: React.FC = () => {
             key: "actions",
             render: (_, record) => {
                 const isDeletingThisCountry = deletingCountryId === record.id
+                const cityCount = record.cities?.length ?? 0
+                const countryActionContext = `страна «${record.name}», ID ${record.id}, ${cityCount} ${cityCount === 1 ? "город" : "городов"}`
+                const editCountryLabel = `Редактировать ${countryActionContext}`
+                const addCityLabel = `Добавить город в ${countryActionContext}`
+                const deleteCountryLabel = `Удалить ${countryActionContext}`
 
                 return (
                     <Space wrap>
-                        <Button disabled={isCountryListUnsafe || isDeletingGeography || isSaving} onClick={() => openModal("country", record)}>Редактировать</Button>
-                        <Button type="primary" disabled={isCountryListUnsafe || isDeletingGeography || isSaving} onClick={() => openModal("city", null, record.id)}>
+                        <Button
+                            disabled={isCountryListUnsafe || isDeletingGeography || isSaving}
+                            onClick={() => openModal("country", record)}
+                            aria-label={editCountryLabel}
+                            title={geographyActionsDisabledReason || editCountryLabel}
+                        >
+                            Редактировать
+                        </Button>
+                        <Button
+                            type="primary"
+                            disabled={isCountryListUnsafe || isDeletingGeography || isSaving}
+                            onClick={() => openModal("city", null, record.id)}
+                            aria-label={addCityLabel}
+                            title={geographyActionsDisabledReason || addCityLabel}
+                        >
                             Добавить город
                         </Button>
                         <Popconfirm
-                            title="Удалить страну?"
-                            description="Проверьте, что страна и её города не используются в точках продаж, доставке или заказах. Действие нельзя отменить из админки."
+                            title={`Удалить страну «${record.name}»?`}
+                            description={`Проверьте, что ${countryActionContext} не используется в точках продаж, доставке или заказах. Действие нельзя отменить из админки.`}
                             okText="Удалить"
                             cancelText="Отмена"
                             onConfirm={() => handleDelete("country", record.id)}
                             okButtonProps={{loading: isDeletingThisCountry}}
                         >
-                            <Button danger loading={isDeletingThisCountry} disabled={isCountryListUnsafe || isSaving || (isDeletingGeography && !isDeletingThisCountry)}>
+                            <Button
+                                danger
+                                loading={isDeletingThisCountry}
+                                disabled={isCountryListUnsafe || isSaving || (isDeletingGeography && !isDeletingThisCountry)}
+                                aria-label={deleteCountryLabel}
+                                title={geographyActionsDisabledReason || deleteCountryLabel}
+                            >
                                 {isDeletingThisCountry ? "Удаляется…" : "Удалить"}
                             </Button>
                         </Popconfirm>
@@ -254,21 +278,35 @@ const CountryCityPage: React.FC = () => {
                 render: (_, record) => {
                     const cityKey = `${country.id}:${record.id}`
                     const isDeletingThisCity = deletingCityKey === cityKey
+                    const cityActionContext = `город «${record.name}», ID ${record.id}, страна «${country.name}», ID страны ${country.id}`
+                    const editCityLabel = `Редактировать ${cityActionContext}`
+                    const deleteCityLabel = `Удалить ${cityActionContext}`
 
                     return (
                         <Space wrap>
-                            <Button disabled={isCountryListUnsafe || isDeletingGeography || isSaving} onClick={() => openModal("city", record, country.id)}>
+                            <Button
+                                disabled={isCountryListUnsafe || isDeletingGeography || isSaving}
+                                onClick={() => openModal("city", record, country.id)}
+                                aria-label={editCityLabel}
+                                title={geographyActionsDisabledReason || editCityLabel}
+                            >
                                 Редактировать
                             </Button>
                             <Popconfirm
-                                title="Удалить город?"
-                                description="Сначала проверьте точки продаж, зоны доставки и заказы в этом городе. Действие нельзя отменить из админки."
+                                title={`Удалить город «${record.name}»?`}
+                                description={`Сначала проверьте точки продаж, зоны доставки и заказы: ${cityActionContext}. Действие нельзя отменить из админки.`}
                                 okText="Удалить"
                                 cancelText="Отмена"
                                 onConfirm={() => handleDelete("city", record.id, country.id)}
                                 okButtonProps={{loading: isDeletingThisCity}}
                             >
-                                <Button danger loading={isDeletingThisCity} disabled={isCountryListUnsafe || isSaving || (isDeletingGeography && !isDeletingThisCity)}>
+                                <Button
+                                    danger
+                                    loading={isDeletingThisCity}
+                                    disabled={isCountryListUnsafe || isSaving || (isDeletingGeography && !isDeletingThisCity)}
+                                    aria-label={deleteCityLabel}
+                                    title={geographyActionsDisabledReason || deleteCityLabel}
+                                >
                                     {isDeletingThisCity ? "Удаляется…" : "Удалить"}
                                 </Button>
                             </Popconfirm>
@@ -291,7 +329,13 @@ const CountryCityPage: React.FC = () => {
                             image={Empty.PRESENTED_IMAGE_SIMPLE}
                             description="В этой стране ещё нет городов"
                         >
-                            <Button type="primary" disabled={isCountryListUnsafe || isSaving || isDeletingGeography} onClick={() => openModal("city", null, country.id)}>
+                            <Button
+                                type="primary"
+                                disabled={isCountryListUnsafe || isSaving || isDeletingGeography}
+                                onClick={() => openModal("city", null, country.id)}
+                                aria-label={`Добавить первый город в страну «${country.name}», ID ${country.id}`}
+                                title={geographyActionsDisabledReason || `Добавить первый город в страну «${country.name}», ID ${country.id}`}
+                            >
                                 Добавить первый город
                             </Button>
                         </Empty>
