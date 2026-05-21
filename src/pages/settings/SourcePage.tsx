@@ -171,12 +171,24 @@ const SourcePage: React.FC = () => {
             render: (_: unknown, record: SourceType) => {
                 const isCurrentSourceDeleting = deletingSourceId === record.id
                 const isAnotherSourceDeleting = isDeleting && !isCurrentSourceDeleting
+                const sourceStatusLabel = record.isActive ? "активен" : "отключён"
+                const sourceActionContext = `источник «${record.title}», код ${record.code}, статус: ${sourceStatusLabel}`
+                const editActionLabel = sourceActionsDisabledReason
+                    ? `Редактирование недоступно: ${sourceActionsDisabledReason}`
+                    : `Редактировать ${sourceActionContext}`
+                const deleteActionLabel = sourceActionsDisabledReason
+                    ? `Удаление недоступно: ${sourceActionsDisabledReason}`
+                    : isAnotherSourceDeleting
+                        ? "Удаление недоступно: уже удаляем другой источник заказов."
+                        : `Удалить ${sourceActionContext}`
 
                 return (
                     <Space wrap>
                         <Button
                             type="link"
                             disabled={isSourceChangeBlocked}
+                            aria-label={editActionLabel}
+                            title={editActionLabel}
                             onClick={() => {
                                 setEditingSource(record)
                                 form.setFieldsValue(record)
@@ -186,14 +198,21 @@ const SourcePage: React.FC = () => {
                             Редактировать
                         </Button>
                         <Popconfirm
-                            title="Удалить источник?"
-                            description="Перед удалением убедитесь, что источник не используется в заказах и аналитике."
+                            title={`Удалить источник «${record.title}»?`}
+                            description={`Код ${record.code}, статус: ${sourceStatusLabel}. Перед удалением убедитесь, что источник не используется в заказах, интеграциях и аналитике.`}
                             okText={isCurrentSourceDeleting ? "Удаляем…" : "Удалить"}
                             cancelText="Отмена"
                             onConfirm={() => handleDelete(record.id)}
                             okButtonProps={{loading: isCurrentSourceDeleting}}
                         >
-                            <Button type="link" danger loading={isCurrentSourceDeleting} disabled={isAnotherSourceDeleting || isSourceChangeBlocked}>
+                            <Button
+                                type="link"
+                                danger
+                                loading={isCurrentSourceDeleting}
+                                disabled={isAnotherSourceDeleting || isSourceChangeBlocked}
+                                aria-label={deleteActionLabel}
+                                title={deleteActionLabel}
+                            >
                                 {isCurrentSourceDeleting ? "Удаляем…" : "Удалить"}
                             </Button>
                         </Popconfirm>
