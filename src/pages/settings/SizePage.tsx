@@ -137,12 +137,20 @@ const SizePage: React.FC = () => {
             key: "actions",
             render: (_: unknown, record: SizeType) => {
                 const isCurrentDeleting = deletingSizeId === record.id
+                const sizeStatusLabel = record.deleted_at ? "удалённый" : "активный"
+                const sizeActionContext = `размер «${record.title}», ID ${record.id}, ${sizeStatusLabel}`
+                const editSizeLabel = sizeActionsDisabledReason || `Редактировать ${sizeActionContext}`
+                const deleteSizeLabel = isCurrentDeleting
+                    ? `Удаляем ${sizeActionContext}`
+                    : sizeActionsDisabledReason || `Удалить ${sizeActionContext}`
 
                 return (
                     <Space>
                         <Button
                             type="link"
                             disabled={areSizeActionsBlocked}
+                            aria-label={editSizeLabel}
+                            title={editSizeLabel}
                             onClick={() => {
                                 setEditingSize(record)
                                 form.setFieldsValue(record)
@@ -152,15 +160,22 @@ const SizePage: React.FC = () => {
                             Редактировать
                         </Button>
                         <Popconfirm
-                            title="Удалить размер?"
-                            description="Проверьте, что размер не используется в активных товарах. Удаление может убрать вариант из выбора менеджеров и карточек заказа."
+                            title={`Удалить размер «${record.title}»?`}
+                            description={`Проверьте, что размер ID ${record.id} не используется в активных товарах. Удаление может убрать вариант из выбора менеджеров и карточек заказа.`}
                             okText={isCurrentDeleting ? "Удаляем…" : "Удалить"}
                             cancelText="Отмена"
                             onConfirm={() => handleDelete(record.id)}
                             okButtonProps={{loading: isCurrentDeleting}}
                             cancelButtonProps={{disabled: isCurrentDeleting}}
                         >
-                            <Button type="link" danger loading={isCurrentDeleting} disabled={areSizeActionsBlocked && !isCurrentDeleting}>
+                            <Button
+                                type="link"
+                                danger
+                                loading={isCurrentDeleting}
+                                disabled={areSizeActionsBlocked && !isCurrentDeleting}
+                                aria-label={deleteSizeLabel}
+                                title={deleteSizeLabel}
+                            >
                                 {isCurrentDeleting ? "Удаляем…" : "Удалить"}
                             </Button>
                         </Popconfirm>
