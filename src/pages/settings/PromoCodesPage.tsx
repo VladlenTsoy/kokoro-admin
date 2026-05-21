@@ -41,6 +41,8 @@ const promoStatusLabels: Record<Exclude<PromoStatusFilter, "all">, string> = {
 
 const formatDateTime = (value?: string | null) => value ? dayjs(value).format("DD.MM.YYYY HH:mm") : "—"
 
+const getPromoUsageContext = (promo: PromoCode) => `${promo.usedCount ?? 0} из ${promo.usageLimit ?? "без лимита"}`
+
 const getPromoLifecycleStatus = (promo: PromoCode): Exclude<PromoStatusFilter, "all"> => {
     const now = dayjs()
 
@@ -61,6 +63,12 @@ const getPromoLifecycleStatus = (promo: PromoCode): Exclude<PromoStatusFilter, "
     }
 
     return "active"
+}
+
+const getPromoActionContext = (promo: PromoCode) => {
+    const promoStatusLabel = promoStatusLabels[getPromoLifecycleStatus(promo)]
+
+    return `«${promo.code}», ID ${promo.id}, ${promoStatusLabel}, использований ${getPromoUsageContext(promo)}`
 }
 
 const renderPromoStatus = (promo: PromoCode) => {
@@ -143,6 +151,17 @@ const PromoCodesPage = () => {
                 : isSavingPromo
                     ? "Дождитесь сохранения текущего промокода."
                     : undefined
+    const editingPromoCode = editing?.code
+    const editingPromoContext = editing ? getPromoActionContext(editing) : null
+    const promoModalTitle = editingPromoContext ? `Редактировать промокод ${editingPromoContext}` : "Создать промокод"
+    const promoModalOkText = isSavingPromo
+        ? editingPromoCode
+            ? `Сохраняем ${editingPromoCode}...`
+            : "Создаём промокод..."
+        : editingPromoCode
+            ? `Сохранить промокод ${editingPromoCode}`
+            : "Создать промокод"
+    const promoModalCancelText = editingPromoCode ? `Отмена: не менять ${editingPromoCode}` : "Отмена"
 
     const resetFilters = () => {
         setSearchValue("")
@@ -245,9 +264,7 @@ const PromoCodesPage = () => {
             render: (_, promo) => {
                 const isCurrentDeleting = deletingPromoId === promo.id
                 const isAnotherPromoDeleting = deletingPromoId !== null && !isCurrentDeleting
-                const promoStatusLabel = promoStatusLabels[getPromoLifecycleStatus(promo)]
-                const promoUsageContext = `${promo.usedCount ?? 0} из ${promo.usageLimit ?? "без лимита"}`
-                const promoContext = `«${promo.code}», ID ${promo.id}, ${promoStatusLabel}, использований ${promoUsageContext}`
+                const promoContext = getPromoActionContext(promo)
                 const rowActionBlockedReason = isPromoListUnsafe
                     ? isError
                         ? "Список промокодов не загружен. Повторите загрузку перед изменением маркетингового кода."
@@ -384,14 +401,15 @@ const PromoCodesPage = () => {
             </SettingsTableSection>
 
             <Modal
-                title={editing ? "Редактировать промокод" : "Создать промокод"}
+                title={promoModalTitle}
                 open={isOpen}
                 onCancel={() => {
                     if (!isSavingPromo) setIsOpen(false)
                 }}
                 onOk={savePromo}
                 confirmLoading={isSavingPromo}
-                okText={isSavingPromo ? "Сохраняем..." : editing ? "Сохранить" : "Создать"}
+                okText={promoModalOkText}
+                cancelText={promoModalCancelText}
                 cancelButtonProps={{disabled: isSavingPromo}}
                 maskClosable={!isSavingPromo}
                 keyboard={!isSavingPromo}
@@ -403,8 +421,8 @@ const PromoCodesPage = () => {
                         <Alert
                             type="info"
                             showIcon
-                            message="Сохраняем промокод"
-                            description="Не закрывайте окно и не меняйте условия акции до ответа API, чтобы в рассылку не ушёл частично сохранённый код."
+                            message={editingPromoCode ? `Сохраняем промокод ${editingPromoCode}` : "Создаём промокод"}
+                            description={editingPromoContext ? `Контекст: ${editingPromoContext}. Не закрывайте окно и не меняйте условия акции до ответа API, чтобы в рассылку не ушёл частично сохранённый код.` : "Не закрывайте окно и не меняйте условия акции до ответа API, чтобы в рассылку не ушёл частично сохранённый код."}
                         />
                     ) : null}
                     <Form form={form} layout="vertical" disabled={isSavingPromo}>
