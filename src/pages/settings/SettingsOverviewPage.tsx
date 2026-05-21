@@ -51,7 +51,9 @@ const SettingsOverviewPage = () => {
     const {data: statuses} = statusesQuery
     const {data: notifications} = notificationsQuery
     const setupQueries = [salesPointsQuery, storagesQuery, countriesQuery, statusesQuery, notificationsQuery]
-    const isLoadingSetup = setupQueries.some((query) => query.isLoading || query.isFetching)
+    const isInitialLoadingSetup = setupQueries.some((query) => query.isLoading)
+    const isRefreshingSetup = setupQueries.some((query) => query.isFetching && !query.isLoading)
+    const isCheckingSetup = isInitialLoadingSetup || isRefreshingSetup
     const hasSetupError = setupQueries.some((query) => query.isError)
 
     const countriesWithCities = (countries || []).filter((country) => (country.cities?.length || 0) > 0).length
@@ -134,11 +136,20 @@ const SettingsOverviewPage = () => {
                     showIcon
                     message="Не удалось проверить часть настроек"
                     description="Checklist может быть неполным: обновите данные перед запуском продаж или изменением операционных настроек."
-                    action={<Button size="small" icon={<ReloadOutlined />} loading={isLoadingSetup} onClick={handleRetry}>Повторить проверку</Button>}
+                    action={<Button size="small" icon={<ReloadOutlined />} loading={isCheckingSetup} onClick={handleRetry}>Повторить проверку</Button>}
                 />
             )}
 
-            {!isLoadingSetup && !hasSetupError && attentionItems.length > 0 && (
+            {isRefreshingSetup && !hasSetupError && (
+                <Alert
+                    type="info"
+                    showIcon
+                    message="Checklist настроек обновляется"
+                    description="Показываем предыдущую подтверждённую картину, пока API перепроверяет точки, склады, географию, статусы и уведомления. Перед запуском продаж дождитесь завершения проверки."
+                />
+            )}
+
+            {!isInitialLoadingSetup && !hasSetupError && attentionItems.length > 0 && (
                 <Alert
                     type="info"
                     showIcon
@@ -169,7 +180,7 @@ const SettingsOverviewPage = () => {
 
             <Row gutter={[16, 16]}>
                 <Col xs={24} lg={8}>
-                    <Card title="Готовность настроек" loading={isLoadingSetup && !hasSetupError}>
+                    <Card title="Готовность настроек" loading={isInitialLoadingSetup && !hasSetupError}>
                         <Progress type="dashboard" percent={progress} status={progressStatus} />
                         <Typography.Paragraph type="secondary" style={{marginTop: 16}}>
                             Цель — убрать блокеры запуска магазина: точка, склад, доставка, статусы, уведомления и Payme callback.
@@ -184,7 +195,7 @@ const SettingsOverviewPage = () => {
                 <Col xs={24} lg={16}>
                     <Card title="Что проверить перед продажами">
                         <List
-                            loading={isLoadingSetup && !hasSetupError}
+                            loading={isInitialLoadingSetup && !hasSetupError}
                             dataSource={checklist}
                             renderItem={(item) => {
                                 const status = getChecklistStatus(item)
