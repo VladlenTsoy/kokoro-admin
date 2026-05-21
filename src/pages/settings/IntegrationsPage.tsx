@@ -53,6 +53,8 @@ const providerLabel: Record<string, string> = {
     meta: "Meta / Facebook"
 }
 
+const getProviderDisplayName = (integration: IntegrationSetting) => integration.title || providerLabel[integration.providerKey] || integration.providerKey
+
 const getIntegrationAttentionReason = (integration: IntegrationSetting) => {
     if (integration.status === "billing_locked" || integration.billingStatus === "locked" || integration.billingStatus === "expired") {
         return "биллинг или доступ требуют проверки"
@@ -77,7 +79,7 @@ const UnsupportedIntegrationCard = ({integration}: {integration: IntegrationSett
     <Card
         title={
             <Space wrap>
-                <span>{integration.title || providerLabel[integration.providerKey] || integration.providerKey}</span>
+                <span>{getProviderDisplayName(integration)}</span>
                 <Tag color="default">Скоро</Tag>
             </Space>
         }
@@ -101,6 +103,11 @@ const DatraCard = ({integration, isListRefreshing}: {integration: IntegrationSet
     const locked = integration.status === "billing_locked"
     const mutationInProgress = isUpdating || isTesting
     const controlsLocked = mutationInProgress || isListRefreshing
+    const providerName = getProviderDisplayName(integration)
+    const integrationContext = `${providerName}: статус ${statusLabel[integration.status] || integration.status}, биллинг ${integration.billingStatus}, ${integration.configured ? "настроена" : "не настроена"}`
+    const toggleActionLabel = integration.enabled ? `Выключить интеграцию ${integrationContext}` : `Включить интеграцию ${integrationContext}`
+    const saveActionLabel = `Сохранить настройки интеграции ${integrationContext}`
+    const testActionLabel = `Проверить подключение интеграции ${integrationContext}`
 
     useEffect(() => {
         form.setFieldsValue({
@@ -160,7 +167,16 @@ const DatraCard = ({integration, isListRefreshing}: {integration: IntegrationSet
     return (
         <Card
             title={<Space><span>{integration.title}</span><Tag color={statusColor[integration.status]}>{statusLabel[integration.status]}</Tag></Space>}
-            extra={<Switch checked={integration.enabled} disabled={locked || !integration.configured || controlsLocked} loading={isUpdating} onChange={toggleEnabled} />}
+            extra={(
+                <Switch
+                    checked={integration.enabled}
+                    disabled={locked || !integration.configured || controlsLocked}
+                    loading={isUpdating}
+                    onChange={toggleEnabled}
+                    aria-label={toggleActionLabel}
+                    title={toggleActionLabel}
+                />
+            )}
         >
             {contextHolder}
             <Space direction="vertical" size={16} style={{width: "100%"}}>
@@ -249,7 +265,12 @@ const DatraCard = ({integration, isListRefreshing}: {integration: IntegrationSet
                             <Row gutter={[12, 12]}>
                                 {DATRA_SCOPES.map((scope) => (
                                     <Col xs={24} md={12} key={scope.value}>
-                                        <Checkbox value={scope.value} disabled={scope.value === "promotions" || scope.value === "loyalty"}>
+                                        <Checkbox
+                                            value={scope.value}
+                                            disabled={scope.value === "promotions" || scope.value === "loyalty"}
+                                            aria-label={`${providerName}: ${scope.label.toLowerCase()} — ${scope.description}${scope.value === "promotions" || scope.value === "loyalty" ? "; выключено для MVP" : ""}`}
+                                            title={`${providerName}: ${scope.label} — ${scope.description}${scope.value === "promotions" || scope.value === "loyalty" ? "; выключено для MVP" : ""}`}
+                                        >
                                             <Space direction="vertical" size={0}>
                                                 <span>{scope.label}</span>
                                                 <Typography.Text type="secondary" style={{fontSize: 12}}>{scope.description}</Typography.Text>
@@ -263,8 +284,8 @@ const DatraCard = ({integration, isListRefreshing}: {integration: IntegrationSet
                 </Form>
 
                 <Space wrap>
-                    <Button type="primary" onClick={saveSettings} loading={isUpdating} disabled={controlsLocked}>Сохранить настройки</Button>
-                    <Button onClick={runTest} loading={isTesting} disabled={!paid || controlsLocked}>Проверить</Button>
+                    <Button type="primary" onClick={saveSettings} loading={isUpdating} disabled={controlsLocked} aria-label={saveActionLabel} title={saveActionLabel}>Сохранить настройки</Button>
+                    <Button onClick={runTest} loading={isTesting} disabled={!paid || controlsLocked} aria-label={testActionLabel} title={testActionLabel}>Проверить</Button>
                 </Space>
 
                 {integration.lastError && <Alert type="error" showIcon message="Последняя ошибка" description={integration.lastError} />}
@@ -340,7 +361,7 @@ const IntegrationsPage = () => {
                                 <Space direction="vertical" size={4}>
                                     {attentionIntegrations.map(({integration, reason}) => (
                                         <Typography.Text key={integration.id}>
-                                            <Typography.Text strong>{integration.title || providerLabel[integration.providerKey] || integration.providerKey}</Typography.Text>: {reason}
+                                            <Typography.Text strong>{getProviderDisplayName(integration)}</Typography.Text>: {reason}
                                         </Typography.Text>
                                     ))}
                                 </Space>
