@@ -29,6 +29,14 @@ const formatSignedBonusAmount = (value?: number) => {
     return `${prefix}${value}`
 }
 
+const getClientOrderActionLabel = (order: AdminClientOrder, clientName?: string) => {
+    const orderName = order.orderNumber || `#${order.id}`
+    const statusLabel = order.status?.title || getDeliveryStatusMeta(order.deliveryStatus)?.label || "статус не указан"
+    const clientContext = clientName?.trim() ? ` клиента ${clientName.trim()}` : ""
+
+    return `Открыть заказ ${orderName}${clientContext}: ${statusLabel}, сумма ${formatMoney(order.total || 0)}`
+}
+
 const renderClientTabEmpty = (title: string, description: string) => (
     <Empty
         image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -304,7 +312,20 @@ const ClientsPage = () => {
             title: "Действие",
             key: "actions",
             width: 150,
-            render: (_, order) => <Button size="small" onClick={() => openClientOrder(order)}>Открыть заказ</Button>
+            render: (_, order) => {
+                const orderActionLabel = getClientOrderActionLabel(order, clientDetails?.name)
+
+                return (
+                    <Button
+                        size="small"
+                        onClick={() => openClientOrder(order)}
+                        aria-label={orderActionLabel}
+                        title={orderActionLabel}
+                    >
+                        Открыть заказ
+                    </Button>
+                )
+            }
         }
     ]
 
