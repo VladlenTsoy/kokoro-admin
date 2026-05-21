@@ -40,8 +40,16 @@ const SettingsTableSection = ({
     children
 }: SettingsTableSectionProps) => {
     const {styles} = useStyles()
+    const addButtonLabel = `${addButtonText}: ${title}`
     const addButton = (
-        <Button type="primary" icon={addButtonIcon} onClick={onAdd} disabled={addButtonDisabled}>
+        <Button
+            type="primary"
+            icon={addButtonIcon}
+            onClick={onAdd}
+            disabled={addButtonDisabled}
+            aria-label={addButtonLabel}
+            title={addButtonLabel}
+        >
             {addButtonText}
         </Button>
     )
