@@ -31,6 +31,14 @@ const discountTypeLabels: Record<PromoForm["discountType"], string> = {
     fixed: "Фиксированная сумма"
 }
 
+const promoStatusLabels: Record<Exclude<PromoStatusFilter, "all">, string> = {
+    active: "активен",
+    scheduled: "запланирован",
+    exhausted: "лимит исчерпан",
+    expired: "истёк",
+    disabled: "выключен"
+}
+
 const formatDateTime = (value?: string | null) => value ? dayjs(value).format("DD.MM.YYYY HH:mm") : "—"
 
 const getPromoLifecycleStatus = (promo: PromoCode): Exclude<PromoStatusFilter, "all"> => {
@@ -237,21 +245,46 @@ const PromoCodesPage = () => {
             render: (_, promo) => {
                 const isCurrentDeleting = deletingPromoId === promo.id
                 const isAnotherPromoDeleting = deletingPromoId !== null && !isCurrentDeleting
+                const promoStatusLabel = promoStatusLabels[getPromoLifecycleStatus(promo)]
+                const promoUsageContext = `${promo.usedCount ?? 0} из ${promo.usageLimit ?? "без лимита"}`
+                const promoContext = `«${promo.code}», ID ${promo.id}, ${promoStatusLabel}, использований ${promoUsageContext}`
+                const rowActionBlockedReason = isPromoListUnsafe
+                    ? isError
+                        ? "Список промокодов не загружен. Повторите загрузку перед изменением маркетингового кода."
+                        : "Проверяем актуальность промокодов. Изменения будут доступны после ответа API."
+                    : isAnotherPromoDeleting
+                        ? "Дождитесь завершения удаления другого промокода."
+                        : undefined
+                const editPromoLabel = `Редактировать промокод ${promoContext}`
+                const deletePromoLabel = isCurrentDeleting ? `Удаляем промокод ${promoContext}` : `Удалить промокод ${promoContext}`
 
                 return (
                     <Space wrap>
-                        <Button type="link" onClick={() => openEdit(promo)} disabled={isPromoListUnsafe || deletingPromoId !== null}>
+                        <Button
+                            type="link"
+                            onClick={() => openEdit(promo)}
+                            disabled={isPromoListUnsafe || deletingPromoId !== null}
+                            aria-label={editPromoLabel}
+                            title={rowActionBlockedReason || editPromoLabel}
+                        >
                             Редактировать
                         </Button>
                         <Popconfirm
-                            title="Удалить промокод?"
-                            description="Проверьте, что код не используется в активных маркетинговых коммуникациях."
+                            title={`Удалить промокод «${promo.code}»?`}
+                            description={`Контекст: ${promoContext}. Проверьте, что код не используется в активных маркетинговых коммуникациях.`}
                             okText={isCurrentDeleting ? "Удаляем..." : "Удалить"}
                             cancelText="Отмена"
                             okButtonProps={{loading: isCurrentDeleting, danger: true, disabled: isPromoListUnsafe}}
                             onConfirm={() => removePromo(promo.id)}
                         >
-                            <Button type="link" danger loading={isCurrentDeleting} disabled={isPromoListUnsafe || isAnotherPromoDeleting}>
+                            <Button
+                                type="link"
+                                danger
+                                loading={isCurrentDeleting}
+                                disabled={isPromoListUnsafe || isAnotherPromoDeleting}
+                                aria-label={deletePromoLabel}
+                                title={rowActionBlockedReason || deletePromoLabel}
+                            >
                                 {isCurrentDeleting ? "Удаляем..." : "Удалить"}
                             </Button>
                         </Popconfirm>
