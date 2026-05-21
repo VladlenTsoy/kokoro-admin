@@ -133,6 +133,17 @@ const ProductVariantStatusPage: React.FC = () => {
             width: 220,
             render: (_: unknown, record: ProductVariantStatusType) => {
                 const isCurrentStatusDeleting = deletingStatusId === record.id
+                const defaultStatusLabel = record.is_default ? "основной статус по умолчанию" : "не основной статус"
+                const positionLabel = record.position === null || record.position === undefined
+                    ? "позиция не задана"
+                    : `позиция ${record.position}`
+                const statusContext = `«${record.title}», ID ${record.id}, ${defaultStatusLabel}, ${positionLabel}`
+                const editStatusLabel = `Редактировать статус варианта ${statusContext}`
+                const deleteStatusLabel = isCurrentStatusDeleting
+                    ? `Удаляем статус варианта ${statusContext}`
+                    : `Удалить статус варианта ${statusContext}`
+                const editActionTitle = statusActionsDisabledReason || editStatusLabel
+                const deleteActionTitle = statusActionsDisabledReason || deleteStatusLabel
 
                 return (
                     <Space wrap>
@@ -144,18 +155,28 @@ const ProductVariantStatusPage: React.FC = () => {
                                 form.setFieldsValue(record)
                                 setIsModalOpen(true)
                             }}
+                            aria-label={editStatusLabel}
+                            title={editActionTitle}
                         >
                             Редактировать
                         </Button>
                         <Popconfirm
-                            title="Удалить статус варианта?"
-                            description="Перед удалением убедитесь, что этот статус не используется в активных вариантах товара и фильтрах каталога. Действие нельзя отменить из админки."
+                            title={`Удалить статус варианта «${record.title}»?`}
+                            description={`Статус ID ${record.id}: ${defaultStatusLabel}, ${positionLabel}. Перед удалением убедитесь, что он не используется в активных вариантах товара и фильтрах каталога. Действие нельзя отменить из админки.`}
                             okText={isCurrentStatusDeleting ? "Удаляем..." : "Удалить"}
                             cancelText="Отмена"
                             onConfirm={() => handleDelete(record.id)}
                             okButtonProps={{loading: isCurrentStatusDeleting}}
+                            disabled={areStatusActionsBlocked && !isCurrentStatusDeleting}
                         >
-                            <Button type="link" danger loading={isCurrentStatusDeleting} disabled={areStatusActionsBlocked && !isCurrentStatusDeleting}>
+                            <Button
+                                type="link"
+                                danger
+                                loading={isCurrentStatusDeleting}
+                                disabled={areStatusActionsBlocked && !isCurrentStatusDeleting}
+                                aria-label={deleteStatusLabel}
+                                title={deleteActionTitle}
+                            >
                                 {isCurrentStatusDeleting ? "Удаляем..." : "Удалить"}
                             </Button>
                         </Popconfirm>
