@@ -5,9 +5,13 @@ import {
     type FetchBaseQueryError
 } from "@reduxjs/toolkit/query/react"
 import {clearAuthData, setAuthData} from "../features/auth/authSlice.ts"
+import {adminEnvValidation} from "./adminEnvValidation.ts"
 
-const adminApiBaseUrl = import.meta.env.VITE_API_ADMIN_URL
-const publicApiBaseUrl = adminApiBaseUrl.replace(/\/admin\/?$/, "")
+const {
+    adminApiBaseUrl,
+    publicApiBaseUrl,
+    cdnUrl
+} = adminEnvValidation.values
 
 const adminBaseQuery = fetchBaseQuery({
     baseUrl: adminApiBaseUrl,
@@ -69,4 +73,4 @@ export const publicApiBaseQuery = fetchBaseQuery({baseUrl: publicApiBaseUrl})
 
 export const adminApiUrl = adminApiBaseUrl
 export const publicApiUrl = publicApiBaseUrl
-export const domainUrlForImage = import.meta.env.VITE_CDN_URL
+export const domainUrlForImage = cdnUrl
