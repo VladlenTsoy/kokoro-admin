@@ -323,7 +323,14 @@ const OrdersPage = () => {
     } = useGetOrderByIdQuery(selectedOrderId ?? 0, {
         skip: !selectedOrderId
     })
-    const {data: orderHistory} = useGetOrderHistoryQuery(selectedOrderId ?? 0, {
+    const {
+        data: orderHistory,
+        isLoading: isHistoryLoading,
+        isFetching: isHistoryFetching,
+        isError: isHistoryError,
+        isSuccess: isHistorySuccess,
+        refetch: refetchOrderHistory
+    } = useGetOrderHistoryQuery(selectedOrderId ?? 0, {
         skip: !selectedOrderId
     })
     const [updateOrder, {isLoading: isUpdatingOrder}] = useUpdateOrderMutation()
@@ -371,7 +378,11 @@ const OrdersPage = () => {
             : currentItems.find((order) => order.id === currentActionOrderId),
         [currentActionOrderId, currentItems, selectedOrder]
     )
-    const selectedOrderHistory = orderHistory || selectedOrder?.histories || []
+    const embeddedOrderHistory = selectedOrder?.histories || []
+    const hasLoadedOrderHistory = Array.isArray(orderHistory)
+    const selectedOrderHistory = hasLoadedOrderHistory ? orderHistory : embeddedOrderHistory
+    const isUsingEmbeddedHistoryFallback = !hasLoadedOrderHistory && embeddedOrderHistory.length > 0
+    const isConfirmedEmptyHistory = isHistorySuccess && hasLoadedOrderHistory && orderHistory.length === 0
     const selectedOrderActionContext = selectedOrder ? getOrderActionContext(selectedOrder) : undefined
 
     useEffect(() => {
@@ -1295,26 +1306,64 @@ const OrdersPage = () => {
                                             </Button>
                                         ) : null}
                                     >
-                                        {selectedOrderHistory.length ? (
-                                            <Timeline
-                                                items={selectedOrderHistory.map((item) => ({
-                                                    children: (
-                                                        <div>
-                                                            <Typography.Text>{getHistoryDate(item) ? dayjs(getHistoryDate(item)).format("DD.MM.YYYY HH:mm") : "—"}</Typography.Text>
-                                                            <div>{getHistoryStatusTitle(item, "from")} → {getHistoryStatusTitle(item, "to")}</div>
-                                                            {item.changedBy && <Typography.Text type="secondary">{item.changedBy}</Typography.Text>}
-                                                            {item.comment && <div><Typography.Text type="secondary">{item.comment}</Typography.Text></div>}
-                                                        </div>
-                                                    )
-                                                }))}
-                                            />
-                                        ) : (
+                                        <Space direction="vertical" size={12} style={{width: "100%"}}>
+                                            {isHistoryLoading && !selectedOrderHistory.length && (
+                                                <Alert
+                                                    type="info"
+                                                    showIcon
+                                                    message="Загружаем историю событий"
+                                                    description="Статус заказа и комментарии доступны, пока журнал подтягивается отдельно."
+                                                />
+                                            )}
+                                            {isHistoryFetching && selectedOrderHistory.length > 0 && !isHistoryError && (
+                                                <Alert
+                                                    type="info"
+                                                    showIcon
+                                                    message="Обновляем историю событий"
+                                                    description="Показываем текущий журнал, пока проверяем последние изменения."
+                                                />
+                                            )}
+                                            {isHistoryError && (
+                                                <Alert
+                                                    type={selectedOrderHistory.length ? "warning" : "error"}
+                                                    showIcon
+                                                    message={selectedOrderHistory.length ? "Не удалось обновить историю событий" : "Не удалось загрузить историю событий"}
+                                                    description={selectedOrderHistory.length
+                                                        ? "Ниже показана история из карточки заказа. Действия со статусом и комментариями остаются доступны."
+                                                        : "Повторите загрузку истории. Действия со статусом и комментариями остаются доступны."}
+                                                    action={<Button size="small" onClick={() => refetchOrderHistory()}>Повторить</Button>}
+                                                />
+                                            )}
+                                            {isUsingEmbeddedHistoryFallback && !isHistoryError && (
+                                                <Alert
+                                                    type="warning"
+                                                    showIcon
+                                                    message="Показываем историю из карточки заказа"
+                                                    description="Отдельный журнал событий ещё не подтвердил актуальные записи."
+                                                />
+                                            )}
+                                            {selectedOrderHistory.length > 0 && (
+                                                <Timeline
+                                                    items={selectedOrderHistory.map((item) => ({
+                                                        children: (
+                                                            <div>
+                                                                <Typography.Text>{getHistoryDate(item) ? dayjs(getHistoryDate(item)).format("DD.MM.YYYY HH:mm") : "—"}</Typography.Text>
+                                                                <div>{getHistoryStatusTitle(item, "from")} → {getHistoryStatusTitle(item, "to")}</div>
+                                                                {item.changedBy && <Typography.Text type="secondary">{item.changedBy}</Typography.Text>}
+                                                                {item.comment && <div><Typography.Text type="secondary">{item.comment}</Typography.Text></div>}
+                                                            </div>
+                                                        )
+                                                    }))}
+                                                />
+                                            )}
+                                        </Space>
+                                        {isConfirmedEmptyHistory && (
                                             <Empty
                                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                                                 description="История пока пуста"
                                             >
                                                 <Typography.Text type="secondary">
-                                                    После смены статуса или комментария здесь появится журнал действий, чтобы менеджер видел контекст передачи заказа.
+                                                    Журнал событий загружен: смен статуса и комментариев по этому заказу ещё нет.
                                                 </Typography.Text>
                                             </Empty>
                                         )}
