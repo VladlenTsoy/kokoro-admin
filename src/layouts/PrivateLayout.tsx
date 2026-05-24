@@ -3,7 +3,7 @@ import {setEmployee, useSelectedAuthData} from "../features/auth/authSlice.ts"
 import {useGetMeQuery} from "../features/admin/authApi.ts"
 import {useDispatch} from "../features/store.ts"
 import {useEffect} from "react"
-import {Spin} from "antd"
+import AuthGateLoading from "../components/AuthGateLoading.tsx"
 
 const PrivateLayout = () => {
     const dispatch = useDispatch()
@@ -25,7 +25,7 @@ const PrivateLayout = () => {
     }
 
     if ((!employee || !hasPermissionSnapshot) && isLoading) {
-        return <Spin fullscreen />
+        return <AuthGateLoading />
     }
 
     return <Outlet />
