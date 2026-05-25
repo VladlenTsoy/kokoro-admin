@@ -1,4 +1,8 @@
 body {
+    --kokoro-brand: #B1E81C;
+    --kokoro-surface-border: rgba(54, 58, 66, 0.08);
+    --kokoro-shadow-card: 0 12px 34px rgba(15, 23, 42, 0.045);
+    --kokoro-shadow-work: 0 12px 38px rgba(15, 23, 42, 0.055);
     transition: background-color 220ms ease, color 220ms ease;
 }
 
@@ -10,6 +14,10 @@ body[data-theme="light"] {
 }
 
 body[data-theme="dark"] {
+    --kokoro-brand: #C5FF3E;
+    --kokoro-surface-border: rgba(132, 161, 196, 0.16);
+    --kokoro-shadow-card: 0 14px 42px rgba(0, 0, 0, 0.18);
+    --kokoro-shadow-work: 0 14px 42px rgba(0, 0, 0, 0.18);
     background:
         radial-gradient(circle at 8% 8%, rgba(197, 255, 62, 0.10), transparent 24%),
         radial-gradient(circle at 92% 0%, rgba(125, 211, 252, 0.12), transparent 28%),
@@ -37,7 +45,8 @@ body[data-theme="dark"] .ant-layout-footer {
     transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
 }
 
-.ant-card:hover {
+.metric-card[role="button"]:hover,
+.admin-clickable-card:hover {
     transform: translateY(-1px);
 }
 
@@ -125,11 +134,11 @@ body[data-theme="dark"] .ant-layout-footer {
 
 .metric-card {
     min-height: 128px;
-    border: 1px solid rgba(54, 58, 66, 0.08);
+    border: 1px solid var(--kokoro-surface-border);
     overflow: hidden;
     background:
         linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.92));
-    box-shadow: 0 12px 34px rgba(15, 23, 42, 0.045);
+    box-shadow: var(--kokoro-shadow-card);
 }
 
 .metric-card .ant-card-body {
@@ -211,8 +220,22 @@ body[data-theme="dark"] .ant-layout-footer {
 .workflow-card,
 .timeline-card,
 .next-action-card {
-    border: 1px solid rgba(54, 58, 66, 0.08);
-    box-shadow: 0 12px 38px rgba(15, 23, 42, 0.055);
+    border: 1px solid var(--kokoro-surface-border);
+    box-shadow: var(--kokoro-shadow-work);
+}
+
+.admin-card--compact .ant-card-body,
+.filter-card.admin-card--compact .ant-card-body,
+.priority-queue-card.admin-card--compact .ant-card-body {
+    padding: 14px 16px;
+}
+
+.admin-card--critical {
+    border-color: rgba(207, 19, 34, 0.24);
+}
+
+.admin-card--work-surface {
+    border-color: rgba(54, 58, 66, 0.1);
 }
 
 .admin-section-card {
@@ -254,7 +277,11 @@ body[data-theme="dark"] .ant-layout-footer {
 }
 
 .table-row-alert > td {
-    background: rgba(255, 241, 240, 0.62) !important;
+    background: rgba(255, 241, 240, 0.45) !important;
+}
+
+.table-row-alert > td:first-child {
+    box-shadow: inset 4px 0 0 #ff4d4f;
 }
 
 .drawer-command-card {
@@ -262,6 +289,29 @@ body[data-theme="dark"] .ant-layout-footer {
         linear-gradient(135deg, rgba(177, 232, 28, 0.15), transparent 38%),
         linear-gradient(180deg, #ffffff, #fbfcfd);
 }
+
+.priority-queue-card {
+    background:
+        linear-gradient(135deg, rgba(177, 232, 28, 0.10), transparent 32%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+}
+
+.priority-queue-card .ant-card-head {
+    min-height: 48px;
+    border-bottom-color: rgba(54, 58, 66, 0.06);
+}
+
+.priority-queue-strip .ant-btn {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.priority-queue-meta {
+    min-height: 24px;
+}
+
 
 .workflow-card .ant-tag {
     padding: 6px 10px;
@@ -299,9 +349,28 @@ body[data-theme="dark"] .ant-layout-footer {
 }
 
 @media (max-width: 767px) {
+    .admin-hero-card .ant-card-body {
+        padding: 16px;
+    }
+
+    .metric-card {
+        min-height: 104px;
+    }
+
     .order-drawer-actions {
         justify-content: flex-end;
         max-width: 180px;
+    }
+}
+
+@media (max-width: 680px) {
+    .orders-table-card .ant-table,
+    .clients-table-card .ant-table {
+        font-size: 13px;
+    }
+
+    .filter-card .ant-space {
+        row-gap: 8px;
     }
 }
 
@@ -344,7 +413,11 @@ body[data-theme="dark"] .admin-section-card .ant-card-head {
 }
 
 body[data-theme="dark"] .table-row-alert > td {
-    background: rgba(127, 29, 29, 0.24) !important;
+    background: rgba(127, 29, 29, 0.20) !important;
+}
+
+body[data-theme="dark"] .table-row-alert > td:first-child {
+    box-shadow: inset 4px 0 0 #ff7875;
 }
 
 body[data-theme="dark"] .clients-table-card .ant-table-row:hover td,

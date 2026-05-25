@@ -345,6 +345,8 @@ const ClientsPage = () => {
         <Space direction="vertical" size={18} style={{width: "100%"}}>
             <Card className="admin-hero-card clients-hero">
                 <PageHeading
+                    size="hero"
+                    eyebrow="Client CRM"
                     title="Клиенты"
                     subtitle="CRM-вид: быстро найти человека, увидеть ценность клиента и открыть историю без ощущения сырой таблицы."
                 />
@@ -361,11 +363,11 @@ const ClientsPage = () => {
                     <Card className="metric-card metric-card--blue"><Statistic prefix={<ShoppingOutlined />} title="С покупками" value={buyersOnPage} loading={isLoading} /></Card>
                 </Col>
                 <Col xs={24} md={12} xl={6}>
-                    <Card className="metric-card metric-card--money"><Statistic prefix={<CrownOutlined />} title="Оборот страницы" value={formatMoney(totalSpentOnPage)} loading={isLoading} /></Card>
+                    <Card className="metric-card metric-card--money"><Statistic prefix={<CrownOutlined />} title="Сумма текущей страницы" value={formatMoney(totalSpentOnPage)} loading={isLoading} /></Card>
                 </Col>
             </Row>
 
-            <Card className="filter-card">
+            <Card className="filter-card admin-card--compact">
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Space wrap align="center" size={[12, 12]}>
                         <Input.Search
@@ -409,7 +411,7 @@ const ClientsPage = () => {
                 </Space>
             </Card>
 
-            <Card className="admin-table-card clients-table-card">
+            <Card className="admin-table-card admin-card--work-surface clients-table-card">
                 {clientsError && (
                     <Alert
                         type="warning"

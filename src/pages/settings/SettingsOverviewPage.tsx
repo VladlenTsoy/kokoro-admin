@@ -95,6 +95,7 @@ const SettingsOverviewPage = () => {
     return (
         <Space direction="vertical" size={18} style={{width: "100%"}}>
             <PageHeading
+                size="compact"
                 eyebrow="Launch checklist"
                 title="Запуск магазина"
                 subtitle="Практический checklist настроек, без enterprise-конфигуратора и без дубля Datra."

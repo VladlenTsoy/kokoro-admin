@@ -842,6 +842,8 @@ const OrdersPage = () => {
         <Space direction="vertical" size={18} style={{width: "100%"}}>
             <Card className="admin-hero-card orders-hero">
                 <PageHeading
+                    size="hero"
+                    eyebrow="Calm operations"
                     title="Today Order Desk"
                     subtitle="Операционный центр заказов: быстрые фильтры, красные риски и следующий шаг без чтения всей таблицы."
                 />
@@ -857,15 +859,15 @@ const OrdersPage = () => {
                 </Space>
             </Card>
 
-            <Card className="filter-card">
-                <Space direction="vertical" size={12} style={{width: "100%"}}>
+            <Card className="filter-card admin-card--compact">
+                <Space direction="vertical" size={8} style={{width: "100%"}}>
                     <Space wrap align="center">
                         <Badge status={liveAlertsEnabled ? "processing" : "default"} text="Live Ops Alert" />
                         <Checkbox checked={liveAlertsEnabled} onChange={(event) => handleLiveAlertsChange(event.target.checked)}>
                             Звук и desktop-уведомления включены
                         </Checkbox>
                         <Typography.Text type="secondary">
-                            Заказы и summary обновляются автоматически каждые 30 секунд. Последнее успешное обновление: {lastSuccessfulRefreshAt ? dayjs(lastSuccessfulRefreshAt).format("DD.MM HH:mm:ss") : "ещё не было"}.
+                            Автообновление: 30 сек. Последнее успешное обновление: {lastSuccessfulRefreshAt ? dayjs(lastSuccessfulRefreshAt).format("DD.MM HH:mm:ss") : "ещё не было"}.
                         </Typography.Text>
                         <Typography.Text type="secondary">
                             Уведомления не содержат ФИО или телефон клиента.
@@ -919,8 +921,8 @@ const OrdersPage = () => {
                 </Col>
             </Row>
 
-            <Card className="filter-card">
-                <Space direction="vertical" size={14} style={{width: "100%"}}>
+            <Card className="filter-card admin-card--compact">
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Space wrap>
                         <Button type={filters.from && filters.to ? "primary" : "default"} onClick={setTodayFilters}>Сегодня</Button>
                         <Button onClick={() => setDeliveryFilter("pending")}>Новые</Button>
@@ -1005,7 +1007,7 @@ const OrdersPage = () => {
             </Card>
 
             <Card
-                className="admin-table-card orders-table-card"
+                className="admin-table-card admin-card--work-surface orders-table-card"
                 extra={(
                     <Typography.Text type="secondary">
                         {isFetching
@@ -1031,6 +1033,7 @@ const OrdersPage = () => {
                     loading={isLoading}
                     dataSource={currentItems}
                     columns={orderColumns}
+                    size="small"
                     scroll={{x: 1600}}
                     rowClassName={(order) => getOrderBadges(order).some((badge) => badge.color === "red" || badge.color === "volcano") ? "table-row-alert" : ""}
                     locale={{
