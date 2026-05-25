@@ -60,13 +60,22 @@ const LeftSidebar = () => {
         navigate(-1)
     }
 
+    const screenTitle = params.isColor ? "Добавить цвет" : params?.id ? `Редактировать товар #${params.id}` : "Добавить товар"
+    const backActionLabel = `Вернуться назад из редактора каталога: ${screenTitle}`
+
     return (
         <div className={styles.content}>
             <Card>
                 <Space size="middle" style={{marginBottom: 2}}>
-                    <Button onClick={onClickToBack} shape="circle" icon={<LeftOutlined />} />
+                    <Button
+                        onClick={onClickToBack}
+                        shape="circle"
+                        icon={<LeftOutlined />}
+                        aria-label={backActionLabel}
+                        title={backActionLabel}
+                    />
                     <Title level={3}
-                           style={{marginBottom: 2}}>{params.isColor ? "Добавить цвет" : params?.id ? "Редактировать" : "Добавить товар"}</Title>
+                           style={{marginBottom: 2}}>{screenTitle}</Title>
                 </Space>
                 <Divider size="small" />
                 <NavigationSection />

@@ -81,7 +81,6 @@ const getCatalogReadinessSummary = (items: ProductType[]) => {
 const ProductList = () => {
     const {styles} = useStyles()
     const {params, updateParams} = useGetParams()
-    const columns = useProductColumns()
     const {current, pageSize} = params.pagination
     const {isLoading, isFetching, isError, data, refetch} = useGetProductsQuery({
         page: current,
@@ -96,6 +95,20 @@ const ProductList = () => {
         sortField: params.sorter.field,
         sortOrder: params.sorter.order
     }, {refetchOnMountOrArgChange: true})
+    const isProductListUnsafe = isLoading || isFetching || isError || !data
+    const productActionsDisabledReason = isLoading
+        ? "Дождитесь первой загрузки каталога перед изменением товара."
+        : isFetching
+            ? "Каталог обновляется. Дождитесь свежего списка перед изменением товара, цены или остатка."
+            : isError
+                ? "Каталог не подтверждён API. Повторите загрузку перед изменением товара."
+                : !data
+                    ? "Список товаров ещё не подтверждён API. Обновите каталог перед изменениями."
+                    : undefined
+    const columns = useProductColumns({
+        actionsDisabled: isProductListUnsafe,
+        actionsDisabledReason: productActionsDisabledReason
+    })
     const activeFiltersCount = getActiveFiltersCount(params)
     const hasActiveFilters = activeFiltersCount > 0
     const productItems = data?.items || []
@@ -163,6 +176,15 @@ const ProductList = () => {
                                 Повторить
                             </Button>
                         )}
+                    />
+                )}
+                {!isError && isFetching && !isLoading && productItems.length > 0 && (
+                    <Alert
+                        className={styles.alert}
+                        type="info"
+                        showIcon
+                        message="Каталог обновляется в фоне"
+                        description="Пока идёт проверка свежести списка, редактирование и удаление товаров временно заблокированы, чтобы менеджер не изменил устаревшие цены, остатки или публикацию."
                     />
                 )}
                 {!isError && !isLoading && productItems.length > 0 && readinessSummary.hasWarnings && (

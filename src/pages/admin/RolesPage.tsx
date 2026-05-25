@@ -13,6 +13,7 @@ import type {PermissionAction, PermissionCatalogModule, PermissionCode, Role} fr
 import {useCan} from "../../features/auth/permissions.ts"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 import {getApiStatusCode} from "../../utils/getApiStatusCode.ts"
+import {isAntdFormValidationError} from "../../utils/isAntdFormValidationError.ts"
 import PageHeading from "../../components/PageHeading.tsx"
 
 interface RoleFormValues {
@@ -119,10 +120,19 @@ const PermissionMatrix = ({catalog, selectedPermissions, onToggle, disabled = fa
                             return <Typography.Text type="secondary">—</Typography.Text>
                         }
 
+                        const isChecked = selectedPermissions.includes(permission.code) || (action !== "manage" && isManageSelected)
+                        const isDisabled = disabled || (action !== "manage" && isManageSelected)
+                        const permissionActionLabel = ACTION_LABELS[action].toLowerCase()
+                        const permissionLabel = isManageSelected && action !== "manage"
+                            ? `${permissionActionLabel} модуля «${module.title}» уже покрыт полным доступом; код ${permission.code}`
+                            : `${isChecked ? "Отключить" : "Включить"} ${permissionActionLabel} для модуля «${module.title}»; код ${permission.code}`
+
                         return (
                             <Checkbox
-                                checked={selectedPermissions.includes(permission.code) || (action !== "manage" && isManageSelected)}
-                                disabled={disabled || (action !== "manage" && isManageSelected)}
+                                checked={isChecked}
+                                disabled={isDisabled}
+                                aria-label={permissionLabel}
+                                title={permissionLabel}
                                 onChange={() => onToggle(permission.code)}
                             />
                         )
@@ -134,10 +144,11 @@ const PermissionMatrix = ({catalog, selectedPermissions, onToggle, disabled = fa
 }
 
 const RolesPage = () => {
-    const {data, isLoading, error, refetch: refetchRoles} = useGetRolesQuery()
+    const {data, isLoading, isFetching, error, refetch: refetchRoles} = useGetRolesQuery()
     const {
         data: permissionCatalog,
         isLoading: isPermissionCatalogLoading,
+        isFetching: isPermissionCatalogFetching,
         error: permissionCatalogError,
         refetch: refetchPermissionCatalog
     } = useGetRolePermissionsQuery()
@@ -153,7 +164,17 @@ const RolesPage = () => {
     const [roleStatusFilter, setRoleStatusFilter] = useState<RoleStatusFilter>("all")
     const [form] = Form.useForm<RoleFormValues>()
     const isSavingRole = isCreating || isUpdating
+    const isRoleListConfirmed = Boolean(data) && !isLoading && !isFetching && !error
+    const isPermissionCatalogConfirmed = Boolean(permissionCatalog) && !isPermissionCatalogLoading && !isPermissionCatalogFetching && !permissionCatalogError
+    const canMutateRoles = canManageStaff && isRoleListConfirmed && isPermissionCatalogConfirmed
     const isRoleMutationInFlight = isSavingRole || Boolean(deletingRoleId)
+    const roleCreateDisabledReason = !canManageStaff
+        ? "Создавать роли может только сотрудник с правом staff.manage."
+        : !isRoleListConfirmed || !isPermissionCatalogConfirmed
+            ? "Дождитесь подтверждённой загрузки ролей и матрицы permissions перед созданием первой роли."
+            : isRoleMutationInFlight
+                ? "Дождитесь завершения текущего сохранения или удаления роли."
+                : null
     const selectedPermissions = Form.useWatch("permissions", form) ?? []
     const selectedManagePermissions = selectedPermissions.filter((permission) => permission.endsWith(".manage"))
     const selectedDeletePermissions = selectedPermissions.filter((permission) => permission.endsWith(".delete"))
@@ -188,12 +209,20 @@ const RolesPage = () => {
     }
 
     const openCreate = () => {
+        if (!canMutateRoles || isRoleMutationInFlight) {
+            return
+        }
+
         setEditingRole(null)
         form.setFieldsValue({code: "", name: "", isActive: true, permissions: []})
         setIsDrawerOpen(true)
     }
 
     const openEdit = (role: Role) => {
+        if (!canMutateRoles || isRoleMutationInFlight) {
+            return
+        }
+
         setEditingRole(role)
         form.setFieldsValue({
             code: role.code,
@@ -228,6 +257,10 @@ const RolesPage = () => {
 
             closeDrawer()
         } catch (error) {
+            if (isAntdFormValidationError(error)) {
+                return
+            }
+
             const errorMessage = getNestErrorMessage(error)
             if (errorMessage.includes("Unknown permission code")) {
                 refetchPermissionCatalog()
@@ -237,6 +270,10 @@ const RolesPage = () => {
     }
 
     const handleDelete = async (role: Role) => {
+        if (!canMutateRoles || isRoleMutationInFlight) {
+            return
+        }
+
         setDeletingRoleId(role.id)
 
         try {
@@ -248,6 +285,22 @@ const RolesPage = () => {
             setDeletingRoleId(null)
         }
     }
+
+    const editingRoleStatusLabel = editingRole?.isActive ? "активна" : "отключена"
+    const editingRolePermissionCount = editingRole?.permissions?.length ?? 0
+    const roleDrawerTitle = editingRole
+        ? `Редактирование роли «${editingRole.name}» (${editingRole.code}), ID ${editingRole.id}, ${editingRoleStatusLabel}, доступов: ${editingRolePermissionCount}`
+        : "Создание роли: проверьте код, название и минимальные permissions"
+    const roleSaveButtonText = editingRole
+        ? isSavingRole
+            ? `Сохраняем роль «${editingRole.name}»…`
+            : `Сохранить роль «${editingRole.name}»`
+        : isSavingRole
+            ? "Создаём роль…"
+            : "Создать роль"
+    const roleCancelLabel = editingRole
+        ? `Отменить редактирование роли «${editingRole.name}» (${editingRole.code})`
+        : "Отменить создание роли"
 
     const columns: ColumnsType<Role> = [
         {title: "ID", dataIndex: "id", width: 70},
@@ -275,21 +328,45 @@ const RolesPage = () => {
                 render: (_: unknown, role: Role) => {
                     const isCurrentRoleDeleting = deletingRoleId === role.id
                     const isAnotherRoleDeleting = Boolean(deletingRoleId && !isCurrentRoleDeleting)
+                    const areRoleActionsDisabled = !canMutateRoles || isSavingRole || isCurrentRoleDeleting || isAnotherRoleDeleting
+                    const roleStatusLabel = role.isActive ? "активна" : "отключена"
+                    const permissionsCount = role.permissions?.length ?? 0
+                    const roleActionContext = `роль ${role.name} (${role.code}), ${roleStatusLabel}, доступов: ${permissionsCount}`
+                    const editRoleLabel = `Редактировать ${roleActionContext}`
+                    const deleteRoleLabel = `Удалить ${roleActionContext}`
+                    const mutationBlockedReason = !canMutateRoles
+                        ? "Дождитесь подтверждённой загрузки ролей и матрицы permissions перед изменением доступа."
+                        : isSavingRole
+                            ? "Дождитесь завершения сохранения роли."
+                            : isAnotherRoleDeleting
+                                ? "Дождитесь завершения удаления другой роли."
+                                : undefined
 
                     return (
                         <Space>
-                            <Button disabled={isCurrentRoleDeleting || isAnotherRoleDeleting} onClick={() => openEdit(role)}>
+                            <Button
+                                disabled={areRoleActionsDisabled}
+                                onClick={() => openEdit(role)}
+                                aria-label={editRoleLabel}
+                                title={mutationBlockedReason || editRoleLabel}
+                            >
                                 Редактировать
                             </Button>
                             <Popconfirm
-                                title="Удалить роль?"
+                                title={`Удалить роль ${role.name}?`}
                                 description="Удаление может сломать доступ сотрудников, если роль уже используется. Для временного ограничения безопаснее отключить роль."
                                 okText="Удалить"
                                 cancelText="Отмена"
                                 onConfirm={() => handleDelete(role)}
                                 okButtonProps={{loading: isCurrentRoleDeleting}}
                             >
-                                <Button danger loading={isCurrentRoleDeleting} disabled={isAnotherRoleDeleting}>
+                                <Button
+                                    danger
+                                    loading={isCurrentRoleDeleting}
+                                    disabled={!canMutateRoles || isSavingRole || isAnotherRoleDeleting}
+                                    aria-label={deleteRoleLabel}
+                                    title={mutationBlockedReason || deleteRoleLabel}
+                                >
                                     Удалить
                                 </Button>
                             </Popconfirm>
@@ -306,7 +383,7 @@ const RolesPage = () => {
                 title="Роли"
                 subtitle="Управление ролями, статусами и матрицей доступов."
                 extra={canManageStaff ? (
-                    <Button type="primary" disabled={isRoleMutationInFlight} onClick={openCreate}>
+                    <Button type="primary" disabled={!canMutateRoles || isRoleMutationInFlight} onClick={openCreate}>
                         Создать роль
                     </Button>
                 ) : null}
@@ -338,6 +415,20 @@ const RolesPage = () => {
                             message="Матрица доступов недоступна"
                             description="Без каталога permissions менеджер может видеть только коды доступов. Изменения ролей лучше отложить до восстановления справочника."
                             action={<Button onClick={() => refetchPermissionCatalog()}>Повторить</Button>}
+                        />
+                    ) : null}
+                    {canManageStaff && !canMutateRoles ? (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            message="Изменение ролей временно заблокировано"
+                            description="Дождитесь подтверждённой загрузки списка ролей и матрицы permissions или повторите загрузку. Это защищает staff-доступы от правок по устаревшей таблице."
+                            action={(
+                                <Space wrap>
+                                    <Button onClick={() => refetchRoles()}>Обновить роли</Button>
+                                    <Button onClick={() => refetchPermissionCatalog()}>Обновить permissions</Button>
+                                </Space>
+                            )}
                         />
                     ) : null}
                     <Alert
@@ -380,7 +471,7 @@ const RolesPage = () => {
                     ) : null}
                     <Table<Role>
                         rowKey="id"
-                        loading={isLoading || isPermissionCatalogLoading}
+                        loading={isLoading || isFetching || isPermissionCatalogLoading || isPermissionCatalogFetching}
                         columns={columns}
                         dataSource={filteredRoles}
                         pagination={false}
@@ -393,7 +484,24 @@ const RolesPage = () => {
                                         ? "По выбранным фильтрам роли не найдены. Сбросьте поиск и статус перед созданием новой роли, чтобы избежать дублей."
                                         : "Роли ещё не настроены. Создайте первую роль и выдайте только необходимые доступы для работы смены."}
                                 >
-                                    {hasRoleFilters ? <Button onClick={() => { setRoleSearch(""); setRoleStatusFilter("all") }}>Сбросить фильтры</Button> : null}
+                                    {hasRoleFilters ? (
+                                        <Button onClick={() => { setRoleSearch(""); setRoleStatusFilter("all") }}>Сбросить фильтры</Button>
+                                    ) : canManageStaff ? (
+                                        <Space direction="vertical" size={8} align="center">
+                                            <Button
+                                                type="primary"
+                                                disabled={Boolean(roleCreateDisabledReason)}
+                                                onClick={openCreate}
+                                            >
+                                                Создать первую роль
+                                            </Button>
+                                            {roleCreateDisabledReason ? (
+                                                <Typography.Text type="secondary">
+                                                    {roleCreateDisabledReason}
+                                                </Typography.Text>
+                                            ) : null}
+                                        </Space>
+                                    ) : null}
                                 </Empty>
                             )
                         }}
@@ -402,7 +510,7 @@ const RolesPage = () => {
             </Card>
 
             <Drawer
-                title={editingRole ? "Редактирование роли" : "Создание роли"}
+                title={roleDrawerTitle}
                 open={isDrawerOpen}
                 onClose={closeDrawer}
                 width="min(920px, 100vw)"
@@ -411,9 +519,9 @@ const RolesPage = () => {
                 closable={!isSavingRole}
                 extra={(
                     <Space>
-                        <Button disabled={isSavingRole} onClick={closeDrawer}>Отмена</Button>
-                        <Button type="primary" loading={isSavingRole} onClick={handleSubmit}>
-                            {isSavingRole ? "Сохраняем…" : "Сохранить"}
+                        <Button disabled={isSavingRole} onClick={closeDrawer} aria-label={roleCancelLabel} title={roleCancelLabel}>Отмена</Button>
+                        <Button type="primary" loading={isSavingRole} onClick={handleSubmit} aria-label={roleSaveButtonText} title={roleSaveButtonText}>
+                            {roleSaveButtonText}
                         </Button>
                     </Space>
                 )}
@@ -460,7 +568,7 @@ const RolesPage = () => {
                             type="info"
                             showIcon
                             style={{marginBottom: 16}}
-                            message="Сохраняем роль"
+                            message={editingRole ? `Сохраняем роль «${editingRole.name}» (${editingRole.code})` : "Создаём роль"}
                             description="Поля и матрица доступов временно заблокированы, чтобы не отправить смешанные права или повторный запрос. Дождитесь ответа API."
                         />
                     ) : null}

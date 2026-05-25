@@ -17,6 +17,14 @@ const HeaderProfile = () => {
     const [logout, {isLoading: isLoggingOut}] = useLogoutMutation()
     const [form] = Form.useForm<{currentPassword: string; newPassword: string; confirmPassword: string}>()
 
+    const profileName = employee ? `${employee.firstName} ${employee.lastName}`.trim() || employee.email : "Профиль сотрудника"
+    const roleSummary = employee?.roles?.length
+        ? employee.roles.map((role) => role.name || role.code).join(", ")
+        : "роли не назначены"
+    const profileActionLabel = employee
+        ? `Открыть меню профиля: ${profileName}, ${employee.email}, роли: ${roleSummary}`
+        : "Открыть меню профиля"
+
     const handleLogout = async () => {
         try {
             if (refreshToken) {
@@ -59,9 +67,9 @@ const HeaderProfile = () => {
 
     const confirmLogout = () => {
         Modal.confirm({
-            title: "Выйти из админ-панели?",
+            title: `Выйти из аккаунта ${profileName}?`,
             icon: <ExclamationCircleOutlined />,
-            content: "Проверьте, что текущие правки в формах сохранены. После выхода для продолжения работы потребуется снова войти в аккаунт.",
+            content: `Аккаунт: ${employee?.email || "email не указан"}. Проверьте, что текущие правки в формах сохранены. После выхода для продолжения работы потребуется снова войти в аккаунт.`,
             okText: "Выйти",
             okButtonProps: {danger: true},
             cancelText: "Остаться",
@@ -87,16 +95,21 @@ const HeaderProfile = () => {
     return (
         <>
             <Dropdown menu={{items: menuItems, onClick: onMenuClick}} trigger={["click"]}>
-                <Button loading={isLoggingOut} size="large">
+                <Button
+                    aria-label={profileActionLabel}
+                    title={profileActionLabel}
+                    loading={isLoggingOut}
+                    size="large"
+                >
                     <Space size={8}>
                         <Avatar size={24} icon={<UserOutlined />} />
-                        <span>{employee.firstName} {employee.lastName}</span>
+                        <span>{profileName}</span>
                         <DownOutlined style={{fontSize: 12}} />
                     </Space>
                 </Button>
             </Dropdown>
             <Modal
-                title="Смена пароля"
+                title={`Смена пароля: ${profileName}`}
                 open={isPasswordModalOpen}
                 onCancel={closePasswordModal}
                 onOk={handleChangePassword}

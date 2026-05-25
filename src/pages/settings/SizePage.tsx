@@ -44,7 +44,7 @@ const useStyles = createStyles(({token}) => ({
 
 const SizePage: React.FC = () => {
     const {styles} = useStyles()
-    const {data: sizes = [], isLoading, isError, refetch} = useGetSizesQuery()
+    const {data: sizes = [], isLoading, isFetching, isError, refetch} = useGetSizesQuery()
     const [createSize, {isLoading: isCreating}] = useCreateSizeMutation()
     const [updateSize, {isLoading: isUpdating}] = useUpdateSizeMutation()
     const [deleteSize, {isLoading: isDeleting}] = useDeleteSizeMutation()
@@ -58,6 +58,18 @@ const SizePage: React.FC = () => {
 
     const isSaving = isCreating || isUpdating
     const isMutationLocked = isSaving || isDeleting
+    const isSizeListRefreshing = isLoading || isFetching
+    const isSizeListUnavailable = isError
+    const areSizeActionsBlocked = isMutationLocked || isSizeListRefreshing || isSizeListUnavailable
+    const sizeActionsDisabledReason = isSizeListUnavailable
+        ? "Повторите загрузку размеров перед изменениями: список не подтверждён API."
+        : isSizeListRefreshing
+            ? "Дождитесь обновления списка размеров, чтобы не изменить устаревшую размерную сетку."
+            : isSaving
+                ? "Дождитесь сохранения текущего размера."
+                : isDeleting
+                    ? "Дождитесь завершения удаления размера."
+                    : undefined
     const activeCount = sizes.filter((size) => !size.deleted_at).length
     const archivedCount = sizes.length - activeCount
     const normalizedSearch = searchValue.trim().toLowerCase()
@@ -125,12 +137,20 @@ const SizePage: React.FC = () => {
             key: "actions",
             render: (_: unknown, record: SizeType) => {
                 const isCurrentDeleting = deletingSizeId === record.id
+                const sizeStatusLabel = record.deleted_at ? "удалённый" : "активный"
+                const sizeActionContext = `размер «${record.title}», ID ${record.id}, ${sizeStatusLabel}`
+                const editSizeLabel = sizeActionsDisabledReason || `Редактировать ${sizeActionContext}`
+                const deleteSizeLabel = isCurrentDeleting
+                    ? `Удаляем ${sizeActionContext}`
+                    : sizeActionsDisabledReason || `Удалить ${sizeActionContext}`
 
                 return (
                     <Space>
                         <Button
                             type="link"
-                            disabled={isMutationLocked}
+                            disabled={areSizeActionsBlocked}
+                            aria-label={editSizeLabel}
+                            title={editSizeLabel}
                             onClick={() => {
                                 setEditingSize(record)
                                 form.setFieldsValue(record)
@@ -140,15 +160,22 @@ const SizePage: React.FC = () => {
                             Редактировать
                         </Button>
                         <Popconfirm
-                            title="Удалить размер?"
-                            description="Проверьте, что размер не используется в активных товарах. Удаление может убрать вариант из выбора менеджеров и карточек заказа."
+                            title={`Удалить размер «${record.title}»?`}
+                            description={`Проверьте, что размер ID ${record.id} не используется в активных товарах. Удаление может убрать вариант из выбора менеджеров и карточек заказа.`}
                             okText={isCurrentDeleting ? "Удаляем…" : "Удалить"}
                             cancelText="Отмена"
                             onConfirm={() => handleDelete(record.id)}
                             okButtonProps={{loading: isCurrentDeleting}}
                             cancelButtonProps={{disabled: isCurrentDeleting}}
                         >
-                            <Button type="link" danger loading={isCurrentDeleting} disabled={isMutationLocked && !isCurrentDeleting}>
+                            <Button
+                                type="link"
+                                danger
+                                loading={isCurrentDeleting}
+                                disabled={areSizeActionsBlocked && !isCurrentDeleting}
+                                aria-label={deleteSizeLabel}
+                                title={deleteSizeLabel}
+                            >
                                 {isCurrentDeleting ? "Удаляем…" : "Удалить"}
                             </Button>
                         </Popconfirm>
@@ -164,7 +191,8 @@ const SizePage: React.FC = () => {
                 title="Размеры"
                 subtitle="Управляйте размерной сеткой каталога: названия должны быть короткими, единообразными и понятными менеджерам при подборе товара."
                 addButtonText="Добавить размер"
-                addButtonDisabled={isMutationLocked}
+                addButtonDisabled={areSizeActionsBlocked}
+                addButtonDisabledReason={sizeActionsDisabledReason}
                 onAdd={() => {
                     setEditingSize(null)
                     form.resetFields()
@@ -216,13 +244,13 @@ const SizePage: React.FC = () => {
                         type="error"
                         showIcon
                         message="Не удалось загрузить размеры"
-                        description="Проверьте подключение или повторите загрузку, чтобы менеджеры не работали со старым справочником."
+                        description="Проверьте подключение или повторите загрузку: создание, редактирование и удаление размеров заблокированы, чтобы менеджеры не меняли старый справочник."
                         action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
                     />
                 )}
                 <Table
                     rowKey="id"
-                    loading={isLoading}
+                    loading={isSizeListRefreshing}
                     dataSource={filteredSizes}
                     columns={columns}
                     scroll={{x: 640}}
@@ -242,7 +270,7 @@ const SizePage: React.FC = () => {
                             >
                                 <Button
                                     type="primary"
-                                    disabled={isMutationLocked}
+                                    disabled={areSizeActionsBlocked}
                                     onClick={() => {
                                         setEditingSize(null)
                                         form.resetFields()

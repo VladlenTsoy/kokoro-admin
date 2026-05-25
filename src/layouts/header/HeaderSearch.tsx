@@ -23,8 +23,9 @@ const MANAGER_SHORTCUTS: Array<{keywords: string[]; path: string}> = [
     {keywords: ["настройки", "settings", "чеклист", "запуск"], path: "/settings/overview"}
 ]
 
-const searchableProductPattern = /(?:^|\s)(?:sku|id|артикул|товар)[:#\s-]*[\wа-яё-]+/iu
+const productSearchPattern = /(?:^|\s)(?:sku|артикул|товар|product)[:#№\s-]+([\wа-яё-]+)/iu
 const orderSearchPattern = /(?:^|\s)(?:заказ|order|номер)[:#№\s-]+([\wа-яё-]+)/iu
+const clientSearchPattern = /(?:^|\s)(?:клиент|client|покупатель|телефон)[:#№\s-]+(.+)/iu
 const phoneSearchPattern = /(?:^|\s)(?:\+?998|8|\+)?[\d\s()\-.]{7,}\d(?:\s|$)/u
 
 const useStyles = createStyles(({token}) => ({
@@ -51,19 +52,25 @@ function resolveManagerSearchPath(rawValue: string) {
 
     const orderMatch = query.match(orderSearchPattern)
     if (orderMatch?.[1]) {
-        return `/orders?search=${encodeURIComponent(orderMatch[1])}`
+        return `/orders?search=${encodeURIComponent(orderMatch[1].trim())}`
     }
 
-    const shortcut = MANAGER_SHORTCUTS.find((item) => item.keywords.some((keyword) => normalized.includes(keyword)))
-    if (shortcut) return shortcut.path
+    const clientMatch = query.match(clientSearchPattern)
+    if (clientMatch?.[1]) {
+        return `/clients?search=${encodeURIComponent(clientMatch[1].trim())}`
+    }
+
+    const productMatch = query.match(productSearchPattern)
+    if (productMatch?.[1]) {
+        return `/products?search=${encodeURIComponent(productMatch[1].trim())}`
+    }
 
     if (phoneSearchPattern.test(query)) {
         return `/clients?search=${encodeURIComponent(query)}`
     }
 
-    if (searchableProductPattern.test(query)) {
-        return `/products?search=${encodeURIComponent(query.replace(/^(sku|id|артикул|товар)[:#\s-]*/iu, ""))}`
-    }
+    const shortcut = MANAGER_SHORTCUTS.find((item) => item.keywords.some((keyword) => normalized.includes(keyword)))
+    if (shortcut) return shortcut.path
 
     return `/products?search=${encodeURIComponent(query)}`
 }

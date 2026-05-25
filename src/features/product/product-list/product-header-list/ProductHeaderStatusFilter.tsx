@@ -1,9 +1,9 @@
 import {ReloadOutlined} from "@ant-design/icons"
-import {Alert, Button, Segmented, Skeleton, Space} from "antd"
+import {Alert, Button, Segmented, Skeleton, Space, Tag, Typography} from "antd"
 import {useGetProductVariantStatusesQuery} from "../../../product-variant-status/productVariantStatusApi.ts"
 import {createStyles} from "antd-style"
 import {useNavigate} from "react-router-dom"
-import React from "react"
+import React, {useMemo} from "react"
 
 const useStyles = createStyles(({token}) => ({
     segmented: {
@@ -44,6 +44,19 @@ const ProductHeaderStatusFilter:React.FC<Props> = ({defaultSelected}) => {
     const {isLoading, isError, data, refetch} = useGetProductVariantStatusesQuery(undefined, {refetchOnMountOrArgChange: true})
     const {styles} = useStyles()
     const navigate = useNavigate()
+    const statusOptions = useMemo(() => (
+        [...(data ?? [])]
+            .sort((a, b) => a.position - b.position || a.title.localeCompare(b.title))
+            .map((val) => ({
+                label: (
+                    <Space size={6} wrap>
+                        <Typography.Text>{val.title}</Typography.Text>
+                        {val.is_default && <Tag color="blue">по умолчанию</Tag>}
+                    </Space>
+                ),
+                value: val.id
+            }))
+    ), [data])
 
     const onChangeSegment = (val: number) => {
         if (val === 0) navigate("/products/all")
@@ -91,18 +104,13 @@ const ProductHeaderStatusFilter:React.FC<Props> = ({defaultSelected}) => {
             className={styles.segmented}
             onChange={onChangeSegment}
             value={defaultSelected || 0}
-            options={
-                [
-                    {
-                        label: "Все продукты",
-                        value: 0
-                    },
-                    ...data.map(val => ({
-                        label: val.title,
-                        value: val.id
-                    }))
-                ]
-            }
+            options={[
+                {
+                    label: "Все продукты",
+                    value: 0
+                },
+                ...statusOptions
+            ]}
         />
     )
 }

@@ -15,7 +15,7 @@ import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 import {isAntdFormValidationError} from "../../utils/isAntdFormValidationError.ts"
 
 const OrderStatusesPage = () => {
-    const {data: statuses, isLoading, isError, refetch} = useGetOrderStatusesQuery()
+    const {data: statuses, isLoading, isFetching, isError, refetch} = useGetOrderStatusesQuery()
     const [createStatus, {isLoading: isCreating}] = useCreateOrderStatusMutation()
     const [updateStatus, {isLoading: isUpdating}] = useUpdateOrderStatusEntityMutation()
     const [deleteStatus] = useDeleteOrderStatusEntityMutation()
@@ -69,7 +69,20 @@ const OrderStatusesPage = () => {
     const hasActiveFilters = Boolean(normalizedSearch) || typeFilter !== "all"
     const isDeletingStatus = deletingStatusId !== null
     const isSavingStatus = isCreating || isUpdating
+    const isStatusListUnsafe = isLoading || isFetching || isError || !statuses
     const isStatusMutationLocked = isSavingStatus || isUpdatingTransitions || isDeletingStatus
+    const areStatusActionsBlocked = isStatusMutationLocked || isStatusListUnsafe
+    const statusActionsDisabledReason = isSavingStatus
+        ? "Дождитесь завершения сохранения статуса заказа."
+        : isUpdatingTransitions
+            ? "Дождитесь завершения сохранения переходов статуса."
+            : isDeletingStatus
+                ? "Дождитесь завершения удаления статуса заказа."
+                : isError
+                    ? "Повторите загрузку списка статусов перед изменением lifecycle заказов."
+                    : isLoading || isFetching || !statuses
+                        ? "Подтверждаем актуальный список статусов заказов перед изменениями."
+                        : undefined
 
     const statusOptions = useMemo(
         () => (statuses || []).filter((item) => item.id !== transitionStatus?.id).map((item) => ({label: item.title, value: item.id})),
@@ -77,21 +90,21 @@ const OrderStatusesPage = () => {
     )
 
     const openCreate = () => {
-        if (isStatusMutationLocked) return
+        if (areStatusActionsBlocked) return
         setEditingStatus(null)
         statusForm.resetFields()
         setStatusModalOpen(true)
     }
 
     const openEdit = (status: OrderStatusEntity) => {
-        if (isStatusMutationLocked) return
+        if (areStatusActionsBlocked) return
         setEditingStatus(status)
         statusForm.setFieldsValue({title: status.title})
         setStatusModalOpen(true)
     }
 
     const openTransitions = (status: OrderStatusEntity) => {
-        if (isStatusMutationLocked) return
+        if (areStatusActionsBlocked) return
         setTransitionStatus(status)
         setTransitionsModalOpen(true)
     }
@@ -175,24 +188,54 @@ const OrderStatusesPage = () => {
             title: "Действия",
             key: "actions",
             width: 300,
-            render: (_, status) => (
-                <Space wrap>
-                    <Button type="link" disabled={isStatusMutationLocked} onClick={() => openEdit(status)}>Редактировать</Button>
-                    <Button type="link" disabled={isStatusMutationLocked} onClick={() => openTransitions(status)}>Переходы</Button>
-                    <Popconfirm
-                        title="Удалить статус заказа?"
-                        description="Перед удалением убедитесь, что статус не используется в заказах, фильтрах и отчётах. Для системных статусов безопаснее менять переходы, а не удалять запись."
-                        okText={deletingStatusId === status.id ? "Удаляем..." : "Удалить"}
-                        cancelText="Отмена"
-                        onConfirm={() => removeStatus(status.id)}
-                        okButtonProps={{loading: deletingStatusId === status.id}}
-                    >
-                        <Button type="link" danger loading={deletingStatusId === status.id} disabled={isStatusMutationLocked && deletingStatusId !== status.id}>
-                            {deletingStatusId === status.id ? "Удаляем..." : "Удалить"}
+            render: (_, status) => {
+                const statusContext = `«${status.title}», ID ${status.id}, ${status.fixed ? "системный" : "настраиваемый"} статус${status.access ? `, доступ ${status.access}` : ""}`
+                const editActionTitle = statusActionsDisabledReason || `Редактировать статус заказа ${statusContext}`
+                const transitionActionTitle = statusActionsDisabledReason || `Настроить переходы для статуса заказа ${statusContext}`
+                const deleteActionTitle = statusActionsDisabledReason || `Удалить статус заказа ${statusContext}`
+
+                return (
+                    <Space wrap>
+                        <Button
+                            type="link"
+                            disabled={areStatusActionsBlocked}
+                            aria-label={`Редактировать статус заказа ${statusContext}`}
+                            title={editActionTitle}
+                            onClick={() => openEdit(status)}
+                        >
+                            Редактировать
                         </Button>
-                    </Popconfirm>
-                </Space>
-            )
+                        <Button
+                            type="link"
+                            disabled={areStatusActionsBlocked}
+                            aria-label={`Настроить переходы для статуса заказа ${statusContext}`}
+                            title={transitionActionTitle}
+                            onClick={() => openTransitions(status)}
+                        >
+                            Переходы
+                        </Button>
+                        <Popconfirm
+                            title={`Удалить статус заказа «${status.title}»?`}
+                            description="Перед удалением убедитесь, что статус не используется в заказах, фильтрах и отчётах. Для системных статусов безопаснее менять переходы, а не удалять запись."
+                            okText={deletingStatusId === status.id ? "Удаляем..." : "Удалить"}
+                            cancelText="Отмена"
+                            onConfirm={() => removeStatus(status.id)}
+                            okButtonProps={{loading: deletingStatusId === status.id}}
+                        >
+                            <Button
+                                type="link"
+                                danger
+                                loading={deletingStatusId === status.id}
+                                disabled={areStatusActionsBlocked && deletingStatusId !== status.id}
+                                aria-label={deletingStatusId === status.id ? `Удаляем статус заказа ${statusContext}` : `Удалить статус заказа ${statusContext}`}
+                                title={deleteActionTitle}
+                            >
+                                {deletingStatusId === status.id ? "Удаляем..." : "Удалить"}
+                            </Button>
+                        </Popconfirm>
+                    </Space>
+                )
+            }
         }
     ]
 
@@ -203,7 +246,8 @@ const OrderStatusesPage = () => {
                 subtitle="Настройка статусов и разрешённых переходов, которые менеджеры видят в заказах, фильтрах и отчётах."
                 addButtonText="Добавить статус"
                 onAdd={openCreate}
-                addButtonDisabled={isStatusMutationLocked}
+                addButtonDisabled={areStatusActionsBlocked}
+                addButtonDisabledReason={statusActionsDisabledReason}
             >
                 <Alert
                     type="info"
@@ -221,12 +265,21 @@ const OrderStatusesPage = () => {
                         style={{margin: "0 16px 16px"}}
                     />
                 )}
+                {isFetching && !isLoading && !isError && (
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Обновляем список статусов заказов"
+                        description="Создание, редактирование, удаление и изменение переходов временно заблокированы, пока админка подтверждает актуальные правила lifecycle заказа."
+                        style={{margin: "0 16px 16px"}}
+                    />
+                )}
                 {isError && (
                     <Alert
                         type="error"
                         showIcon
                         message="Не удалось загрузить статусы заказов"
-                        description="Повторите загрузку перед изменениями, чтобы не работать с устаревшими правилами обработки заказов."
+                        description="Повторите загрузку перед изменениями: создание, редактирование, удаление и переходы заблокированы, чтобы не работать с устаревшими правилами обработки заказов."
                         action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
                         style={{margin: "0 16px 16px"}}
                     />

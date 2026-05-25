@@ -12,7 +12,7 @@ import SettingsTableSection from "../../components/settings/SettingsTableSection
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
 
 const ProductVariantStatusPage: React.FC = () => {
-    const {data, isLoading, isError, refetch} = useGetProductVariantStatusesQuery()
+    const {data, isLoading, isFetching, isError, refetch} = useGetProductVariantStatusesQuery()
     const [createProductVariantStatus, {isLoading: isCreating}] = useCreateProductVariantStatusMutation()
     const [updateProductVariantStatus, {isLoading: isUpdating}] = useUpdateProductVariantStatusMutation()
     const [deleteProductVariantStatus, {isLoading: isDeleting}] = useDeleteProductVariantStatusMutation()
@@ -25,7 +25,28 @@ const ProductVariantStatusPage: React.FC = () => {
     const [form] = Form.useForm()
     const isSavingStatus = isCreating || isUpdating
     const isMutatingStatus = isSavingStatus || isDeleting
+    const isStatusListUnsafe = isLoading || isFetching || isError || !data
+    const areStatusActionsBlocked = isStatusListUnsafe || isMutatingStatus
     const statuses = useMemo(() => data ?? [], [data])
+    const statusActionsDisabledReason = useMemo(() => {
+        if (isLoading) {
+            return "Ждём первичную загрузку статусов вариантов, чтобы не создать правило в пустом справочнике."
+        }
+        if (isFetching) {
+            return "Обновляем список статусов. Дождитесь свежих данных перед изменением жизненного цикла SKU."
+        }
+        if (isError || !data) {
+            return "Справочник статусов не подтверждён API. Повторите загрузку перед созданием, редактированием или удалением."
+        }
+        if (isSavingStatus) {
+            return "Сохраняем статус варианта. Новые изменения доступны после ответа API."
+        }
+        if (isDeleting) {
+            return "Удаляем статус варианта. Дождитесь завершения, чтобы не смешать изменения справочника."
+        }
+
+        return undefined
+    }, [data, isDeleting, isError, isFetching, isLoading, isSavingStatus])
     const normalizedStatusSearch = statusSearch.trim().toLowerCase()
     const hasStatusSearch = normalizedStatusSearch.length > 0
     const filteredStatuses = useMemo(
@@ -112,29 +133,50 @@ const ProductVariantStatusPage: React.FC = () => {
             width: 220,
             render: (_: unknown, record: ProductVariantStatusType) => {
                 const isCurrentStatusDeleting = deletingStatusId === record.id
+                const defaultStatusLabel = record.is_default ? "основной статус по умолчанию" : "не основной статус"
+                const positionLabel = record.position === null || record.position === undefined
+                    ? "позиция не задана"
+                    : `позиция ${record.position}`
+                const statusContext = `«${record.title}», ID ${record.id}, ${defaultStatusLabel}, ${positionLabel}`
+                const editStatusLabel = `Редактировать статус варианта ${statusContext}`
+                const deleteStatusLabel = isCurrentStatusDeleting
+                    ? `Удаляем статус варианта ${statusContext}`
+                    : `Удалить статус варианта ${statusContext}`
+                const editActionTitle = statusActionsDisabledReason || editStatusLabel
+                const deleteActionTitle = statusActionsDisabledReason || deleteStatusLabel
 
                 return (
                     <Space wrap>
                         <Button
                             type="link"
-                            disabled={isMutatingStatus}
+                            disabled={areStatusActionsBlocked}
                             onClick={() => {
                                 setEditingProductVariantStatus(record)
                                 form.setFieldsValue(record)
                                 setIsModalOpen(true)
                             }}
+                            aria-label={editStatusLabel}
+                            title={editActionTitle}
                         >
                             Редактировать
                         </Button>
                         <Popconfirm
-                            title="Удалить статус варианта?"
-                            description="Перед удалением убедитесь, что этот статус не используется в активных вариантах товара и фильтрах каталога. Действие нельзя отменить из админки."
+                            title={`Удалить статус варианта «${record.title}»?`}
+                            description={`Статус ID ${record.id}: ${defaultStatusLabel}, ${positionLabel}. Перед удалением убедитесь, что он не используется в активных вариантах товара и фильтрах каталога. Действие нельзя отменить из админки.`}
                             okText={isCurrentStatusDeleting ? "Удаляем..." : "Удалить"}
                             cancelText="Отмена"
                             onConfirm={() => handleDelete(record.id)}
                             okButtonProps={{loading: isCurrentStatusDeleting}}
+                            disabled={areStatusActionsBlocked && !isCurrentStatusDeleting}
                         >
-                            <Button type="link" danger loading={isCurrentStatusDeleting} disabled={isDeleting && !isCurrentStatusDeleting}>
+                            <Button
+                                type="link"
+                                danger
+                                loading={isCurrentStatusDeleting}
+                                disabled={areStatusActionsBlocked && !isCurrentStatusDeleting}
+                                aria-label={deleteStatusLabel}
+                                title={deleteActionTitle}
+                            >
                                 {isCurrentStatusDeleting ? "Удаляем..." : "Удалить"}
                             </Button>
                         </Popconfirm>
@@ -150,7 +192,8 @@ const ProductVariantStatusPage: React.FC = () => {
                 title="Статусы вариантов товара"
                 subtitle="Справочник статусов для жизненного цикла товарных вариантов: доступность, витрина, складские состояния."
                 addButtonText="Добавить статус варианта"
-                addButtonDisabled={isMutatingStatus}
+                addButtonDisabled={areStatusActionsBlocked}
+                addButtonDisabledReason={statusActionsDisabledReason}
                 onAdd={() => {
                     setEditingProductVariantStatus(null)
                     form.resetFields()

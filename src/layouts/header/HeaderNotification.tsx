@@ -45,6 +45,10 @@ const HeaderNotification = () => {
         navigate(path)
     }
 
+    const getShortcutActionLabel = (shortcut: (typeof shortcuts)[number]) => (
+        `Открыть проверку: ${shortcut.label}. Раздел: ${shortcut.tag}. ${shortcut.description}`
+    )
+
     const notificationContent = (
         <Space direction="vertical" size={12} style={{maxWidth: 360}}>
             <Alert
@@ -63,6 +67,8 @@ const HeaderNotification = () => {
                             size="small"
                             style={{height: "auto", padding: "8px 10px", textAlign: "left", whiteSpace: "normal"}}
                             onClick={() => openShortcut(shortcut.path)}
+                            aria-label={getShortcutActionLabel(shortcut)}
+                            title={getShortcutActionLabel(shortcut)}
                         >
                             <Space direction="vertical" size={2} style={{width: "100%"}}>
                                 <Space size={6} wrap>
@@ -101,7 +107,8 @@ const HeaderNotification = () => {
                     size="large"
                     shape="circle"
                     type="default"
-                    aria-label="Открыть центр уведомлений"
+                    aria-label="Открыть центр уведомлений: быстрые проверки заказов, оплат, интеграций и уведомлений"
+                    title="Открыть центр уведомлений: быстрые проверки заказов, оплат, интеграций и уведомлений"
                     icon={<BellOutlined />}
                 />
             </Badge>

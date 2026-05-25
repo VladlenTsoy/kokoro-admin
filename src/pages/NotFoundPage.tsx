@@ -12,12 +12,28 @@ type RecoveryAction = {
     primary?: boolean
 }
 
-const getRecoveryActions = (pathname: string): RecoveryAction[] => {
-    const normalizedPath = pathname.toLowerCase()
+const extractLikelyOrderNumber = (requestedPath: string) => {
+    const orderNumberMatch = requestedPath.match(/(?:order|orders|заказ|zakaz)[^0-9]{0,12}(\d{3,})/i)
+    const fallbackNumberMatch = requestedPath.match(/\b\d{4,}\b/)
+
+    return orderNumberMatch?.[1] ?? fallbackNumberMatch?.[0]
+}
+
+const getRecoveryActions = (requestedPath: string): RecoveryAction[] => {
+    const normalizedPath = requestedPath.toLowerCase()
 
     if (normalizedPath.includes("order")) {
+        const likelyOrderNumber = extractLikelyOrderNumber(requestedPath)
+
         return [
-            {label: "Открыть стол заказов", path: "/orders", note: "Проверить очередь, статус оплаты/доставки и карточку заказа.", primary: true},
+            likelyOrderNumber
+                ? {
+                    label: `Найти заказ №${likelyOrderNumber}`,
+                    path: `/orders?search=${encodeURIComponent(likelyOrderNumber)}`,
+                    note: "Открыть стол заказов сразу с поиском по номеру из битой ссылки.",
+                    primary: true
+                }
+                : {label: "Открыть стол заказов", path: "/orders", note: "Проверить очередь, статус оплаты/доставки и карточку заказа.", primary: true},
             {label: "Проблемная очередь", path: "/orders?problemOnly=1", note: "Быстро найти заказы, где нужна реакция менеджера."}
         ]
     }
@@ -53,7 +69,7 @@ const NotFoundPage = () => {
     const navigate = useNavigate()
     const location = useLocation()
     const requestedPath = `${location.pathname}${location.search}`
-    const recoveryActions = useMemo(() => getRecoveryActions(location.pathname), [location.pathname])
+    const recoveryActions = useMemo(() => getRecoveryActions(requestedPath), [requestedPath])
 
     const copyRequestedPath = async () => {
         try {

@@ -1,11 +1,11 @@
 import {Navigate, Outlet, useLocation} from "react-router-dom"
-import {Spin} from "antd"
 import {setEmployee, useSelectedAuthData} from "../features/auth/authSlice.ts"
 import {useGetMeQuery} from "../features/admin/authApi.ts"
 import {can, canAny} from "../features/auth/permissions.ts"
 import {useDispatch} from "../features/store.ts"
 import {useEffect} from "react"
 import type {PermissionCode} from "../features/auth/authTypes.ts"
+import AuthGateLoading from "./AuthGateLoading.tsx"
 
 interface PermissionGuardProps {
     permission?: PermissionCode
@@ -40,7 +40,7 @@ const PermissionGuard = ({permission, anyOf}: PermissionGuardProps) => {
     }
 
     if ((!currentEmployee || !Array.isArray(currentEmployee.permissions)) && isLoading) {
-        return <Spin fullscreen />
+        return <AuthGateLoading variant="permission" />
     }
 
     if (

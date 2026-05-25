@@ -18,10 +18,11 @@ const HomePage = () => {
 
     const today = dayjs().format("YYYY-MM-DD")
     const openOrders = (params?: string) => navigate(params ? `/orders?${params}` : "/orders")
-    const getMetricCardActionProps = (params?: string) => ({
+    const getMetricCardActionProps = (label: string, params?: string) => ({
         hoverable: true,
         role: "button",
         tabIndex: 0,
+        "aria-label": `Открыть очередь заказов: ${label}`,
         onClick: () => openOrders(params),
         onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
             if (event.key === "Enter" || event.key === " ") {
@@ -42,19 +43,22 @@ const HomePage = () => {
             title: "Оплаченные без обработки",
             description: "Первый риск смены: деньги уже пришли, заказ ещё не принят.",
             query: "paymentStatus=paid&deliveryStatus=pending",
-            danger: true
+            danger: true,
+            actionLabel: "Открыть оплаченные заказы без обработки из операционного фокуса смены"
         },
         {
             title: "Проблемная очередь",
             description: "Просрочки, отмены после оплаты и другие заказы, где нужен менеджер.",
             query: "problemOnly=1",
-            danger: hasProblems
+            danger: hasProblems,
+            actionLabel: `Открыть проблемную очередь заказов из операционного фокуса смены, сейчас ${problemCount}`
         },
         {
             title: "Готовые к выдаче",
             description: "Заказы, которые можно быстрее закрыть или передать клиенту/курьеру.",
             query: "deliveryStatus=ready",
-            danger: false
+            danger: false,
+            actionLabel: "Открыть готовые к выдаче заказы из операционного фокуса смены"
         }
     ]
 
@@ -99,13 +103,24 @@ const HomePage = () => {
             title: "Действие",
             key: "action",
             width: 140,
-            render: (_, item) => item.orderId ? (
-                <Button size="small" icon={<EyeOutlined />} onClick={() => openOrders(`orderId=${item.orderId}`)}>
-                    Открыть
-                </Button>
-            ) : (
-                <Typography.Text type="secondary">Нет ссылки</Typography.Text>
-            )
+            render: (_, item) => {
+                if (!item.orderId) return <Typography.Text type="secondary">Нет ссылки</Typography.Text>
+
+                const orderLabel = item.orderNumber || `#${item.orderId}`
+                const openActivityLabel = `Открыть заказ ${orderLabel} из последних событий смены`
+
+                return (
+                    <Button
+                        size="small"
+                        icon={<EyeOutlined />}
+                        aria-label={openActivityLabel}
+                        title={openActivityLabel}
+                        onClick={() => openOrders(`orderId=${item.orderId}`)}
+                    >
+                        Открыть
+                    </Button>
+                )
+            }
         }
     ]
 
@@ -117,10 +132,21 @@ const HomePage = () => {
                     subtitle="Живой пульт магазина: что горит, где деньги и какие заказы требуют реакции прямо сейчас."
                     extra={(
                         <Space wrap>
-                            <Button danger={hasProblems} type={hasProblems ? "primary" : "default"} onClick={() => openOrders("problemOnly=1")}>
+                            <Button
+                                danger={hasProblems}
+                                type={hasProblems ? "primary" : "default"}
+                                aria-label={`Открыть проблемные заказы смены, сейчас ${problemCount}`}
+                                title={`Открыть проблемные заказы смены, сейчас ${problemCount}`}
+                                onClick={() => openOrders("problemOnly=1")}
+                            >
                                 Проблемные заказы
                             </Button>
-                            <Button type="primary" onClick={() => openOrders("deliveryStatus=pending")}>
+                            <Button
+                                type="primary"
+                                aria-label={`Открыть новые заказы смены, сейчас ${summary?.newOrders ?? 0}`}
+                                title={`Открыть новые заказы смены, сейчас ${summary?.newOrders ?? 0}`}
+                                onClick={() => openOrders("deliveryStatus=pending")}
+                            >
                                 Новые заказы
                             </Button>
                         </Space>
@@ -134,7 +160,7 @@ const HomePage = () => {
                 </div>
             </Card>
 
-            {summaryError && (
+            {summaryError ? (
                 <Alert
                     type="warning"
                     showIcon
@@ -151,36 +177,48 @@ const HomePage = () => {
                         </Space>
                     )}
                 />
-            )}
+            ) : isFetching && !isLoading ? (
+                <Alert
+                    type="info"
+                    showIcon
+                    message="Сводка смены обновляется"
+                    description="Пока идёт live refresh, карточки и последние события могут показывать предыдущие подтверждённые данные. Для срочных решений откройте журнал заказов."
+                    action={(
+                        <Button size="small" type="primary" onClick={() => openOrders()}>
+                            Открыть заказы
+                        </Button>
+                    )}
+                />
+            ) : null}
 
             <Row gutter={[16, 16]}>
                 <Col xs={24} md={12} xl={4}>
-                    <Card className="metric-card metric-card--lime" {...getMetricCardActionProps()}>
+                    <Card className="metric-card metric-card--lime" {...getMetricCardActionProps("все заказы сегодня")}>
                         <Statistic prefix={<ShoppingOutlined />} title={renderMetricTitle("Заказы сегодня", staleMetricHint)} value={summary?.ordersToday ?? 0} loading={isLoading} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={4}>
-                    <Card className="metric-card metric-card--orange" {...getMetricCardActionProps("deliveryStatus=pending")}>
+                    <Card className="metric-card metric-card--orange" {...getMetricCardActionProps("новые заказы", "deliveryStatus=pending")}>
                         <Statistic prefix={<ClockCircleOutlined />} title={renderMetricTitle("Новые", "Принять в работу")} value={summary?.newOrders ?? 0} loading={isLoading} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={4}>
-                    <Card className="metric-card metric-card--blue" {...getMetricCardActionProps("deliveryStatus=preparing")}>
+                    <Card className="metric-card metric-card--blue" {...getMetricCardActionProps("заказы в работе", "deliveryStatus=preparing")}>
                         <Statistic prefix={<ThunderboltOutlined />} title={renderMetricTitle("В работе", "Проверить сборку")} value={summary?.inProgressToday ?? 0} loading={isLoading} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={4}>
-                    <Card className="metric-card metric-card--cyan" {...getMetricCardActionProps("deliveryStatus=ready")}>
+                    <Card className="metric-card metric-card--cyan" {...getMetricCardActionProps("готовые к выдаче заказы", "deliveryStatus=ready")}>
                         <Statistic prefix={<CheckCircleOutlined />} title={renderMetricTitle("Готовы", "Выдать клиенту")} value={summary?.readyToday ?? 0} loading={isLoading} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={4}>
-                    <Card className={hasProblems ? "metric-card metric-card--danger" : "metric-card"} {...getMetricCardActionProps("problemOnly=1")}>
+                    <Card className={hasProblems ? "metric-card metric-card--danger" : "metric-card"} {...getMetricCardActionProps("проблемные заказы", "problemOnly=1")}>
                         <Statistic prefix={<AlertOutlined />} title={renderMetricTitle("Проблемные", hasProblems ? "Разобрать первым" : "Открыть контроль")} value={problemCount} loading={isLoading} valueStyle={{color: hasProblems ? "#cf1322" : undefined}} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12} xl={4}>
-                    <Card className="metric-card metric-card--money" {...getMetricCardActionProps(`paymentStatus=paid&from=${today}&to=${today}`)}>
+                    <Card className="metric-card metric-card--money" {...getMetricCardActionProps("оплаченные заказы за сегодня", `paymentStatus=paid&from=${today}&to=${today}`)}>
                         <Statistic prefix={<FireOutlined />} title={renderMetricTitle("Выручка сегодня", "Открыть оплаченные")} value={formatMoney(summary?.revenueToday ?? 0)} loading={isLoading} />
                     </Card>
                 </Col>
@@ -202,6 +240,8 @@ const HomePage = () => {
                                         block
                                         className="dashboard-focus-action"
                                         danger={shortcut.danger}
+                                        aria-label={shortcut.actionLabel}
+                                        title={shortcut.actionLabel}
                                         onClick={() => openOrders(shortcut.query)}
                                     >
                                         <Space direction="vertical" size={0} style={{width: "100%"}}>

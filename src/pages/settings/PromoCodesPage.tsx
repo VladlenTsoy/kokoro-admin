@@ -31,7 +31,17 @@ const discountTypeLabels: Record<PromoForm["discountType"], string> = {
     fixed: "Фиксированная сумма"
 }
 
+const promoStatusLabels: Record<Exclude<PromoStatusFilter, "all">, string> = {
+    active: "активен",
+    scheduled: "запланирован",
+    exhausted: "лимит исчерпан",
+    expired: "истёк",
+    disabled: "выключен"
+}
+
 const formatDateTime = (value?: string | null) => value ? dayjs(value).format("DD.MM.YYYY HH:mm") : "—"
+
+const getPromoUsageContext = (promo: PromoCode) => `${promo.usedCount ?? 0} из ${promo.usageLimit ?? "без лимита"}`
 
 const getPromoLifecycleStatus = (promo: PromoCode): Exclude<PromoStatusFilter, "all"> => {
     const now = dayjs()
@@ -53,6 +63,12 @@ const getPromoLifecycleStatus = (promo: PromoCode): Exclude<PromoStatusFilter, "
     }
 
     return "active"
+}
+
+const getPromoActionContext = (promo: PromoCode) => {
+    const promoStatusLabel = promoStatusLabels[getPromoLifecycleStatus(promo)]
+
+    return `«${promo.code}», ID ${promo.id}, ${promoStatusLabel}, использований ${getPromoUsageContext(promo)}`
 }
 
 const renderPromoStatus = (promo: PromoCode) => {
@@ -89,6 +105,7 @@ const PromoCodesPage = () => {
     const [deletingPromoId, setDeletingPromoId] = useState<number | null>(null)
     const [form] = Form.useForm<PromoForm>()
     const isSavingPromo = isCreating || isUpdating
+    const isPromoListUnsafe = isLoading || isFetching || isError || !Array.isArray(data)
     const promoCodes = useMemo(() => data || [], [data])
     const promoSummary = useMemo(() => {
         const now = dayjs()
@@ -125,6 +142,26 @@ const PromoCodesPage = () => {
         })
     }, [normalizedSearch, promoCodes, statusFilter])
     const hasActiveFilters = Boolean(normalizedSearch) || statusFilter !== "all"
+    const addPromoDisabledReason = isError
+        ? "Список промокодов не загружен. Нажмите «Повторить» и дождитесь актуальных статусов перед созданием акции."
+        : isLoading || isFetching || !Array.isArray(data)
+            ? "Проверяем актуальность промокодов. Создание будет доступно после ответа API."
+            : deletingPromoId !== null
+                ? "Дождитесь завершения удаления промокода, чтобы не создать конфликтующую акцию."
+                : isSavingPromo
+                    ? "Дождитесь сохранения текущего промокода."
+                    : undefined
+    const editingPromoCode = editing?.code
+    const editingPromoContext = editing ? getPromoActionContext(editing) : null
+    const promoModalTitle = editingPromoContext ? `Редактировать промокод ${editingPromoContext}` : "Создать промокод"
+    const promoModalOkText = isSavingPromo
+        ? editingPromoCode
+            ? `Сохраняем ${editingPromoCode}...`
+            : "Создаём промокод..."
+        : editingPromoCode
+            ? `Сохранить промокод ${editingPromoCode}`
+            : "Создать промокод"
+    const promoModalCancelText = editingPromoCode ? `Отмена: не менять ${editingPromoCode}` : "Отмена"
 
     const resetFilters = () => {
         setSearchValue("")
@@ -132,6 +169,10 @@ const PromoCodesPage = () => {
     }
 
     const openCreate = () => {
+        if (isPromoListUnsafe) {
+            return
+        }
+
         setEditing(null)
         form.resetFields()
         form.setFieldsValue({discountType: "percent", isActive: true})
@@ -139,6 +180,10 @@ const PromoCodesPage = () => {
     }
 
     const openEdit = (promo: PromoCode) => {
+        if (isPromoListUnsafe) {
+            return
+        }
+
         setEditing(promo)
         form.setFieldsValue({
             code: promo.code,
@@ -179,6 +224,10 @@ const PromoCodesPage = () => {
     }
 
     const removePromo = async (id: number) => {
+        if (isPromoListUnsafe) {
+            return
+        }
+
         setDeletingPromoId(id)
         try {
             await deletePromo(id).unwrap()
@@ -215,21 +264,44 @@ const PromoCodesPage = () => {
             render: (_, promo) => {
                 const isCurrentDeleting = deletingPromoId === promo.id
                 const isAnotherPromoDeleting = deletingPromoId !== null && !isCurrentDeleting
+                const promoContext = getPromoActionContext(promo)
+                const rowActionBlockedReason = isPromoListUnsafe
+                    ? isError
+                        ? "Список промокодов не загружен. Повторите загрузку перед изменением маркетингового кода."
+                        : "Проверяем актуальность промокодов. Изменения будут доступны после ответа API."
+                    : isAnotherPromoDeleting
+                        ? "Дождитесь завершения удаления другого промокода."
+                        : undefined
+                const editPromoLabel = `Редактировать промокод ${promoContext}`
+                const deletePromoLabel = isCurrentDeleting ? `Удаляем промокод ${promoContext}` : `Удалить промокод ${promoContext}`
 
                 return (
                     <Space wrap>
-                        <Button type="link" onClick={() => openEdit(promo)} disabled={deletingPromoId !== null}>
+                        <Button
+                            type="link"
+                            onClick={() => openEdit(promo)}
+                            disabled={isPromoListUnsafe || deletingPromoId !== null}
+                            aria-label={editPromoLabel}
+                            title={rowActionBlockedReason || editPromoLabel}
+                        >
                             Редактировать
                         </Button>
                         <Popconfirm
-                            title="Удалить промокод?"
-                            description="Проверьте, что код не используется в активных маркетинговых коммуникациях."
+                            title={`Удалить промокод «${promo.code}»?`}
+                            description={`Контекст: ${promoContext}. Проверьте, что код не используется в активных маркетинговых коммуникациях.`}
                             okText={isCurrentDeleting ? "Удаляем..." : "Удалить"}
                             cancelText="Отмена"
-                            okButtonProps={{loading: isCurrentDeleting, danger: true}}
+                            okButtonProps={{loading: isCurrentDeleting, danger: true, disabled: isPromoListUnsafe}}
                             onConfirm={() => removePromo(promo.id)}
                         >
-                            <Button type="link" danger loading={isCurrentDeleting} disabled={isAnotherPromoDeleting}>
+                            <Button
+                                type="link"
+                                danger
+                                loading={isCurrentDeleting}
+                                disabled={isPromoListUnsafe || isAnotherPromoDeleting}
+                                aria-label={deletePromoLabel}
+                                title={rowActionBlockedReason || deletePromoLabel}
+                            >
                                 {isCurrentDeleting ? "Удаляем..." : "Удалить"}
                             </Button>
                         </Popconfirm>
@@ -246,7 +318,8 @@ const PromoCodesPage = () => {
                 subtitle="Создание и управление скидочными кодами: статус, период действия, лимиты и быстрое копирование кода."
                 addButtonText="Добавить промокод"
                 onAdd={openCreate}
-                canAdd={deletingPromoId === null && !isSavingPromo}
+                addButtonDisabled={isPromoListUnsafe || deletingPromoId !== null || isSavingPromo}
+                addButtonDisabledReason={addPromoDisabledReason}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     <Alert
@@ -281,6 +354,14 @@ const PromoCodesPage = () => {
                         </Typography.Text>
                         {hasActiveFilters ? <Button onClick={resetFilters}>Сбросить фильтры</Button> : null}
                     </Space>
+                    {isPromoListUnsafe && !isError ? (
+                        <Alert
+                            type="info"
+                            showIcon
+                            message="Проверяем актуальность промокодов"
+                            description="Создание, редактирование и удаление временно заблокированы до подтверждения списка API, чтобы менеджер не изменил устаревший маркетинговый код."
+                        />
+                    ) : null}
                     {isDeleting && deletingPromoId !== null ? (
                         <Alert
                             type="warning"
@@ -320,14 +401,15 @@ const PromoCodesPage = () => {
             </SettingsTableSection>
 
             <Modal
-                title={editing ? "Редактировать промокод" : "Создать промокод"}
+                title={promoModalTitle}
                 open={isOpen}
                 onCancel={() => {
                     if (!isSavingPromo) setIsOpen(false)
                 }}
                 onOk={savePromo}
                 confirmLoading={isSavingPromo}
-                okText={isSavingPromo ? "Сохраняем..." : editing ? "Сохранить" : "Создать"}
+                okText={promoModalOkText}
+                cancelText={promoModalCancelText}
                 cancelButtonProps={{disabled: isSavingPromo}}
                 maskClosable={!isSavingPromo}
                 keyboard={!isSavingPromo}
@@ -339,8 +421,8 @@ const PromoCodesPage = () => {
                         <Alert
                             type="info"
                             showIcon
-                            message="Сохраняем промокод"
-                            description="Не закрывайте окно и не меняйте условия акции до ответа API, чтобы в рассылку не ушёл частично сохранённый код."
+                            message={editingPromoCode ? `Сохраняем промокод ${editingPromoCode}` : "Создаём промокод"}
+                            description={editingPromoContext ? `Контекст: ${editingPromoContext}. Не закрывайте окно и не меняйте условия акции до ответа API, чтобы в рассылку не ушёл частично сохранённый код.` : "Не закрывайте окно и не меняйте условия акции до ответа API, чтобы в рассылку не ушёл частично сохранённый код."}
                         />
                     ) : null}
                     <Form form={form} layout="vertical" disabled={isSavingPromo}>

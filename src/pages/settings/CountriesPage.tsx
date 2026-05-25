@@ -22,8 +22,28 @@ const formatPosition = (position?: {lat: number; lng: number}) => {
     return `${position.lat}, ${position.lng}`
 }
 
+const formatGeographyModalTitle = (
+    modalType: "country" | "city",
+    editingItem: ((CountryType | CityType) & {parentId?: number}) | null,
+    selectedCountry?: CountryType
+) => {
+    if (editingItem) {
+        if (modalType === "country") {
+            return `Редактирование страны: ${editingItem.name}`
+        }
+
+        return `Редактирование города: ${editingItem.name}${selectedCountry ? `, страна ${selectedCountry.name}` : ""}`
+    }
+
+    if (modalType === "city") {
+        return `Создание города${selectedCountry ? ` для страны ${selectedCountry.name}` : ""}`
+    }
+
+    return "Создание страны"
+}
+
 const CountryCityPage: React.FC = () => {
-    const {data: countries, isLoading, isError, refetch} = useGetCountriesQuery()
+    const {data: countries, isLoading, isFetching, isError, refetch} = useGetCountriesQuery()
     const [createCountry, {isLoading: isCreatingCountry}] = useCreateCountryMutation()
     const [updateCountry, {isLoading: isUpdatingCountry}] = useUpdateCountryMutation()
     const [deleteCountry, {isLoading: isDeletingCountry}] = useDeleteCountryMutation()
@@ -74,6 +94,18 @@ const CountryCityPage: React.FC = () => {
     const selectedCountry = sortedCountries.find((country) => country.id === selectedCountryId)
     const isSaving = isCreatingCountry || isUpdatingCountry || isCreatingCity || isUpdatingCity
     const isDeletingGeography = isDeletingCountry || isDeletingCity
+    const isCountryListUnsafe = isError || isLoading || isFetching
+    const geographyActionsDisabledReason = isLoading
+        ? "Загружаем справочник географии — дождитесь подтверждённого списка стран и городов."
+        : isFetching
+            ? "Обновляем географию — изменение стран и городов временно заблокировано, чтобы не сохранить устаревшие данные."
+            : isError
+                ? "Не удалось подтвердить актуальный список через API. Повторите загрузку перед изменением доставки и адресов."
+                : isDeletingGeography
+                    ? "Идёт удаление страны или города — дождитесь завершения операции."
+                    : isSaving
+                        ? "Сохраняем страну или город — дождитесь окончания операции."
+                        : undefined
     const totalCities = sortedCountries.reduce((sum, country) => sum + (country.cities?.length ?? 0), 0)
     const countriesWithoutCities = sortedCountries.filter((country) => (country.cities?.length ?? 0) === 0).length
     const hasActiveFilters = Boolean(normalizedSearchQuery) || showWithoutCitiesOnly
@@ -91,6 +123,11 @@ const CountryCityPage: React.FC = () => {
     }
 
     const openModal = (type: "country" | "city", item?: CountryType | CityType | null, parentId?: number) => {
+        if (isCountryListUnsafe) {
+            message.warning("Сначала обновите справочник географии, чтобы не менять устаревшие страны или города")
+            return
+        }
+
         setModalType(type)
         setSelectedCountryId(parentId ?? null)
         setEditingItem(item ? {...item, parentId} : null)
@@ -185,22 +222,55 @@ const CountryCityPage: React.FC = () => {
             key: "actions",
             render: (_, record) => {
                 const isDeletingThisCountry = deletingCountryId === record.id
+                const cityCount = record.cities?.length ?? 0
+                const countryPosition = formatPosition(record.position)
+                const countryActionContext = `страна «${record.name}», ID ${record.id}, ${cityCount} ${cityCount === 1 ? "город" : "городов"}, ${countryPosition}`
+                const editCountryLabel = geographyActionsDisabledReason
+                    ? `Редактирование страны недоступно: ${geographyActionsDisabledReason}`
+                    : `Редактировать ${countryActionContext}`
+                const addCityLabel = geographyActionsDisabledReason
+                    ? `Добавление города недоступно: ${geographyActionsDisabledReason}`
+                    : `Добавить город в ${countryActionContext}`
+                const deleteCountryLabel = geographyActionsDisabledReason
+                    ? `Удаление страны недоступно: ${geographyActionsDisabledReason}`
+                    : isDeletingThisCountry
+                        ? `Удаляется ${countryActionContext}`
+                        : `Удалить ${countryActionContext}`
 
                 return (
                     <Space wrap>
-                        <Button disabled={isDeletingGeography || isSaving} onClick={() => openModal("country", record)}>Редактировать</Button>
-                        <Button type="primary" disabled={isDeletingGeography || isSaving} onClick={() => openModal("city", null, record.id)}>
+                        <Button
+                            disabled={isCountryListUnsafe || isDeletingGeography || isSaving}
+                            onClick={() => openModal("country", record)}
+                            aria-label={editCountryLabel}
+                            title={editCountryLabel}
+                        >
+                            Редактировать
+                        </Button>
+                        <Button
+                            type="primary"
+                            disabled={isCountryListUnsafe || isDeletingGeography || isSaving}
+                            onClick={() => openModal("city", null, record.id)}
+                            aria-label={addCityLabel}
+                            title={addCityLabel}
+                        >
                             Добавить город
                         </Button>
                         <Popconfirm
-                            title="Удалить страну?"
-                            description="Проверьте, что страна и её города не используются в точках продаж, доставке или заказах. Действие нельзя отменить из админки."
+                            title={`Удалить страну «${record.name}»?`}
+                            description={`Проверьте, что ${countryActionContext} не используется в точках продаж, доставке или заказах. Действие нельзя отменить из админки.`}
                             okText="Удалить"
                             cancelText="Отмена"
                             onConfirm={() => handleDelete("country", record.id)}
                             okButtonProps={{loading: isDeletingThisCountry}}
                         >
-                            <Button danger loading={isDeletingThisCountry} disabled={isDeletingGeography && !isDeletingThisCountry}>
+                            <Button
+                                danger
+                                loading={isDeletingThisCountry}
+                                disabled={isCountryListUnsafe || isSaving || (isDeletingGeography && !isDeletingThisCountry)}
+                                aria-label={deleteCountryLabel}
+                                title={deleteCountryLabel}
+                            >
                                 {isDeletingThisCountry ? "Удаляется…" : "Удалить"}
                             </Button>
                         </Popconfirm>
@@ -237,21 +307,42 @@ const CountryCityPage: React.FC = () => {
                 render: (_, record) => {
                     const cityKey = `${country.id}:${record.id}`
                     const isDeletingThisCity = deletingCityKey === cityKey
+                    const cityPosition = formatPosition(record.position)
+                    const cityActionContext = `город «${record.name}», ID ${record.id}, страна «${country.name}», ID страны ${country.id}, ${cityPosition}`
+                    const editCityLabel = geographyActionsDisabledReason
+                        ? `Редактирование города недоступно: ${geographyActionsDisabledReason}`
+                        : `Редактировать ${cityActionContext}`
+                    const deleteCityLabel = geographyActionsDisabledReason
+                        ? `Удаление города недоступно: ${geographyActionsDisabledReason}`
+                        : isDeletingThisCity
+                            ? `Удаляется ${cityActionContext}`
+                            : `Удалить ${cityActionContext}`
 
                     return (
                         <Space wrap>
-                            <Button disabled={isDeletingGeography || isSaving} onClick={() => openModal("city", record, country.id)}>
+                            <Button
+                                disabled={isCountryListUnsafe || isDeletingGeography || isSaving}
+                                onClick={() => openModal("city", record, country.id)}
+                                aria-label={editCityLabel}
+                                title={editCityLabel}
+                            >
                                 Редактировать
                             </Button>
                             <Popconfirm
-                                title="Удалить город?"
-                                description="Сначала проверьте точки продаж, зоны доставки и заказы в этом городе. Действие нельзя отменить из админки."
+                                title={`Удалить город «${record.name}»?`}
+                                description={`Сначала проверьте точки продаж, зоны доставки и заказы: ${cityActionContext}. Действие нельзя отменить из админки.`}
                                 okText="Удалить"
                                 cancelText="Отмена"
                                 onConfirm={() => handleDelete("city", record.id, country.id)}
                                 okButtonProps={{loading: isDeletingThisCity}}
                             >
-                                <Button danger loading={isDeletingThisCity} disabled={isDeletingGeography && !isDeletingThisCity}>
+                                <Button
+                                    danger
+                                    loading={isDeletingThisCity}
+                                    disabled={isCountryListUnsafe || isSaving || (isDeletingGeography && !isDeletingThisCity)}
+                                    aria-label={deleteCityLabel}
+                                    title={deleteCityLabel}
+                                >
                                     {isDeletingThisCity ? "Удаляется…" : "Удалить"}
                                 </Button>
                             </Popconfirm>
@@ -274,7 +365,13 @@ const CountryCityPage: React.FC = () => {
                             image={Empty.PRESENTED_IMAGE_SIMPLE}
                             description="В этой стране ещё нет городов"
                         >
-                            <Button type="primary" disabled={isSaving || isDeletingGeography} onClick={() => openModal("city", null, country.id)}>
+                            <Button
+                                type="primary"
+                                disabled={isCountryListUnsafe || isSaving || isDeletingGeography}
+                                onClick={() => openModal("city", null, country.id)}
+                                aria-label={`Добавить первый город в страну «${country.name}», ID ${country.id}`}
+                                title={geographyActionsDisabledReason || `Добавить первый город в страну «${country.name}», ID ${country.id}`}
+                            >
                                 Добавить первый город
                             </Button>
                         </Empty>
@@ -290,7 +387,8 @@ const CountryCityPage: React.FC = () => {
             subtitle="Справочник географии для точек продаж, доставки и адресов клиентов. Меняйте его осторожно: записи могут быть связаны с операционными данными."
             addButtonText="Добавить страну"
             onAdd={() => openModal("country")}
-            addButtonDisabled={isDeletingGeography || isSaving}
+            addButtonDisabled={isCountryListUnsafe || isDeletingGeography || isSaving}
+            addButtonDisabledReason={geographyActionsDisabledReason}
         >
             <Space direction="vertical" size={12} style={{width: "100%"}}>
                 {isError ? (
@@ -298,8 +396,15 @@ const CountryCityPage: React.FC = () => {
                         type="error"
                         showIcon
                         message="Не удалось загрузить страны и города"
-                        description="Не меняйте географию вслепую: справочник влияет на доставку, точки продаж и адреса клиентов. Повторите загрузку или передайте проблему администратору."
-                        action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
+                        description="Создание, редактирование и удаление заблокированы, пока список не подтверждён API. Не меняйте географию вслепую: справочник влияет на доставку, точки продаж и адреса клиентов."
+                        action={<Button size="small" onClick={() => refetch()} loading={isFetching}>Повторить</Button>}
+                    />
+                ) : isFetching && sortedCountries.length > 0 ? (
+                    <Alert
+                        type="warning"
+                        showIcon
+                        message="Справочник географии обновляется"
+                        description="Дождитесь завершения обновления: действия со странами и городами временно заблокированы, чтобы менеджер не изменил устаревшую строку."
                     />
                 ) : null}
 
@@ -363,7 +468,7 @@ const CountryCityPage: React.FC = () => {
                                 {hasActiveFilters ? (
                                     <Button onClick={resetFilters}>Сбросить фильтры</Button>
                                 ) : (
-                                    <Button type="primary" disabled={isSaving || isDeletingGeography} onClick={() => openModal("country")}>Добавить страну</Button>
+                                    <Button type="primary" disabled={isCountryListUnsafe || isSaving || isDeletingGeography} onClick={() => openModal("country")}>Добавить страну</Button>
                                 )}
                             </Empty>
                         )
@@ -373,9 +478,7 @@ const CountryCityPage: React.FC = () => {
 
             <Modal
                 title={
-                    editingItem
-                        ? `Редактирование ${modalType === "country" ? "страны" : "города"}`
-                        : `Создание ${modalType === "country" ? "страны" : "города"}`
+                    formatGeographyModalTitle(modalType, editingItem, selectedCountry)
                 }
                 open={isModalOpen}
                 onOk={handleOk}

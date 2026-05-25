@@ -14,6 +14,7 @@ import {
     Switch,
     Table,
     Tag,
+    Tooltip,
     Typography,
     message
 } from "antd"
@@ -88,13 +89,15 @@ const EmployeesPage = () => {
     const {
         data: employeesData,
         isLoading: isEmployeesLoading,
+        isFetching: isEmployeesFetching,
         error: employeesError,
         refetch: refetchEmployees
     } = useGetEmployeesQuery()
-    const {data: rolesData, isLoading: isRolesLoading, error: rolesError, refetch: refetchRoles} = useGetRolesQuery()
+    const {data: rolesData, isLoading: isRolesLoading, isFetching: isRolesFetching, error: rolesError, refetch: refetchRoles} = useGetRolesQuery()
     const {
         data: permissionCatalog,
         isLoading: isPermissionCatalogLoading,
+        isFetching: isPermissionCatalogFetching,
         error: permissionCatalogError,
         refetch: refetchPermissionCatalog
     } = useGetRolePermissionsQuery()
@@ -116,6 +119,22 @@ const EmployeesPage = () => {
     const canManageStaff = useCan("staff.manage")
     const isSavingEmployee = isCreating || isUpdating
     const isSavingRoles = isUpdatingRoles
+    const isStaffDirectoryInitialLoading = isEmployeesLoading || isRolesLoading || isPermissionCatalogLoading
+    const isStaffDirectoryBackgroundRefreshing = !isStaffDirectoryInitialLoading && (isEmployeesFetching || isRolesFetching || isPermissionCatalogFetching)
+    const isStaffDirectoryRefreshing = isStaffDirectoryInitialLoading || isStaffDirectoryBackgroundRefreshing
+    const hasStaffDirectoryError = Boolean(employeesError || rolesError || permissionCatalogError)
+    const staffActionsDisabledReason = hasStaffDirectoryError
+        ? "Обновите список сотрудников, ролей и матрицу доступов перед изменением прав."
+        : isStaffDirectoryRefreshing
+            ? "Дождитесь проверки сотрудников, ролей и матрицы доступов, чтобы не сохранить устаревшие права."
+            : isSavingEmployee
+                ? "Дождитесь сохранения карточки сотрудника."
+                : isSavingRoles
+                    ? "Дождитесь сохранения ролей сотрудника."
+                    : isDeleting
+                        ? "Дождитесь удаления сотрудника."
+                        : undefined
+    const areStaffActionsDisabled = Boolean(staffActionsDisabledReason)
 
     const employees = useMemo(
         () => (employeesData ? [...employeesData].sort((a, b) => b.id - a.id) : []),
@@ -330,22 +349,59 @@ const EmployeesPage = () => {
                 render: (_: unknown, employee: EmployeeSafe) => {
                     const isCurrentEmployeeDeleting = deletingEmployeeId === employee.id
                     const isAnotherEmployeeDeleting = isDeleting && deletingEmployeeId !== null && !isCurrentEmployeeDeleting
+                    const employeeFullName = `${employee.firstName} ${employee.lastName}`.trim() || `сотрудник #${employee.id}`
+                    const employeeStatusLabel = employee.isActive ? "активен" : "вход закрыт"
+                    const employeeRolesLabel = employee.roles.length
+                        ? `${employee.roles.length} ролей: ${employee.roles.map((role) => role.code).join(", ")}`
+                        : "без ролей"
+                    const employeeActionContext = `${employeeFullName}, ${employee.email}, ${employeeStatusLabel}, ${employeeRolesLabel}`
+                    const editEmployeeLabel = `Редактировать сотрудника: ${employeeActionContext}`
+                    const rolesEmployeeLabel = `Изменить только роли сотрудника: ${employeeActionContext}`
+                    const deleteEmployeeLabel = isCurrentEmployeeDeleting
+                        ? `Удаляем сотрудника: ${employeeActionContext}`
+                        : `Удалить сотрудника: ${employeeActionContext}`
 
                     return (
                         <Space wrap>
-                            <Button disabled={isDeleting || isSavingEmployee || isSavingRoles} onClick={() => openEdit(employee)}>Редактировать</Button>
-                            <Button disabled={isDeleting || isSavingEmployee || isSavingRoles} onClick={() => openRolesOnly(employee)}>Только роли</Button>
+                            <Tooltip title={areStaffActionsDisabled ? staffActionsDisabledReason : undefined}>
+                                <Button
+                                    disabled={areStaffActionsDisabled}
+                                    aria-label={editEmployeeLabel}
+                                    title={staffActionsDisabledReason || editEmployeeLabel}
+                                    onClick={() => openEdit(employee)}
+                                >
+                                    Редактировать
+                                </Button>
+                            </Tooltip>
+                            <Tooltip title={areStaffActionsDisabled ? staffActionsDisabledReason : undefined}>
+                                <Button
+                                    disabled={areStaffActionsDisabled}
+                                    aria-label={rolesEmployeeLabel}
+                                    title={staffActionsDisabledReason || rolesEmployeeLabel}
+                                    onClick={() => openRolesOnly(employee)}
+                                >
+                                    Только роли
+                                </Button>
+                            </Tooltip>
                             <Popconfirm
-                                title="Удалить сотрудника?"
+                                title={`Удалить сотрудника ${employeeFullName}?`}
                                 description="Перед удалением проверьте, что у сотрудника нет активной смены, заказов или незавершённой передачи клиенту. Если нужно только закрыть вход, безопаснее сначала выключить активность."
                                 onConfirm={() => handleDelete(employee.id)}
                                 okText="Удалить"
                                 cancelText="Отмена"
                                 okButtonProps={{loading: isCurrentEmployeeDeleting}}
                             >
-                                <Button danger loading={isCurrentEmployeeDeleting} disabled={isAnotherEmployeeDeleting}>
-                                    {isCurrentEmployeeDeleting ? "Удаляем" : "Удалить"}
-                                </Button>
+                                <Tooltip title={areStaffActionsDisabled && !isCurrentEmployeeDeleting ? staffActionsDisabledReason : undefined}>
+                                    <Button
+                                        danger
+                                        loading={isCurrentEmployeeDeleting}
+                                        disabled={areStaffActionsDisabled || isAnotherEmployeeDeleting}
+                                        aria-label={deleteEmployeeLabel}
+                                        title={staffActionsDisabledReason || deleteEmployeeLabel}
+                                    >
+                                        {isCurrentEmployeeDeleting ? "Удаляем" : "Удалить"}
+                                    </Button>
+                                </Tooltip>
                             </Popconfirm>
                         </Space>
                     )
@@ -360,9 +416,11 @@ const EmployeesPage = () => {
                 title="Сотрудники"
                 subtitle="Команда админки, статусы активности и распределение ролей."
                 extra={canManageStaff ? (
-                    <Button type="primary" disabled={isSavingEmployee || isSavingRoles || isDeleting} onClick={openCreate}>
-                        Добавить сотрудника
-                    </Button>
+                    <Tooltip title={areStaffActionsDisabled ? staffActionsDisabledReason : undefined}>
+                        <Button type="primary" disabled={areStaffActionsDisabled} onClick={openCreate}>
+                            Добавить сотрудника
+                        </Button>
+                    </Tooltip>
                 ) : null}
             />
 
@@ -394,6 +452,15 @@ const EmployeesPage = () => {
                             Повторить
                         </Button>
                     )}
+                />
+            )}
+
+            {isStaffDirectoryBackgroundRefreshing && !hasStaffDirectoryError && (
+                <Alert
+                    showIcon
+                    type="info"
+                    message="Проверяем актуальность сотрудников и ролей"
+                    description="Показываем предыдущий подтверждённый список. Создание, роли и удаление временно заблокированы, чтобы не сохранить доступы поверх устаревшей матрицы."
                 />
             )}
 
@@ -456,7 +523,9 @@ const EmployeesPage = () => {
                                             Сбросить фильтры
                                         </Button>
                                     ) : canManageStaff ? (
-                                        <Button type="primary" onClick={openCreate}>Добавить сотрудника</Button>
+                                        <Tooltip title={areStaffActionsDisabled ? staffActionsDisabledReason : undefined}>
+                                            <Button type="primary" disabled={areStaffActionsDisabled} onClick={openCreate}>Добавить сотрудника</Button>
+                                        </Tooltip>
                                     ) : null}
                                 </Empty>
                             )

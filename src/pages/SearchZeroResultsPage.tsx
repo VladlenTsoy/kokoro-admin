@@ -29,6 +29,9 @@ const SearchZeroResultsPage = () => {
     const repeatedSignals = sortedData.filter(isRepeatedSignal).length
     const freshSignals = sortedData.filter(isFreshSignal).length
     const prioritySignals = sortedData.filter((item) => isRepeatedSignal(item) && isFreshSignal(item)).length
+    const isPriorityQueueActive = showRepeatedOnly && showFreshOnly && !normalizedQueryFilter
+    const isRepeatedQueueActive = showRepeatedOnly && !showFreshOnly && !normalizedQueryFilter
+    const isFreshQueueActive = !showRepeatedOnly && showFreshOnly && !normalizedQueryFilter
     const hasActiveFilters = Boolean(normalizedQueryFilter) || showRepeatedOnly || showFreshOnly
     const openCatalogSearch = (query: string) => {
         const params = new URLSearchParams({search: query.trim(), current: "1"})
@@ -54,10 +57,11 @@ const SearchZeroResultsPage = () => {
         setShowRepeatedOnly(false)
         setShowFreshOnly(false)
     }
-    const getQueueMetricCardActionProps = (onOpen: () => void) => ({
+    const getQueueMetricCardActionProps = (label: string, onOpen: () => void) => ({
         hoverable: true,
         role: "button",
         tabIndex: 0,
+        "aria-label": `Открыть очередь поисковых сигналов: ${label}`,
         onClick: onOpen,
         onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
             if (event.key === "Enter" || event.key === " ") {
@@ -115,11 +119,26 @@ const SearchZeroResultsPage = () => {
             title: "Действие",
             key: "action",
             width: 190,
-            render: (_, item) => (
-                <Button size="small" icon={<SearchOutlined />} onClick={() => openCatalogSearch(item.query)} disabled={!item.query.trim()}>
-                    Проверить каталог
-                </Button>
-            )
+            render: (_, item) => {
+                const normalizedQuery = item.query.trim()
+                const isCatalogHandoffDisabled = !normalizedQuery
+                const catalogHandoffLabel = isCatalogHandoffDisabled
+                    ? "Проверка каталога недоступна: пустой поисковый запрос"
+                    : `Проверить каталог по запросу ${normalizedQuery}, ${item.count} неуспешных поисков`
+
+                return (
+                    <Button
+                        size="small"
+                        icon={<SearchOutlined />}
+                        onClick={() => openCatalogSearch(item.query)}
+                        disabled={isCatalogHandoffDisabled}
+                        aria-label={catalogHandoffLabel}
+                        title={catalogHandoffLabel}
+                    >
+                        Проверить каталог
+                    </Button>
+                )
+            }
         }
     ]
 
@@ -129,6 +148,11 @@ const SearchZeroResultsPage = () => {
                 <PageHeading
                     title="Поиск без результата"
                     subtitle="Агрегированные запросы из сайта, где покупатель ничего не нашёл. Без персональных данных."
+                    extra={(
+                        <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
+                            Обновить сигналы
+                        </Button>
+                    )}
                 />
                 <Alert
                     type="info"
@@ -153,6 +177,15 @@ const SearchZeroResultsPage = () => {
                 />
             ) : null}
 
+            {isFetching && !isLoading && !error ? (
+                <Alert
+                    type="info"
+                    showIcon
+                    message="Обновляем поисковые сигналы"
+                    description="Таблица пока показывает предыдущую подтверждённую выборку. Дождитесь обновления перед постановкой новых задач каталогу."
+                />
+            ) : null}
+
             <Space size={16} wrap>
                 <Card className="metric-card metric-card--cyan">
                     <Statistic prefix={<SearchOutlined />} title="Уникальные запросы" value={data.length} loading={isLoading} />
@@ -160,13 +193,13 @@ const SearchZeroResultsPage = () => {
                 <Card className="metric-card metric-card--blue">
                     <Statistic title="Всего неуспешных поисков" value={totalSearches} loading={isLoading} />
                 </Card>
-                <Card className="metric-card metric-card--lime" {...getQueueMetricCardActionProps(showRepeatedQueue)}>
+                <Card className="metric-card metric-card--lime" {...getQueueMetricCardActionProps("повторные запросы", showRepeatedQueue)}>
                     <Statistic title={renderMetricTitle("Повторяются чаще 1 раза", "Открыть повторные")} value={repeatedSignals} loading={isLoading} />
                 </Card>
-                <Card className="metric-card metric-card--cyan" {...getQueueMetricCardActionProps(showFreshQueue)}>
+                <Card className="metric-card metric-card--cyan" {...getQueueMetricCardActionProps("свежие за 7 дней", showFreshQueue)}>
                     <Statistic title={renderMetricTitle("Свежие за 7 дней", "Открыть свежие")} value={freshSignals} loading={isLoading} />
                 </Card>
-                <Card className="metric-card metric-card--blue" {...getQueueMetricCardActionProps(showPriorityQueue)}>
+                <Card className="metric-card metric-card--blue" {...getQueueMetricCardActionProps("приоритетные на сегодня", showPriorityQueue)}>
                     <Statistic title={renderMetricTitle("Разобрать сегодня", "Открыть приоритет")} value={prioritySignals} loading={isLoading} />
                 </Card>
                 <Card className="metric-card metric-card--blue">
@@ -186,16 +219,36 @@ const SearchZeroResultsPage = () => {
                     <Space direction="vertical" size={8} style={{width: "100%"}}>
                         <Typography.Text strong>Быстрые очереди менеджера</Typography.Text>
                         <Space size={8} wrap>
-                            <Button type={showRepeatedOnly && showFreshOnly && !normalizedQueryFilter ? "primary" : "default"} onClick={showPriorityQueue}>
+                            <Button
+                                type={isPriorityQueueActive ? "primary" : "default"}
+                                aria-pressed={isPriorityQueueActive}
+                                aria-label={`Открыть очередь поисковых сигналов: разобрать сегодня, ${prioritySignals}`}
+                                onClick={showPriorityQueue}
+                            >
                                 Разобрать сегодня ({prioritySignals})
                             </Button>
-                            <Button type={showRepeatedOnly && !showFreshOnly && !normalizedQueryFilter ? "primary" : "default"} onClick={showRepeatedQueue}>
+                            <Button
+                                type={isRepeatedQueueActive ? "primary" : "default"}
+                                aria-pressed={isRepeatedQueueActive}
+                                aria-label={`Открыть очередь поисковых сигналов: повторные, ${repeatedSignals}`}
+                                onClick={showRepeatedQueue}
+                            >
                                 Повторные ({repeatedSignals})
                             </Button>
-                            <Button type={!showRepeatedOnly && showFreshOnly && !normalizedQueryFilter ? "primary" : "default"} onClick={showFreshQueue}>
+                            <Button
+                                type={isFreshQueueActive ? "primary" : "default"}
+                                aria-pressed={isFreshQueueActive}
+                                aria-label={`Открыть очередь поисковых сигналов: свежие за 7 дней, ${freshSignals}`}
+                                onClick={showFreshQueue}
+                            >
                                 Свежие 7 дней ({freshSignals})
                             </Button>
-                            <Button onClick={resetFilters} disabled={!hasActiveFilters}>
+                            <Button
+                                aria-pressed={!hasActiveFilters}
+                                aria-label={`Показать все поисковые сигналы, ${sortedData.length}`}
+                                onClick={resetFilters}
+                                disabled={!hasActiveFilters}
+                            >
                                 Все сигналы ({sortedData.length})
                             </Button>
                         </Space>
@@ -213,11 +266,11 @@ const SearchZeroResultsPage = () => {
                             style={{maxWidth: 360}}
                         />
                         <Space>
-                            <Switch checked={showRepeatedOnly} onChange={setShowRepeatedOnly} />
+                            <Switch aria-label="Фильтр: только повторные поисковые сигналы" checked={showRepeatedOnly} onChange={setShowRepeatedOnly} />
                             <Typography.Text>Только повторные сигналы</Typography.Text>
                         </Space>
                         <Space>
-                            <Switch checked={showFreshOnly} onChange={setShowFreshOnly} />
+                            <Switch aria-label="Фильтр: только свежие поисковые сигналы за 7 дней" checked={showFreshOnly} onChange={setShowFreshOnly} />
                             <Typography.Text>Только свежие за 7 дней</Typography.Text>
                         </Space>
                         {hasActiveFilters ? (

@@ -4,6 +4,8 @@ import {ConfigProvider, theme} from "antd"
 import {themes} from "./utils/themes.ts"
 import {useSelectedTheme} from "./features/theme/themeSlice.ts"
 import {useEffect} from "react"
+import {adminEnvValidation} from "./utils/adminEnvValidation.ts"
+import {AdminEnvErrorScreen} from "./components/AdminEnvErrorScreen.tsx"
 
 function App() {
     const mode = useSelectedTheme()
@@ -20,7 +22,7 @@ function App() {
                 components: themes[mode].components
             }}
         >
-            <AppRouter />
+            {adminEnvValidation.isValid ? <AppRouter /> : <AdminEnvErrorScreen validation={adminEnvValidation} />}
         </ConfigProvider>
     )
 }

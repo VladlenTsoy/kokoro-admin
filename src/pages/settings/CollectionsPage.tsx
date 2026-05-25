@@ -10,6 +10,7 @@ import {
     useUpdateCollectionMutation
 } from "../../features/settings/collection/collectionApi.ts"
 import {getNestErrorMessage} from "../../utils/getNestErrorMessage.ts"
+import {isAntdFormValidationError} from "../../utils/isAntdFormValidationError.ts"
 
 interface FormValues {
     title: string
@@ -17,7 +18,7 @@ interface FormValues {
 
 const CollectionsPage = () => {
     const [form] = Form.useForm<FormValues>()
-    const {data, isLoading, isError, refetch} = useGetCollectionsQuery()
+    const {data, isLoading, isFetching, isError, refetch} = useGetCollectionsQuery()
     const [createCollection, {isLoading: isCreating}] = useCreateCollectionMutation()
     const [updateCollection, {isLoading: isUpdating}] = useUpdateCollectionMutation()
     const [deleteCollection] = useDeleteCollectionMutation()
@@ -40,8 +41,31 @@ const CollectionsPage = () => {
     const hasSearch = normalizedSearch.length > 0
     const isSavingCollection = isCreating || isUpdating
     const isDeletingCollection = deletingCollectionId !== null
-    const isCollectionListUnavailable = isError
-    const isCollectionMutationLocked = isSavingCollection || isDeletingCollection || isCollectionListUnavailable
+    const isCollectionListUnsafe = isLoading || isFetching || isError || !data
+    const isCollectionMutationLocked = isSavingCollection || isDeletingCollection || isCollectionListUnsafe
+    const editingCollectionContext = editing ? `коллекцию «${editing.title}», ID ${editing.id}` : null
+    const collectionModalTitle = editingCollectionContext ? `Редактировать ${editingCollectionContext}` : "Создать коллекцию"
+    const collectionSaveButtonText = isSavingCollection
+        ? editingCollectionContext
+            ? `Сохраняем ${editingCollectionContext}…`
+            : "Создаём коллекцию…"
+        : editingCollectionContext
+            ? `Сохранить ${editingCollectionContext}`
+            : "Создать коллекцию"
+    const collectionCancelLabel = editingCollectionContext
+        ? `Отменить редактирование ${editingCollectionContext}`
+        : "Отменить создание коллекции"
+    const addCollectionDisabledReason = isSavingCollection
+        ? "Дождитесь сохранения текущей коллекции, чтобы не создать дубль витринной подборки."
+        : isDeletingCollection
+            ? "Дождитесь удаления коллекции: создание временно заблокировано, чтобы не смешать изменения витрины."
+            : isError
+                ? "Сначала повторите загрузку списка коллекций, чтобы создавать подборку по подтверждённым данным."
+                : isLoading || !data
+                    ? "Дождитесь первичной загрузки коллекций: создание доступно только по подтверждённому списку."
+                    : isFetching
+                        ? "Дождитесь обновления списка коллекций, чтобы не менять витрину по устаревшим данным."
+                        : undefined
 
     const openCreate = () => {
         if (isCollectionMutationLocked) {
@@ -75,7 +99,7 @@ const CollectionsPage = () => {
             setEditing(null)
             form.resetFields()
         } catch (error) {
-            if (typeof error === "object" && error !== null && "errorFields" in error) {
+            if (isAntdFormValidationError(error)) {
                 return
             }
             message.error(getNestErrorMessage(error))
@@ -120,33 +144,51 @@ const CollectionsPage = () => {
             title: "Действия",
             key: "actions",
             width: 220,
-            render: (_, record) => (
-                <Space wrap>
-                    <Button type="link" onClick={() => openEdit(record)} disabled={isCollectionMutationLocked}>
-                        Редактировать
-                    </Button>
-                    {isCollectionListUnavailable ? (
-                        <Typography.Text type="secondary">Сначала повторите загрузку списка</Typography.Text>
-                    ) : null}
-                    <Popconfirm
-                        title="Удалить коллекцию?"
-                        description="Проверьте, что коллекция не используется в активных товарах или промо-подборках. Действие нельзя отменить из админки."
-                        okText="Удалить"
-                        cancelText="Отмена"
-                        okButtonProps={{loading: deletingCollectionId === record.id, danger: true}}
-                        onConfirm={() => handleDelete(record.id)}
-                    >
+            render: (_, record) => {
+                const collectionActionContext = `коллекцию «${record.title}», ID ${record.id}`
+                const editCollectionLabel = `Редактировать ${collectionActionContext}`
+                const deleteCollectionLabel = deletingCollectionId === record.id
+                    ? `Удаляется ${collectionActionContext}`
+                    : `Удалить ${collectionActionContext}`
+
+                return (
+                    <Space wrap>
                         <Button
                             type="link"
-                            danger
-                            loading={deletingCollectionId === record.id}
-                            disabled={isCollectionListUnavailable || (isDeletingCollection && deletingCollectionId !== record.id)}
+                            onClick={() => openEdit(record)}
+                            disabled={isCollectionMutationLocked}
+                            aria-label={editCollectionLabel}
+                            title={editCollectionLabel}
                         >
-                            {deletingCollectionId === record.id ? "Удаляем…" : "Удалить"}
+                            Редактировать
                         </Button>
-                    </Popconfirm>
-                </Space>
-            )
+                        {isCollectionListUnsafe ? (
+                            <Typography.Text type="secondary">
+                                {isError ? "Сначала повторите загрузку списка" : "Дождитесь свежего списка"}
+                            </Typography.Text>
+                        ) : null}
+                        <Popconfirm
+                            title={`Удалить коллекцию «${record.title}»?`}
+                            description={`ID ${record.id}. Проверьте, что коллекция не используется в активных товарах или промо-подборках. Действие нельзя отменить из админки.`}
+                            okText="Удалить"
+                            cancelText="Отмена"
+                            okButtonProps={{loading: deletingCollectionId === record.id, danger: true}}
+                            onConfirm={() => handleDelete(record.id)}
+                        >
+                            <Button
+                                type="link"
+                                danger
+                                loading={deletingCollectionId === record.id}
+                                disabled={isCollectionListUnsafe || (isDeletingCollection && deletingCollectionId !== record.id)}
+                                aria-label={deleteCollectionLabel}
+                                title={deleteCollectionLabel}
+                            >
+                                {deletingCollectionId === record.id ? "Удаляем…" : "Удалить"}
+                            </Button>
+                        </Popconfirm>
+                    </Space>
+                )
+            }
         }
     ]
 
@@ -158,6 +200,7 @@ const CollectionsPage = () => {
                 addButtonText="Добавить коллекцию"
                 onAdd={openCreate}
                 addButtonDisabled={isCollectionMutationLocked}
+                addButtonDisabledReason={addCollectionDisabledReason}
             >
                 <Space direction="vertical" size={12} style={{width: "100%"}}>
                     {isError ? (
@@ -169,6 +212,14 @@ const CollectionsPage = () => {
                             action={<Button size="small" onClick={() => refetch()}>Повторить</Button>}
                         />
                     ) : null}
+                    {isFetching && !isLoading && !isError ? (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            message="Обновляем список коллекций"
+                            description="Дождитесь свежего ответа API: на время обновления создание, редактирование и удаление коллекций заблокированы, чтобы не изменить витрину по устаревшим данным."
+                        />
+                    ) : null}
                     <Space style={{padding: 16, paddingBottom: 0}} wrap>
                         <Input.Search
                             allowClear
@@ -176,11 +227,22 @@ const CollectionsPage = () => {
                             value={collectionSearch}
                             onChange={(event) => setCollectionSearch(event.target.value)}
                             onSearch={setCollectionSearch}
+                            aria-label="Поиск коллекций витрины по названию или ID перед созданием дубля"
+                            title="Поиск коллекций витрины по названию или ID перед созданием дубля"
+                            enterButton="Найти"
                             style={{width: 280}}
                         />
                         <Tag color="blue">Всего коллекций: {collections.length}</Tag>
                         {hasSearch ? <Tag>Найдено: {filteredCollections.length}</Tag> : null}
-                        {hasSearch ? <Button onClick={() => setCollectionSearch("")}>Сбросить поиск</Button> : null}
+                        {hasSearch ? (
+                            <Button
+                                onClick={() => setCollectionSearch("")}
+                                aria-label={`Сбросить поиск коллекций: сейчас найдено ${filteredCollections.length} из ${collections.length}`}
+                                title={`Сбросить поиск коллекций: сейчас найдено ${filteredCollections.length} из ${collections.length}`}
+                            >
+                                Сбросить поиск
+                            </Button>
+                        ) : null}
                     </Space>
                     {isDeletingCollection ? (
                         <Alert
@@ -198,7 +260,7 @@ const CollectionsPage = () => {
                     />
                     <Table
                         rowKey="id"
-                        loading={isLoading}
+                        loading={isLoading || isFetching}
                         dataSource={filteredCollections}
                         columns={columns}
                         pagination={false}
@@ -223,15 +285,17 @@ const CollectionsPage = () => {
 
             <Modal
                 open={isOpen}
-                title={editing ? "Редактировать коллекцию" : "Создать коллекцию"}
+                title={collectionModalTitle}
                 onCancel={() => {
                     if (!isSavingCollection) {
                         setIsOpen(false)
                     }
                 }}
                 onOk={handleSave}
-                okText={isSavingCollection ? "Сохраняем…" : editing ? "Сохранить коллекцию" : "Создать коллекцию"}
-                cancelButtonProps={{disabled: isSavingCollection}}
+                okText={collectionSaveButtonText}
+                cancelText={editingCollectionContext ? "Не менять эту коллекцию" : "Отмена"}
+                okButtonProps={{title: collectionSaveButtonText, "aria-label": collectionSaveButtonText}}
+                cancelButtonProps={{disabled: isSavingCollection, title: collectionCancelLabel, "aria-label": collectionCancelLabel}}
                 maskClosable={!isSavingCollection}
                 keyboard={!isSavingCollection}
                 confirmLoading={isSavingCollection}

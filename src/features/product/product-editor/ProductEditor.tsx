@@ -49,10 +49,13 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
     const {styles} = useStyles()
     const navigate = useNavigate()
     const isSaving = isCreating || isUpdating
-    const isSaveBlocked = isLoading || Boolean(productId && isProductLoadError)
+    const isProductRefetching = Boolean(productId && isProductFetching && !isLoading)
+    const isSaveBlocked = isLoading || isProductRefetching || Boolean(productId && isProductLoadError)
     const saveBlockedReason = isLoading
         ? "Дождитесь загрузки карточки товара, чтобы сохранить актуальные данные по цене, остаткам и публикации."
-        : "Карточка товара не загрузилась полностью. Повторите загрузку перед сохранением, чтобы не перезаписать актуальные данные пустой или устаревшей формой."
+        : isProductRefetching
+            ? "Карточка товара обновляется из API. Дождитесь завершения проверки, чтобы не сохранить цену, остатки или публикацию поверх устаревших данных."
+            : "Карточка товара не загрузилась полностью. Повторите загрузку перед сохранением, чтобы не перезаписать актуальные данные пустой или устаревшей формой."
 
     // ---------- Состояния ----------
     const [selectedSizes, setSelectedSizes] = useState<{id: number; title: string}[]>([])
@@ -84,6 +87,10 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
     // Инициализация состояния после загрузки данных
     useEffect(() => {
         if (data) {
+            if (productId && hasUnsavedChanges && !isSaving) {
+                return
+            }
+
             if (isColor) {
                 const productProperties = data.product?.properties?.map(property => property.id) || []
                 setSelectedSizes(data.sizes.map((s) => s.size))
@@ -148,7 +155,7 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
         } else {
             setDiscountMode(true)
         }
-    }, [data, form, isColor, sizePropsToInitialValues])
+    }, [data, form, hasUnsavedChanges, isColor, isSaving, productId, sizePropsToInitialValues])
 
     // ---------- Watchers ----------
     const discountValue = Form.useWatch(["discount", "percent"], form) as number | undefined
@@ -302,6 +309,15 @@ const ProductEditor: React.FC<Props> = ({productId, isColor}) => {
                 {leftBlock}
             </Col>
             <Col xl={12} md={12} xs={24}>
+                {isProductRefetching && (
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Проверяем актуальность карточки товара"
+                        description="Можно продолжать редактирование, но сохранение включится после завершения фонового обновления. Уже внесённые правки не будут перезаписаны ответом API."
+                        style={{marginBottom: 12}}
+                    />
+                )}
                 {isProductLoadError && productId && (
                     <Alert
                         type="warning"
