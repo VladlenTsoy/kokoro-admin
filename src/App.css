@@ -221,6 +221,7 @@ body[data-theme="dark"] .ant-layout-footer {
 .admin-table-card,
 .admin-section-card,
 .drawer-command-card,
+.priority-queue-card,
 .workflow-card,
 .timeline-card,
 .next-action-card {
@@ -276,9 +277,36 @@ body[data-theme="dark"] .ant-layout-footer {
         linear-gradient(180deg, #ffffff, #fbfcfd);
 }
 
+.priority-queue-card {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+}
+
+.priority-queue-strip .ant-btn {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.priority-queue-meta {
+    min-height: 24px;
+}
+
 .workflow-card .ant-tag {
     padding: 6px 10px;
     border-radius: 999px;
+}
+
+.order-checklist .ant-list-item {
+    padding: 10px 0;
+}
+
+.order-checklist .ant-list-item:first-child {
+    padding-top: 0;
+}
+
+.order-checklist .ant-list-item-meta-title {
+    margin-bottom: 3px;
 }
 
 .next-action-card {
@@ -335,6 +363,7 @@ body[data-theme="dark"] .focus-card,
 body[data-theme="dark"] .admin-table-card,
 body[data-theme="dark"] .admin-section-card,
 body[data-theme="dark"] .drawer-command-card,
+body[data-theme="dark"] .priority-queue-card,
 body[data-theme="dark"] .workflow-card,
 body[data-theme="dark"] .timeline-card,
 body[data-theme="dark"] .next-action-card {

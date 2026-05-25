@@ -12,6 +12,7 @@ import {
     Form,
     Input,
     InputNumber,
+    List,
     Modal,
     Row,
     Select,
@@ -231,6 +232,89 @@ const getOrderBadges = (order: AdminOrder) => {
     return badges
 }
 
+const isOpenOrder = (order: AdminOrder) => order.deliveryStatus !== "delivered" && order.deliveryStatus !== "cancelled"
+
+type ChecklistState = "done" | "attention" | "blocked" | "neutral"
+
+const checklistStateMeta: Record<ChecklistState, {label: string; color: string}> = {
+    done: {label: "Готово", color: "green"},
+    attention: {label: "Проверить", color: "gold"},
+    blocked: {label: "Риск", color: "red"},
+    neutral: {label: "Инфо", color: "blue"}
+}
+
+const buildOperationalChecklist = (order: AdminOrder, phone?: string | null) => {
+    const itemsCount = order.itemsCount ?? order.items?.length ?? 0
+    const address = order.clientAddress?.address
+    const paymentLabel = order.paymentStatus ? paymentStatusMeta[order.paymentStatus]?.label : undefined
+    const deliveryLabel = order.deliveryStatus ? deliveryStatusMeta[order.deliveryStatus]?.label : undefined
+    const assignedEmployee = order.assignedEmployee
+        ? `${order.assignedEmployee.firstName} ${order.assignedEmployee.lastName}`
+        : null
+    const sla = getOrderSlaSnapshot(order)
+    const requiresAddress = order.deliveryStatus !== "delivered" && order.deliveryStatus !== "cancelled"
+    const paymentState: ChecklistState = order.paymentStatus === "paid"
+        ? "done"
+        : order.paymentStatus === "failed" || order.paymentStatus === "refunded"
+            ? "blocked"
+            : "attention"
+
+    return [
+        {
+            key: "next-action",
+            label: "Следующий шаг",
+            detail: `${getNextActionLabel(order)} · ${deliveryLabel || "статус доставки не указан"}`,
+            state: order.deliveryStatus === "cancelled" ? "blocked" : order.deliveryStatus === "delivered" ? "done" : "neutral"
+        },
+        {
+            key: "payment",
+            label: "Оплата",
+            detail: `${order.paymentMethod?.title || "способ не указан"} · ${paymentLabel || "статус не указан"}`,
+            state: paymentState
+        },
+        {
+            key: "contact",
+            label: "Контакт клиента",
+            detail: phone ? "Телефон есть в карточке" : "Телефон не указан",
+            state: phone ? "done" : "blocked"
+        },
+        {
+            key: "address",
+            label: "Адрес / выдача",
+            detail: address || order.deliveryType?.title || "Адрес или тип доставки не указан",
+            state: address || !requiresAddress ? "done" : "attention"
+        },
+        {
+            key: "items",
+            label: "Состав заказа",
+            detail: itemsCount > 0 ? `${itemsCount} позиций в заказе` : "Позиции не пришли в карточку",
+            state: itemsCount > 0 ? "done" : "blocked"
+        },
+        {
+            key: "assignee",
+            label: "Ответственный",
+            detail: assignedEmployee || "Сотрудник не назначен",
+            state: assignedEmployee ? "done" : "attention"
+        },
+        {
+            key: "sla",
+            label: "SLA",
+            detail: sla.thresholdMinutes
+                ? `${sla.ageMinutes}/${sla.thresholdMinutes} мин с последнего статуса`
+                : "SLA без порога для текущего статуса",
+            state: sla.state === "stuck" ? "blocked" : sla.state === "waiting" ? "attention" : "done"
+        },
+        {
+            key: "cancel",
+            label: "Отмена / возврат",
+            detail: order.deliveryStatus === "cancelled"
+                ? order.cancelReason || "Заказ отменён без причины в карточке"
+                : order.paymentStatus === "paid" ? "При отмене проверить возврат" : "Критичных возвратных действий нет",
+            state: order.deliveryStatus === "cancelled" && !order.cancelReason ? "attention" : "neutral"
+        }
+    ] satisfies Array<{key: string; label: string; detail: string; state: ChecklistState}>
+}
+
 const getHistoryDate = (item: OrderHistoryItem) => item.changedAt || item.createdAt
 
 const canUseBrowserNotifications = () => typeof window !== "undefined" && "Notification" in window
@@ -350,6 +434,7 @@ const OrdersPage = () => {
                 : undefined
     const currentActionOrderId = actionOrderId ?? selectedOrderId
     const currentItems = useMemo(() => data?.items || [], [data?.items])
+    const firstVisibleOpenOrder = useMemo(() => currentItems.find(isOpenOrder), [currentItems])
     const activeOrderFilterLabels = useMemo(() => {
         const labels: string[] = []
 
@@ -520,6 +605,7 @@ const OrdersPage = () => {
     const openOrder = (id: number) => updateSelectedOrderId(id)
     const closeOrderDrawer = () => updateSelectedOrderId(null)
     const selectedPhone = selectedOrder?.client?.phone || selectedOrder?.phone
+    const selectedOrderChecklist = selectedOrder ? buildOperationalChecklist(selectedOrder, selectedPhone) : []
 
     const openStatusModal = (id: number) => {
         setActionOrderId(id)
@@ -618,6 +704,10 @@ const OrdersPage = () => {
         setAttentionOnly(false)
         setSearchInput("")
         setFilters(todayFilters())
+    }
+    const startNextOrder = () => {
+        if (!firstVisibleOpenOrder || isQueueActionBlocked || isFetching) return
+        openOrder(firstVisibleOpenOrder.id)
     }
     const getMetricCardActionProps = (handler: () => void) => ({
         hoverable: true,
@@ -1146,6 +1236,75 @@ const OrdersPage = () => {
             </Card>
 
             <Card
+                className="priority-queue-card"
+                title="Приоритетная очередь смены"
+                extra={(
+                    <Button
+                        type="primary"
+                        disabled={!firstVisibleOpenOrder || isQueueActionBlocked || isFetching}
+                        title={
+                            isQueueActionBlocked
+                                ? queueActionBlockReason
+                                : isFetching
+                                    ? "Дождитесь свежего списка перед стартом следующего заказа."
+                                    : firstVisibleOpenOrder
+                                        ? `Открыть первый видимый открытый заказ ${getOrderActionContext(firstVisibleOpenOrder)}`
+                                        : "В текущем видимом списке нет открытых заказов."
+                        }
+                        onClick={startNextOrder}
+                    >
+                        Начать следующий
+                    </Button>
+                )}
+            >
+                <Space direction="vertical" size={12} style={{width: "100%"}}>
+                    <Space wrap size={[8, 8]} className="priority-queue-strip">
+                        <Button
+                            danger={(summary?.problemToday ?? 0) > 0}
+                            type={problemOnly ? "primary" : "default"}
+                            onClick={setProblemTodayFilters}
+                        >
+                            Проблемные <Badge count={summary?.problemToday ?? 0} showZero overflowCount={99} />
+                        </Button>
+                        <Button
+                            type={getDeliveryFilterButtonType("pending")}
+                            onClick={() => setDeliveryFilter("pending")}
+                        >
+                            Новые <Badge count={summary?.newOrders ?? 0} showZero overflowCount={99} />
+                        </Button>
+                        <Button
+                            type={getDeliveryFilterButtonType("preparing")}
+                            onClick={() => setDeliveryFilter("preparing")}
+                        >
+                            В работе <Badge count={summary?.inProgressToday ?? 0} showZero overflowCount={99} />
+                        </Button>
+                        <Button
+                            type={getDeliveryFilterButtonType("ready")}
+                            onClick={() => setDeliveryFilter("ready")}
+                        >
+                            Готовы <Badge count={summary?.readyToday ?? 0} showZero overflowCount={99} />
+                        </Button>
+                        <Button
+                            type={isTodayFilterActive && !problemOnly && !attentionOnly ? "primary" : "default"}
+                            onClick={setTodayFilters}
+                        >
+                            Сегодня <Badge count={summary?.ordersToday ?? 0} showZero overflowCount={999} />
+                        </Button>
+                    </Space>
+                    <Space wrap align="center" className="priority-queue-meta">
+                        <Typography.Text type="secondary">
+                            {firstVisibleOpenOrder
+                                ? `Следующий видимый: ${getOrderActionContext(firstVisibleOpenOrder)} · ${getNextActionLabel(firstVisibleOpenOrder)}`
+                                : "Видимых открытых заказов для старта нет."}
+                        </Typography.Text>
+                        <Tag color={isQueueActionBlocked ? "red" : isFetching ? "processing" : "green"}>
+                            {isQueueActionBlocked ? "требуется refresh" : isFetching ? "обновляем" : "список свежий"}
+                        </Tag>
+                    </Space>
+                </Space>
+            </Card>
+
+            <Card
                 className="admin-table-card orders-table-card"
                 extra={(
                     <Typography.Text type="secondary">
@@ -1277,10 +1436,28 @@ const OrdersPage = () => {
                         <Row gutter={[16, 16]}>
                             <Col xs={24} lg={15}>
                                 <Space direction="vertical" size={16} style={{width: "100%"}}>
-                                    <Card className="workflow-card" title="Workflow заказа">
-                                        <Space wrap>
-                                            {["Новый", "Принят", "Собирается", "Готов", "Выдан/доставлен", "Закрыт"].map((step) => <Tag key={step}>{step}</Tag>)}
-                                        </Space>
+                                    <Card className="workflow-card" title="Операционный чек-лист">
+                                        <List
+                                            className="order-checklist"
+                                            dataSource={selectedOrderChecklist}
+                                            renderItem={(item) => {
+                                                const stateMeta = checklistStateMeta[item.state]
+
+                                                return (
+                                                    <List.Item>
+                                                        <List.Item.Meta
+                                                            title={(
+                                                                <Space wrap size={[6, 4]}>
+                                                                    <Typography.Text strong>{item.label}</Typography.Text>
+                                                                    <Tag color={stateMeta.color}>{stateMeta.label}</Tag>
+                                                                </Space>
+                                                            )}
+                                                            description={item.detail}
+                                                        />
+                                                    </List.Item>
+                                                )
+                                            }}
+                                        />
                                     </Card>
 
                                     <Card className="admin-table-card" title="Товары">
