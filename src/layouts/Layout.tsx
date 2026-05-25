@@ -1,22 +1,45 @@
-import {Layout as AntdLayout} from "antd"
+import {Layout as AntdLayout, Space, Tag, Typography} from "antd"
 import HeaderMenu from "./header/HeaderMenu.tsx"
 import {createStyles} from "antd-style"
 import HeaderSearch from "./header/HeaderSearch.tsx"
 import HeaderNotification from "./header/HeaderNotification.tsx"
 import HeaderLanguage from "./header/HeaderLanguage.tsx"
 import HeaderProfile from "./header/HeaderProfile.tsx"
-import {Outlet} from "react-router-dom"
+import {Outlet, useLocation} from "react-router-dom"
 import HeaderThemeSwitch from "./header/HeaderThemeSwitch.tsx"
 import HeaderSettingsButton from "./header/HeaderSettingsButton.tsx"
 
 const {Header, Content, Footer} = AntdLayout
 
+const sectionMeta = [
+    {match: (pathname: string) => pathname === "/", title: "Today Operations", hint: "Смена, деньги, риски"},
+    {match: (pathname: string) => pathname.startsWith("/orders"), title: "Order Desk", hint: "Очередь заказов сегодня"},
+    {match: (pathname: string) => pathname.startsWith("/clients"), title: "Client CRM", hint: "История, бонусы, заказы"},
+    {match: (pathname: string) => pathname.startsWith("/settings"), title: "Launch Control", hint: "Настройки запуска"},
+    {match: (pathname: string) => pathname.startsWith("/products"), title: "Catalog", hint: "Товары и остатки"},
+    {match: (pathname: string) => pathname.startsWith("/search-zero-results"), title: "Search Insights", hint: "Нулевые результаты"}
+]
+
 const useStyles = createStyles(({token}) => ({
     root: {
         minHeight: "100vh",
-        background: "transparent"
+        background: "transparent",
+        position: "relative",
+        overflowX: "hidden",
+        "&::before": {
+            content: '""',
+            position: "fixed",
+            inset: "0 0 auto 0",
+            height: 280,
+            background: "radial-gradient(circle at 12% 12%, rgba(177, 232, 28, 0.2), transparent 34%), radial-gradient(circle at 88% 0%, rgba(22, 119, 255, 0.13), transparent 30%)",
+            pointerEvents: "none",
+            zIndex: 0
+        }
     },
     header: {
+        position: "sticky",
+        top: 12,
+        zIndex: 20,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -27,8 +50,9 @@ const useStyles = createStyles(({token}) => ({
         margin: "14px 14px 0",
         border: `1px solid ${token.colorBorder}`,
         borderRadius: token.borderRadiusLG + 8,
-        background: token.colorBgContainer,
-        boxShadow: "0 10px 35px rgba(15, 23, 42, 0.08)",
+        background: `color-mix(in srgb, ${token.colorBgContainer} 88%, transparent)`,
+        boxShadow: "0 14px 42px rgba(15, 23, 42, 0.09)",
+        backdropFilter: "blur(18px)",
         "@media (max-width: 1100px)": {
             alignItems: "stretch",
             flexDirection: "column",
@@ -70,18 +94,45 @@ const useStyles = createStyles(({token}) => ({
         }
     },
     content: {
+        position: "relative",
+        zIndex: 1,
         padding: 20,
         "@media (max-width: 768px)": {
             padding: 12
         }
     },
+    commandStrip: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        margin: "0 0 12px",
+        padding: "10px 14px",
+        border: `1px solid ${token.colorBorder}`,
+        borderRadius: token.borderRadiusLG + 8,
+        background: `color-mix(in srgb, ${token.colorBgContainer} 74%, transparent)`,
+        boxShadow: "0 10px 30px rgba(15, 23, 42, 0.055)",
+        backdropFilter: "blur(14px)",
+        "@media (max-width: 680px)": {
+            alignItems: "flex-start",
+            flexDirection: "column"
+        }
+    },
+    commandTitle: {
+        margin: 0,
+        lineHeight: 1.15
+    },
+    commandCopy: {
+        minWidth: 0
+    },
     surface: {
         borderRadius: token.borderRadiusLG + 10,
         border: `1px solid ${token.colorBorder}`,
-        background: token.colorBgContainer,
+        background: `color-mix(in srgb, ${token.colorBgContainer} 94%, transparent)`,
         minHeight: "calc(100vh - 190px)",
         padding: 22,
-        boxShadow: "0 16px 50px rgba(10, 20, 32, 0.08)",
+        boxShadow: "0 18px 58px rgba(10, 20, 32, 0.075)",
+        backdropFilter: "blur(10px)",
         "@media (max-width: 768px)": {
             padding: 14,
             borderRadius: token.borderRadiusLG
@@ -97,7 +148,8 @@ const useStyles = createStyles(({token}) => ({
 
 const Layout = () => {
     const {styles} = useStyles()
-
+    const {pathname} = useLocation()
+    const currentSection = sectionMeta.find((item) => item.match(pathname)) ?? {title: "Admin", hint: "Рабочая зона"}
 
     return (
         <AntdLayout className={styles.root}>
@@ -115,6 +167,16 @@ const Layout = () => {
                 </div>
             </Header>
             <Content className={styles.content}>
+                <div className={styles.commandStrip}>
+                    <div className={styles.commandCopy}>
+                        <Typography.Text type="secondary">Kokoro admin cockpit</Typography.Text>
+                        <Typography.Title level={4} className={styles.commandTitle}>{currentSection.title}</Typography.Title>
+                    </div>
+                    <Space wrap size={[8, 8]}>
+                        <Tag color="lime">Redesign MVP</Tag>
+                        <Tag>{currentSection.hint}</Tag>
+                    </Space>
+                </div>
                 <section className={styles.surface}>
                     <Outlet />
                 </section>
