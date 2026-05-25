@@ -26,11 +26,9 @@ import {
     message
 } from "antd"
 import type {ColumnsType} from "antd/es/table"
-import {AlertOutlined, CheckCircleOutlined, ClockCircleOutlined, CopyOutlined, FireOutlined, ShoppingOutlined, ThunderboltOutlined} from "@ant-design/icons"
+import {CopyOutlined} from "@ant-design/icons"
 import {useEffect, useMemo, useRef, useState} from "react"
-import type {KeyboardEvent} from "react"
 import dayjs from "dayjs"
-import PageHeading from "../components/PageHeading.tsx"
 import {
     useCancelOrderMutation,
     useCreateOrderCommentMutation,
@@ -356,8 +354,8 @@ const OrdersPage = () => {
     const [attentionOnly, setAttentionOnly] = useState(searchParams.get("attentionOnly") === "1")
     const [selectedOrderId, setSelectedOrderId] = useState<number | null>(() => getPositiveOrderIdFromSearch(searchParams))
     const [actionOrderId, setActionOrderId] = useState<number | null>(null)
-    const [liveAlertsEnabled, setLiveAlertsEnabled] = useState(() => localStorage.getItem(LIVE_ALERT_STORAGE_KEY) !== "0")
-    const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">(() => (
+    const [liveAlertsEnabled] = useState(() => localStorage.getItem(LIVE_ALERT_STORAGE_KEY) !== "0")
+    const [notificationPermission] = useState<NotificationPermission | "unsupported">(() => (
         canUseBrowserNotifications() ? Notification.permission : "unsupported"
     ))
     const [lastSuccessfulRefreshAt, setLastSuccessfulRefreshAt] = useState<string | null>(null)
@@ -453,7 +451,6 @@ const OrdersPage = () => {
     const hasActiveOrderFilters = activeOrderFilterLabels.length > 0
     const todayDate = dayjs().format("YYYY-MM-DD")
     const isTodayFilterActive = filters.from === todayDate && filters.to === todayDate
-    const isAllFilterActive = !hasActiveOrderFilters
     const getDeliveryFilterButtonType = (deliveryStatus: OrderDeliveryStatus) => (
         filters.deliveryStatus === deliveryStatus && !problemOnly && !attentionOnly ? "primary" : "default"
     )
@@ -569,19 +566,6 @@ const OrdersPage = () => {
         message.info(body)
     }, [currentItems, liveAlertsEnabled])
 
-    const handleLiveAlertsChange = async (enabled: boolean) => {
-        if (enabled && canUseBrowserNotifications() && Notification.permission === "default") {
-            const permission = await Notification.requestPermission()
-            setNotificationPermission(permission)
-            if (permission === "denied") {
-                message.warning("Desktop-уведомления запрещены в браузере — звуковой сигнал останется, но всплывающих уведомлений не будет.")
-            }
-        } else {
-            setNotificationPermission(canUseBrowserNotifications() ? Notification.permission : "unsupported")
-        }
-        setLiveAlertsEnabled(enabled)
-    }
-
     const findStatusByIntent = (intent: StatusIntent) => {
         const keywords = statusIntentKeywords[intent]
         return [...(statuses || [])]
@@ -693,12 +677,6 @@ const OrdersPage = () => {
         setAttentionOnly(false)
         setFilters((prev) => ({...prev, deliveryStatus, page: 1}))
     }
-    const setPaidTodayFilters = () => {
-        setProblemOnly(false)
-        setAttentionOnly(false)
-        setSearchInput("")
-        setFilters({...todayFilters(), paymentStatus: "paid"})
-    }
     const setProblemTodayFilters = () => {
         setProblemOnly(true)
         setAttentionOnly(false)
@@ -709,25 +687,6 @@ const OrdersPage = () => {
         if (!firstVisibleOpenOrder || isQueueActionBlocked || isFetching) return
         openOrder(firstVisibleOpenOrder.id)
     }
-    const getMetricCardActionProps = (handler: () => void) => ({
-        hoverable: true,
-        role: "button",
-        tabIndex: 0,
-        onClick: handler,
-        onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
-            if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault()
-                handler()
-            }
-        }
-    })
-    const renderMetricTitle = (label: string, hint: string) => (
-        <Space direction="vertical" size={2}>
-            <span>{label}</span>
-            <Typography.Text className="metric-card-hint" type="secondary">{hint}</Typography.Text>
-        </Space>
-    )
-
     const copyPhone = async (phone?: string | null) => {
         if (!phone) return
         try {
@@ -937,15 +896,7 @@ const OrdersPage = () => {
                     const blockedActionTitle = isQueueActionBlocked ? queueActionBlockReason : isOrderActionSaving ? "Дождитесь завершения текущего действия" : undefined
 
                     return (
-                        <Space wrap size={[6, 6]} className="order-row-actions">
-                            <Button
-                                size="small"
-                                aria-label={`Открыть карточку заказа ${orderActionContext}`}
-                                title={`Открыть карточку заказа ${orderActionContext}`}
-                                onClick={() => openOrder(order.id)}
-                            >
-                                Открыть
-                            </Button>
+                        <Space wrap size={[6, 6]} className="order-row-actions order-row-actions--focused">
                             {canUpdateOrders && (
                                 <Button
                                     size="small"
@@ -958,45 +909,65 @@ const OrdersPage = () => {
                                     {nextActionLabel}
                                 </Button>
                             )}
-                            {canUpdateOrders && (
-                                <Button
-                                    size="small"
-                                    disabled={isQueueActionBlocked || isOrderActionSaving}
-                                    aria-label={`Открыть правки заказа ${orderActionContext}`}
-                                    title={blockedActionTitle || `Открыть правки заказа ${orderActionContext}`}
-                                    onClick={() => openEditModal(order)}
-                                >
-                                    Правки
-                                </Button>
-                            )}
-                            {canUpdateOrders && (
-                                <Button
-                                    size="small"
-                                    disabled={isQueueActionBlocked || isOrderActionSaving}
-                                    aria-label={`Изменить статус заказа ${orderActionContext}`}
-                                    title={blockedActionTitle || `Изменить статус заказа ${orderActionContext}`}
-                                    onClick={() => openStatusModal(order.id)}
-                                >
-                                    Статус
-                                </Button>
-                            )}
-                            {canDeleteOrders && (
-                                <Button
-                                    size="small"
-                                    danger
-                                    disabled={isQueueActionBlocked || isOrderActionSaving}
-                                    aria-label={`Отменить заказ ${orderActionContext}`}
-                                    title={blockedActionTitle || `Отменить заказ ${orderActionContext}`}
-                                    onClick={() => openCancelModal(order.id)}
-                                >
-                                    Отмена
-                                </Button>
-                            )}
+                            <Button
+                                size="small"
+                                aria-label={`Открыть карточку заказа ${orderActionContext}`}
+                                title={`Открыть карточку заказа ${orderActionContext}. Правки, статус и отмена доступны внутри карточки.`}
+                                onClick={() => openOrder(order.id)}
+                            >
+                                Карточка
+                            </Button>
                         </Space>
                     )
                 }
             }
     ]
+
+    const renderMobileOrderCard = (order: AdminOrder) => {
+        const phone = order.client?.phone || order.phone
+        const orderActionContext = getOrderActionContext(order)
+        const nextActionLabel = getNextActionLabel(order)
+        const sla = getOrderSlaSnapshot(order)
+        const slaColor = sla.state === "stuck" ? "volcano" : sla.state === "waiting" ? "red" : "default"
+        const blockedActionTitle = isQueueActionBlocked ? queueActionBlockReason : isOrderActionSaving ? "Дождитесь завершения текущего действия" : undefined
+
+        return (
+            <Card key={order.id} className="order-mobile-card" bodyStyle={{padding: 16}}>
+                <div className="mobile-card-topline">
+                    <Space direction="vertical" size={0}>
+                        <Typography.Text strong>{order.orderNumber || `#${order.id}`}</Typography.Text>
+                        <Typography.Text type="secondary">{dayjs(order.createdAt).format("DD.MM HH:mm")}</Typography.Text>
+                    </Space>
+                    <Tag color={slaColor}>{sla.thresholdMinutes ? `${sla.ageMinutes}/${sla.thresholdMinutes} мин` : formatOrderAge(order.createdAt)}</Tag>
+                </div>
+                <div className="mobile-card-meta">
+                    <div><span>Клиент</span><strong>{order.client?.name || order.clientName || "—"}</strong></div>
+                    <div><span>Телефон</span><strong>{phone || "—"}</strong></div>
+                    <div><span>Сумма</span><strong>{formatMoney(order.total)}</strong></div>
+                    <div><span>Товары</span><strong>{order.itemsCount ?? order.items?.length ?? 0}</strong></div>
+                </div>
+                <Space wrap size={[4, 4]} style={{marginTop: 12}}>
+                    {order.status?.title && <Tag color="blue">{order.status.title}</Tag>}
+                    {order.paymentStatus && <Tag color={paymentStatusMeta[order.paymentStatus]?.color}>{paymentStatusMeta[order.paymentStatus]?.label}</Tag>}
+                    {order.deliveryStatus && <Tag color={deliveryStatusMeta[order.deliveryStatus]?.color}>{deliveryStatusMeta[order.deliveryStatus]?.label}</Tag>}
+                    {getOrderBadges(order).map((badge) => <Tag key={badge.label} color={badge.color}>{badge.label}</Tag>)}
+                </Space>
+                <div className="mobile-card-actions">
+                    {canUpdateOrders && (
+                        <Button
+                            type="primary"
+                            disabled={isQueueActionBlocked || isOrderActionSaving}
+                            title={blockedActionTitle || `${nextActionLabel}: заказ ${orderActionContext}`}
+                            onClick={() => openNextActionModal(order)}
+                        >
+                            {nextActionLabel}
+                        </Button>
+                    )}
+                    <Button onClick={() => openOrder(order.id)}>Карточка</Button>
+                </div>
+            </Card>
+        )
+    }
 
     const itemColumns: ColumnsType<OrderItem> = [
         {title: "ID", dataIndex: "id", width: 70},
@@ -1010,56 +981,53 @@ const OrdersPage = () => {
     ]
 
     return (
-        <Space direction="vertical" size={18} style={{width: "100%"}}>
-            <Card className="admin-hero-card orders-hero">
-                <PageHeading
-                    size="hero"
-                    eyebrow="Calm operations"
-                    title="Today Order Desk"
-                    subtitle="Операционный центр заказов: быстрые фильтры, красные риски и следующий шаг без чтения всей таблицы."
-                />
-                <Space wrap className="hero-badges">
+        <Space className="ops-page" direction="vertical" size={18}>
+            <Card className="admin-hero-card ops-hero-card orders-hero">
+                <div className="ops-hero-layout">
+                    <div className="ops-hero-panel">
+                        <div className="ops-kicker">Today Order Desk</div>
+                        <Typography.Title level={1} className="ops-title">Пульт заказов смены</Typography.Title>
+                        <Typography.Text className="ops-subtitle">
+                            Сначала красная очередь и оплаченные новые заказы, потом сборка и выдача. Таблица остаётся рабочей поверхностью, а рискованные действия перенесены в карточку заказа.
+                        </Typography.Text>
+                        <Space wrap className="ops-hero-actions">
+                            <Button danger={(summary?.problemToday ?? 0) > 0} type={(summary?.problemToday ?? 0) > 0 ? "primary" : "default"} onClick={setProblemTodayFilters}>
+                                Разобрать проблемные <Badge count={summary?.problemToday ?? 0} showZero />
+                            </Button>
+                            <Button type="primary" disabled={!firstVisibleOpenOrder || isQueueActionBlocked || isFetching} onClick={startNextOrder}>
+                                Начать следующий
+                            </Button>
+                            <Button onClick={() => setDeliveryFilter("pending")}>Новые</Button>
+                        </Space>
+                    </div>
+                    <div className="ops-hero-panel ops-hero-panel--dark">
+                        <Statistic title="Выручка сегодня" value={formatMoney(summary?.revenueToday ?? 0)} loading={isSummaryFetching} />
+                        <div className="ops-status-grid" style={{gridTemplateColumns: "repeat(2, minmax(0, 1fr))"}}>
+                            <div className={(summary?.problemToday ?? 0) > 0 ? "ops-status-tile ops-status-tile--danger" : "ops-status-tile"}><strong>{summary?.problemToday ?? 0}</strong><span>Проблемы</span></div>
+                            <div className="ops-status-tile"><strong>{summary?.newOrders ?? 0}</strong><span>Новые</span></div>
+                            <div className="ops-status-tile"><strong>{summary?.inProgressToday ?? 0}</strong><span>В работе</span></div>
+                            <div className="ops-status-tile"><strong>{summary?.readyToday ?? 0}</strong><span>Готовы</span></div>
+                        </div>
+                    </div>
+                </div>
+                <Space wrap className="hero-badges" style={{marginTop: 14}}>
                     <Badge status="processing" text="Сегодня по умолчанию" />
                     <Badge status={(summary?.problemToday ?? 0) > 0 ? "error" : isSummaryError ? "warning" : "success"} text={isSummaryError ? "Summary требует проверки" : `${summary?.problemToday ?? 0} проблемных`} />
-                    <Badge status="warning" text="SLA: новые 10+ мин подсвечиваются" />
                     <Badge status={isFetching || isSummaryFetching ? "processing" : "success"} text="Live refresh: 30 сек" />
-                    <Badge
-                        status={lastSuccessfulRefreshAt ? "success" : "default"}
-                        text={lastSuccessfulRefreshAt ? `Обновлено ${dayjs(lastSuccessfulRefreshAt).format("HH:mm:ss")}` : "Ожидаем первое обновление"}
-                    />
+                    <Badge status={lastSuccessfulRefreshAt ? "success" : "default"} text={lastSuccessfulRefreshAt ? `Обновлено ${dayjs(lastSuccessfulRefreshAt).format("HH:mm:ss")}` : "Ожидаем первое обновление"} />
                 </Space>
             </Card>
 
-            <Card className="filter-card admin-card--compact">
-                <Space direction="vertical" size={8} style={{width: "100%"}}>
-                    <Space wrap align="center">
-                        <Badge status={liveAlertsEnabled ? "processing" : "default"} text="Live Ops Alert" />
-                        <Checkbox checked={liveAlertsEnabled} onChange={(event) => handleLiveAlertsChange(event.target.checked)}>
-                            Звук и desktop-уведомления включены
-                        </Checkbox>
-                        <Typography.Text type="secondary">
-                            Автообновление: 30 сек. Последнее успешное обновление: {lastSuccessfulRefreshAt ? dayjs(lastSuccessfulRefreshAt).format("DD.MM HH:mm:ss") : "ещё не было"}.
-                        </Typography.Text>
-                        <Typography.Text type="secondary">
-                            Уведомления не содержат ФИО или телефон клиента.
-                        </Typography.Text>
-                    </Space>
-                    <Alert
-                        showIcon
-                        type={notificationPermission === "denied" ? "warning" : "info"}
-                        message="Статус desktop-уведомлений"
-                        description={notificationPermissionMessage}
-                    />
-                    {isRefreshStale && (
-                        <Alert
-                            showIcon
-                            type="warning"
-                            message="Данные давно не обновлялись"
-                            description={`Последнее успешное обновление было ${lastRefreshAgeSeconds} сек. назад. Действия из таблицы временно заблокированы — дождитесь успешного refresh перед изменением заказа.`}
-                        />
-                    )}
-                </Space>
-            </Card>
+            {(notificationPermission === "denied" || isRefreshStale) && (
+                <Alert
+                    showIcon
+                    type={isRefreshStale ? "warning" : "info"}
+                    message={isRefreshStale ? "Данные давно не обновлялись" : "Desktop-уведомления отключены"}
+                    description={isRefreshStale
+                        ? `Последнее успешное обновление было ${lastRefreshAgeSeconds} сек. назад. Действия из таблицы временно заблокированы — дождитесь успешного refresh.`
+                        : notificationPermissionMessage}
+                />
+            )}
 
             {isSummaryError && (
                 <Alert
@@ -1071,253 +1039,72 @@ const OrdersPage = () => {
                 />
             )}
 
-            <Row gutter={[16, 16]}>
-                <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card className="metric-card metric-card--lime" {...getMetricCardActionProps(setTodayFilters)}>
-                        <Statistic prefix={<ShoppingOutlined />} title={renderMetricTitle("Заказы сегодня", "Открыть смену")} value={summary?.ordersToday ?? 0} loading={isSummaryFetching} />
+            <div className="ops-workbench">
+                <Space direction="vertical" size={16} className="ops-side-panel">
+                    <Card className="filter-card ops-filter-card admin-card--compact" title="Очереди">
+                        <Space direction="vertical" size={14} style={{width: "100%"}}>
+                            <div className="ops-filter-buttons">
+                                <Button type={isTodayFilterActive && !problemOnly && !attentionOnly ? "primary" : "default"} onClick={setTodayFilters}>Сегодня</Button>
+                                <Button type={getDeliveryFilterButtonType("pending")} onClick={() => setDeliveryFilter("pending")}>Новые</Button>
+                                <Button type={getDeliveryFilterButtonType("preparing")} onClick={() => setDeliveryFilter("preparing")}>В работе</Button>
+                                <Button type={getDeliveryFilterButtonType("ready")} onClick={() => setDeliveryFilter("ready")}>Готовы</Button>
+                                <Button type={getDeliveryFilterButtonType("delivered")} onClick={() => setDeliveryFilter("delivered")}>Завершённые</Button>
+                                <Button danger type={getDeliveryFilterButtonType("cancelled")} onClick={() => setDeliveryFilter("cancelled")}>Отменённые</Button>
+                                <Button danger={problemOnly} type={problemOnly ? "primary" : "default"} onClick={() => { setAttentionOnly(false); setProblemOnly((prev) => !prev); setFilters((prev) => ({...prev, page: 1})) }}>Проблемные</Button>
+                                <Button danger={attentionOnly} type={attentionOnly ? "primary" : "default"} onClick={() => { setProblemOnly(false); setAttentionOnly((prev) => !prev); setFilters((prev) => ({...prev, page: 1})) }}>Внимание</Button>
+                            </div>
+                            <Button block onClick={setAllFilters}>Все заказы</Button>
+                        </Space>
                     </Card>
-                </Col>
-                <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card className="metric-card metric-card--orange" {...getMetricCardActionProps(() => setDeliveryFilter("pending"))}>
-                        <Statistic prefix={<ClockCircleOutlined />} title={renderMetricTitle("Новые", "Принять в работу")} value={summary?.newOrders ?? 0} loading={isSummaryFetching} />
-                    </Card>
-                </Col>
-                <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card className="metric-card metric-card--money" {...getMetricCardActionProps(setPaidTodayFilters)}>
-                        <Statistic prefix={<FireOutlined />} title={renderMetricTitle("Выручка сегодня", "Открыть оплаченные")} value={formatMoney(summary?.revenueToday ?? 0)} loading={isSummaryFetching} />
-                    </Card>
-                </Col>
-                <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card className="metric-card metric-card--blue" {...getMetricCardActionProps(() => setDeliveryFilter("preparing"))}>
-                        <Statistic prefix={<ThunderboltOutlined />} title={renderMetricTitle("В работе", "Проверить сборку")} value={summary?.inProgressToday ?? 0} loading={isSummaryFetching} />
-                    </Card>
-                </Col>
-                <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card className="metric-card metric-card--cyan" {...getMetricCardActionProps(() => setDeliveryFilter("ready"))}>
-                        <Statistic prefix={<CheckCircleOutlined />} title={renderMetricTitle("Готовы", "Выдать клиенту")} value={summary?.readyToday ?? 0} loading={isSummaryFetching} />
-                    </Card>
-                </Col>
-                <Col xs={24} sm={12} lg={6} xl={4}>
-                    <Card className={(summary?.problemToday ?? 0) > 0 ? "metric-card metric-card--danger" : "metric-card"} {...getMetricCardActionProps(setProblemTodayFilters)}>
-                        <Statistic prefix={<AlertOutlined />} title={renderMetricTitle("Проблемные", "Разобрать первым")} value={summary?.problemToday ?? 0} loading={isSummaryFetching} />
-                    </Card>
-                </Col>
-            </Row>
 
-            <Card className="filter-card admin-card--compact">
-                <Space direction="vertical" size={12} style={{width: "100%"}}>
-                    <Space wrap>
-                        <Button
-                            type={isTodayFilterActive && !problemOnly && !attentionOnly ? "primary" : "default"}
-                            aria-pressed={isTodayFilterActive && !problemOnly && !attentionOnly}
-                            aria-label={isTodayFilterActive && !problemOnly && !attentionOnly ? "Сегодня — активная очередь заказов" : "Открыть очередь заказов за сегодня"}
-                            onClick={setTodayFilters}
-                        >Сегодня</Button>
-                        <Button
-                            type={getDeliveryFilterButtonType("pending")}
-                            aria-pressed={filters.deliveryStatus === "pending" && !problemOnly && !attentionOnly}
-                            aria-label={filters.deliveryStatus === "pending" && !problemOnly && !attentionOnly ? "Новые — активная очередь заказов" : "Открыть очередь новых заказов"}
-                            onClick={() => setDeliveryFilter("pending")}
-                        >Новые</Button>
-                        <Button
-                            type={getDeliveryFilterButtonType("preparing")}
-                            aria-pressed={filters.deliveryStatus === "preparing" && !problemOnly && !attentionOnly}
-                            aria-label={filters.deliveryStatus === "preparing" && !problemOnly && !attentionOnly ? "В работе — активная очередь заказов" : "Открыть очередь заказов в работе"}
-                            onClick={() => setDeliveryFilter("preparing")}
-                        >В работе</Button>
-                        <Button
-                            type={getDeliveryFilterButtonType("ready")}
-                            aria-pressed={filters.deliveryStatus === "ready" && !problemOnly && !attentionOnly}
-                            aria-label={filters.deliveryStatus === "ready" && !problemOnly && !attentionOnly ? "Готовы — активная очередь заказов" : "Открыть очередь готовых заказов"}
-                            onClick={() => setDeliveryFilter("ready")}
-                        >Готовы</Button>
-                        <Button
-                            type={getDeliveryFilterButtonType("delivered")}
-                            aria-pressed={filters.deliveryStatus === "delivered" && !problemOnly && !attentionOnly}
-                            aria-label={filters.deliveryStatus === "delivered" && !problemOnly && !attentionOnly ? "Завершённые — активная очередь заказов" : "Открыть очередь завершённых заказов"}
-                            onClick={() => setDeliveryFilter("delivered")}
-                        >Завершённые</Button>
-                        <Button
-                            danger
-                            type={getDeliveryFilterButtonType("cancelled")}
-                            aria-pressed={filters.deliveryStatus === "cancelled" && !problemOnly && !attentionOnly}
-                            aria-label={filters.deliveryStatus === "cancelled" && !problemOnly && !attentionOnly ? "Отменённые — активная очередь заказов" : "Открыть очередь отменённых заказов"}
-                            onClick={() => setDeliveryFilter("cancelled")}
-                        >Отменённые</Button>
-                        <Button
-                            danger={problemOnly}
-                            type={problemOnly ? "primary" : "default"}
-                            aria-pressed={problemOnly}
-                            aria-label={problemOnly ? "Проблемные — активная очередь заказов" : "Открыть очередь проблемных заказов"}
-                            onClick={() => {
-                                setAttentionOnly(false)
-                                setProblemOnly((prev) => !prev)
-                                setFilters((prev) => ({...prev, page: 1}))
-                            }}
-                        >Проблемные</Button>
-                        <Button
-                            danger={attentionOnly}
-                            type={attentionOnly ? "primary" : "default"}
-                            aria-pressed={attentionOnly}
-                            aria-label={attentionOnly ? "Требуют внимания — активная очередь заказов" : "Открыть очередь заказов, требующих внимания"}
-                            onClick={() => {
-                                setProblemOnly(false)
-                                setAttentionOnly((prev) => !prev)
-                                setFilters((prev) => ({...prev, page: 1}))
-                            }}
-                        >Требуют внимания</Button>
-                        <Button
-                            type={isAllFilterActive ? "primary" : "default"}
-                            aria-pressed={isAllFilterActive}
-                            aria-label={isAllFilterActive ? "Все — активная очередь заказов без фильтров" : "Показать все заказы без фильтров"}
-                            onClick={setAllFilters}
-                        >Все</Button>
-                    </Space>
-                    <Space wrap>
-                        <Input.Search
-                            placeholder="Поиск по номеру, клиенту, телефону"
-                            allowClear
-                            value={searchInput}
-                            onChange={(event) => {
-                                setSearchInput(event.target.value)
-                                if (!event.target.value) setFilters((prev) => ({...prev, search: undefined, page: 1}))
-                            }}
-                            onSearch={(search) => setFilters((prev) => ({...prev, search: search.trim() || undefined, page: 1}))}
-                            style={{width: 320}}
-                        />
-                        <Select
-                            allowClear
-                            placeholder="Статус заказа"
-                            style={{width: 180}}
-                            options={statuses?.map((status) => ({label: status.title, value: status.id}))}
-                            value={filters.statusId}
-                            onChange={(statusId) => setFilters((prev) => ({...prev, statusId, page: 1}))}
-                        />
-                        <Select
-                            allowClear
-                            placeholder="Статус оплаты"
-                            style={{width: 180}}
-                            options={paymentStatusOptions}
-                            value={filters.paymentStatus}
-                            onChange={(paymentStatus) => setFilters((prev) => ({...prev, paymentStatus, page: 1}))}
-                        />
-                        <Select
-                            allowClear
-                            placeholder="Статус доставки"
-                            style={{width: 200}}
-                            options={deliveryStatusOptions}
-                            value={filters.deliveryStatus}
-                            onChange={(deliveryStatus) => setFilters((prev) => ({...prev, deliveryStatus, page: 1}))}
-                        />
-                        <DatePicker.RangePicker
-                            value={filters.from && filters.to ? [dayjs(filters.from), dayjs(filters.to)] : null}
-                            onChange={(dates) => {
-                                setFilters((prev) => ({
-                                    ...prev,
-                                    from: dates?.[0]?.format("YYYY-MM-DD"),
-                                    to: dates?.[1]?.format("YYYY-MM-DD"),
-                                    page: 1
-                                }))
-                            }}
-                        />
-                        <Button onClick={setTodayFilters}>Сброс к сегодня</Button>
-                    </Space>
-                    <Space wrap align="center">
-                        <Typography.Text type="secondary">
-                            {hasActiveOrderFilters ? "Активные фильтры:" : "Фильтры не ограничивают список — показаны все доступные заказы."}
-                        </Typography.Text>
+                    <Card className="filter-card ops-filter-card admin-card--compact" title="Поиск и условия">
+                        <Space direction="vertical" size={12} className="ops-search-stack" style={{width: "100%"}}>
+                            <Input.Search
+                                placeholder="Номер, клиент, телефон"
+                                allowClear
+                                value={searchInput}
+                                onChange={(event) => {
+                                    setSearchInput(event.target.value)
+                                    if (!event.target.value) setFilters((prev) => ({...prev, search: undefined, page: 1}))
+                                }}
+                                onSearch={(search) => setFilters((prev) => ({...prev, search: search.trim() || undefined, page: 1}))}
+                            />
+                            <Select allowClear placeholder="Оплата" options={paymentStatusOptions} value={filters.paymentStatus} onChange={(paymentStatus) => setFilters((prev) => ({...prev, paymentStatus, page: 1}))} />
+                            <Select allowClear placeholder="Доставка" options={deliveryStatusOptions} value={filters.deliveryStatus} onChange={(deliveryStatus) => setFilters((prev) => ({...prev, deliveryStatus, page: 1}))} />
+                            <Select allowClear placeholder="Статус заказа" options={statuses?.map((status) => ({label: status.title, value: status.id}))} value={filters.statusId} onChange={(statusId) => setFilters((prev) => ({...prev, statusId, page: 1}))} />
+                            <DatePicker.RangePicker
+                                value={filters.from && filters.to ? [dayjs(filters.from), dayjs(filters.to)] : null}
+                                onChange={(dates) => setFilters((prev) => ({...prev, from: dates?.[0]?.format("YYYY-MM-DD"), to: dates?.[1]?.format("YYYY-MM-DD"), page: 1}))}
+                            />
+                            <Button onClick={setTodayFilters}>Сброс к сегодня</Button>
+                        </Space>
+                    </Card>
+
+                    <Card className="priority-queue-card admin-card--compact" title="Следующий заказ">
+                        <Space direction="vertical" size={10} style={{width: "100%"}}>
+                            <Typography.Text strong>{firstVisibleOpenOrder ? getOrderActionContext(firstVisibleOpenOrder) : "Нет открытого заказа в видимой очереди"}</Typography.Text>
+                            <Typography.Text type="secondary">{firstVisibleOpenOrder ? getNextActionLabel(firstVisibleOpenOrder) : "Смените фильтр или дождитесь нового заказа."}</Typography.Text>
+                            <Tag color={isQueueActionBlocked ? "red" : isFetching ? "processing" : "green"}>{isQueueActionBlocked ? "требуется refresh" : isFetching ? "обновляем" : "список свежий"}</Tag>
+                            <Button block type="primary" disabled={!firstVisibleOpenOrder || isQueueActionBlocked || isFetching} onClick={startNextOrder}>Начать следующий</Button>
+                        </Space>
+                    </Card>
+                </Space>
+
+                <div className="ops-main-panel">
+            <Card className="admin-table-card admin-card--work-surface orders-table-card">
+                <div className="work-surface-header">
+                    <div>
+                        <Typography.Title level={3}>Рабочая очередь</Typography.Title>
+                        <Typography.Text type="secondary">{data?.total || 0} заказов · действия “Статус” и “Отмена” только внутри карточки, чтобы снизить misclick.</Typography.Text>
+                    </div>
+                    <div className="work-surface-header__meta">
                         {activeOrderFilterLabels.map((label) => <Tag key={label}>{label}</Tag>)}
-                        {hasActiveOrderFilters && <Button size="small" onClick={setAllFilters}>Очистить всё</Button>}
-                        {hasActiveOrderFilters && (
-                            <Typography.Text type="secondary">
-                                Ссылка сохраняет эти фильтры вместе с поиском — можно безопасно передать очередь смены коллеге.
-                            </Typography.Text>
-                        )}
-                    </Space>
-                </Space>
-            </Card>
-
-            <Card
-                className="priority-queue-card admin-card--compact"
-                title="Приоритетная очередь смены"
-                extra={(
-                    <Button
-                        type="primary"
-                        disabled={!firstVisibleOpenOrder || isQueueActionBlocked || isFetching}
-                        title={
-                            isQueueActionBlocked
-                                ? queueActionBlockReason
-                                : isFetching
-                                    ? "Дождитесь свежего списка перед стартом следующего заказа."
-                                    : firstVisibleOpenOrder
-                                        ? `Открыть первый видимый открытый заказ ${getOrderActionContext(firstVisibleOpenOrder)}`
-                                        : "В текущем видимом списке нет открытых заказов."
-                        }
-                        onClick={startNextOrder}
-                    >
-                        Начать следующий
-                    </Button>
-                )}
-            >
-                <Space direction="vertical" size={12} style={{width: "100%"}}>
-                    <Space wrap size={[8, 8]} className="priority-queue-strip">
-                        <Button
-                            danger={(summary?.problemToday ?? 0) > 0}
-                            type={problemOnly ? "primary" : "default"}
-                            onClick={setProblemTodayFilters}
-                        >
-                            Проблемные <Badge count={summary?.problemToday ?? 0} showZero overflowCount={99} />
-                        </Button>
-                        <Button
-                            type={getDeliveryFilterButtonType("pending")}
-                            onClick={() => setDeliveryFilter("pending")}
-                        >
-                            Новые <Badge count={summary?.newOrders ?? 0} showZero overflowCount={99} />
-                        </Button>
-                        <Button
-                            type={getDeliveryFilterButtonType("preparing")}
-                            onClick={() => setDeliveryFilter("preparing")}
-                        >
-                            В работе <Badge count={summary?.inProgressToday ?? 0} showZero overflowCount={99} />
-                        </Button>
-                        <Button
-                            type={getDeliveryFilterButtonType("ready")}
-                            onClick={() => setDeliveryFilter("ready")}
-                        >
-                            Готовы <Badge count={summary?.readyToday ?? 0} showZero overflowCount={99} />
-                        </Button>
-                        <Button
-                            type={isTodayFilterActive && !problemOnly && !attentionOnly ? "primary" : "default"}
-                            onClick={setTodayFilters}
-                        >
-                            Сегодня <Badge count={summary?.ordersToday ?? 0} showZero overflowCount={999} />
-                        </Button>
-                    </Space>
-                    <Space wrap align="center" className="priority-queue-meta">
-                        <Typography.Text type="secondary">
-                            {firstVisibleOpenOrder
-                                ? `Следующий видимый: ${getOrderActionContext(firstVisibleOpenOrder)} · ${getNextActionLabel(firstVisibleOpenOrder)}`
-                                : "Видимых открытых заказов для старта нет."}
-                        </Typography.Text>
-                        <Tag color={isQueueActionBlocked ? "red" : isFetching ? "processing" : "green"}>
-                            {isQueueActionBlocked ? "требуется refresh" : isFetching ? "обновляем" : "список свежий"}
+                        <Tag color={isFetching ? "processing" : lastSuccessfulRefreshAt ? "green" : "default"}>
+                            {isFetching ? "обновляем" : lastSuccessfulRefreshAt ? `актуально ${dayjs(lastSuccessfulRefreshAt).format("HH:mm:ss")}` : "ожидаем refresh"}
                         </Tag>
-                    </Space>
-                </Space>
-            </Card>
-
-            <Card
-                className="admin-table-card admin-card--work-surface orders-table-card"
-                extra={(
-                    <Typography.Text type="secondary">
-                        {isFetching
-                            ? "Обновляем список…"
-                            : lastSuccessfulRefreshAt
-                                ? `Данные актуальны на ${dayjs(lastSuccessfulRefreshAt).format("HH:mm:ss")}`
-                                : "После загрузки здесь будет время актуальности"}
-                    </Typography.Text>
-                )}
-            >
+                        {hasActiveOrderFilters && <Button size="small" onClick={setAllFilters}>Очистить</Button>}
+                    </div>
+                </div>
                 {isOrdersError && (
                     <Alert
                         type="error"
@@ -1328,35 +1115,44 @@ const OrdersPage = () => {
                         style={{marginBottom: 16}}
                     />
                 )}
-                <Table<AdminOrder>
-                    rowKey="id"
-                    loading={isLoading}
-                    dataSource={currentItems}
-                    columns={orderColumns}
-                    size="small"
-                    scroll={{x: 1600}}
-                    rowClassName={(order) => getOrderBadges(order).some((badge) => badge.color === "red" || badge.color === "volcano") ? "table-row-alert" : ""}
-                    locale={{
-                        emptyText: (
-                            <Empty
-                                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                description={hasActiveOrderFilters
-                                    ? "Заказов по выбранным условиям нет. Проверьте фильтры перед созданием ручного заказа или звонком клиенту."
-                                    : "Заказы пока не поступали. Live Desk обновится автоматически при появлении новых заказов."
-                                }
-                            >
-                                {hasActiveOrderFilters && <Button onClick={setAllFilters}>Показать все заказы</Button>}
-                            </Empty>
-                        )
-                    }}
-                    pagination={{
-                        current: data?.page || filters.page || 1,
-                        pageSize: data?.pageSize || filters.pageSize || 20,
-                        total: data?.total || 0,
-                        onChange: (page, pageSize) => setFilters((prev) => ({...prev, page, pageSize}))
-                    }}
-                />
+                <div className="desktop-work-table">
+                    <Table<AdminOrder>
+                        rowKey="id"
+                        loading={isLoading}
+                        dataSource={currentItems}
+                        columns={orderColumns}
+                        size="small"
+                        scroll={{x: 1360}}
+                        rowClassName={(order) => getOrderBadges(order).some((badge) => badge.color === "red" || badge.color === "volcano") ? "table-row-alert" : ""}
+                        locale={{
+                            emptyText: (
+                                <Empty
+                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                    description={hasActiveOrderFilters
+                                        ? "Заказов по выбранным условиям нет. Проверьте фильтры перед созданием ручного заказа или звонком клиенту."
+                                        : "Заказы пока не поступали. Live Desk обновится автоматически при появлении новых заказов."
+                                    }
+                                >
+                                    {hasActiveOrderFilters && <Button onClick={setAllFilters}>Показать все заказы</Button>}
+                                </Empty>
+                            )
+                        }}
+                        pagination={{
+                            current: data?.page || filters.page || 1,
+                            pageSize: data?.pageSize || filters.pageSize || 20,
+                            total: data?.total || 0,
+                            onChange: (page, pageSize) => setFilters((prev) => ({...prev, page, pageSize}))
+                        }}
+                    />
+                </div>
+                <div className="orders-mobile-list">
+                    {isLoading ? <Typography.Text type="secondary">Загружаем заказы…</Typography.Text> : currentItems.length ? currentItems.map(renderMobileOrderCard) : (
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Заказов в этой очереди нет" />
+                    )}
+                </div>
             </Card>
+                </div>
+            </div>
 
             <Drawer
                 title={selectedOrder ? `Заказ ${selectedOrder.orderNumber || `#${selectedOrder.id}`}` : "Карточка заказа"}

@@ -1,10 +1,8 @@
-import {Alert, Button, Card, Col, Descriptions, Drawer, Empty, Form, Input, Modal, Row, Segmented, Space, Statistic, Table, Tabs, Tag, Typography, message} from "antd"
-import {CrownOutlined, PhoneOutlined, ReloadOutlined, ShoppingOutlined, TeamOutlined} from "@ant-design/icons"
+import {Alert, Button, Card, Descriptions, Drawer, Empty, Form, Input, Modal, Segmented, Space, Statistic, Table, Tabs, Tag, Typography, message} from "antd"
+import {ReloadOutlined} from "@ant-design/icons"
 import type {ColumnsType} from "antd/es/table"
-import type {KeyboardEvent} from "react"
 import {useEffect, useState} from "react"
 import {useNavigate, useSearchParams} from "react-router-dom"
-import PageHeading from "../components/PageHeading.tsx"
 import type {AdminClient, AdminClientBonusTransaction, AdminClientOrder} from "../features/clients/clientTypes.ts"
 import {
     useBlockClientMutation,
@@ -229,28 +227,6 @@ const ClientsPage = () => {
         }, {replace: true})
     }
 
-    const getMetricCardActionProps = (handler: () => void, label: string, isActive = false) => ({
-        hoverable: true,
-        role: "button",
-        tabIndex: 0,
-        "aria-label": label,
-        "aria-pressed": isActive,
-        onClick: handler,
-        onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
-            if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault()
-                handler()
-            }
-        }
-    })
-
-    const renderMetricTitle = (label: string, hint: string) => (
-        <Space direction="vertical" size={2}>
-            <span>{label}</span>
-            <Typography.Text className="metric-card-hint" type="secondary">{hint}</Typography.Text>
-        </Space>
-    )
-
     const openClientOrder = (order: AdminClientOrder) => {
         navigate(`/orders?orderId=${order.id}`)
     }
@@ -434,6 +410,53 @@ const ClientsPage = () => {
         }
     ]
 
+    const renderMobileClientCard = (client: AdminClient) => {
+        const clientActionContext = getClientActionContext(client)
+        const mutationBlockedReason = isClientListMutationUnsafe
+            ? "Действие временно заблокировано: CRM-список обновляется или не подтверждён API"
+            : undefined
+
+        return (
+            <Card key={client.id} className="client-mobile-card" bodyStyle={{padding: 16}}>
+                <div className="mobile-card-topline">
+                    <Space direction="vertical" size={0}>
+                        <Typography.Text strong>{client.name || `Клиент #${client.id}`}</Typography.Text>
+                        <Typography.Text copyable={Boolean(client.phone)} type="secondary">{client.phone || "Телефон не указан"}</Typography.Text>
+                    </Space>
+                    {client.isActive ? <Tag color="green">Активен</Tag> : <Tag color="red">Заблокирован</Tag>}
+                </div>
+                <div className="mobile-card-meta">
+                    <div><span>Заказы</span><strong>{client.ordersCount ?? "—"}</strong></div>
+                    <div><span>Сумма</span><strong>{formatMoney(client.totalSpent)}</strong></div>
+                    <div><span>Средний чек</span><strong>{formatMoney(client.averageCheck)}</strong></div>
+                    <div><span>Бонусы</span><strong>{client.bonusBalance ?? "—"}</strong></div>
+                </div>
+                <Space wrap size={[4, 4]} style={{marginTop: 12}}>
+                    {!client.phone && <Tag color="orange">нет телефона</Tag>}
+                    {(client.totalSpent || 0) > 0 && <Tag color="green">покупатель</Tag>}
+                    {(client.ordersCount ?? 0) === 0 && <Tag color="blue">первый заказ</Tag>}
+                </Space>
+                <div className="mobile-card-actions">
+                    <Button type="primary" onClick={() => updateSelectedClientId(client.id)} title={`Открыть CRM-карточку: ${clientActionContext}`}>
+                        Профиль
+                    </Button>
+                    {canUpdateClients && <Button disabled={isClientListMutationUnsafe} onClick={() => openEdit(client)} title={mutationBlockedReason || `Редактировать CRM-контакт: ${clientActionContext}`}>Правки</Button>}
+                    {canDeleteClients && (
+                        <Button
+                            danger={client.isActive}
+                            disabled={isClientListMutationUnsafe || Boolean(statusChangingClientId && statusChangingClientId !== client.id)}
+                            loading={statusChangingClientId === client.id}
+                            onClick={() => handleBlockToggle(client)}
+                            title={mutationBlockedReason || (client.isActive ? `Заблокировать клиента: ${clientActionContext}` : `Разблокировать клиента: ${clientActionContext}`)}
+                        >
+                            {client.isActive ? "Блок" : "Разблок"}
+                        </Button>
+                    )}
+                </div>
+            </Card>
+        )
+    }
+
     const clientFilterSummary = filters.status === "active"
         ? "Очередь активных клиентов"
         : filters.status === "blocked"
@@ -461,163 +484,133 @@ const ClientsPage = () => {
     ].filter(Boolean) as Array<{color: string; label: string; description: string}> : []
 
     return (
-        <Space direction="vertical" size={18} style={{width: "100%"}}>
-            <Card className="admin-hero-card clients-hero">
-                <PageHeading
-                    size="hero"
-                    eyebrow="Client CRM"
-                    title="Клиенты"
-                    subtitle="CRM-вид: быстро найти человека, увидеть ценность клиента и открыть историю без ощущения сырой таблицы."
-                />
-            </Card>
-
-            <Row gutter={[16, 16]}>
-                <Col xs={24} md={12} xl={6}>
-                    <Card
-                        className="metric-card metric-card--lime"
-                        {...getMetricCardActionProps(
-                            resetClientFilters,
-                            filters.status === "all" && !filters.search ? "Полный CRM-список — активная очередь клиентов" : `Открыть полный CRM-список, всего клиентов ${data?.total ?? 0}`,
-                            filters.status === "all" && !filters.search
-                        )}
-                    >
-                        <Statistic prefix={<TeamOutlined />} title={renderMetricTitle("Клиенты", "Открыть полный CRM-список")} value={data?.total ?? 0} loading={isLoading} />
-                    </Card>
-                </Col>
-                <Col xs={24} md={12} xl={6}>
-                    <Card
-                        className="metric-card metric-card--cyan"
-                        {...getMetricCardActionProps(
-                            showActiveClients,
-                            filters.status === "active" && !filters.search ? "Активная CRM-очередь — выбранная очередь клиентов" : `Открыть активную CRM-очередь, активных на странице ${activeClientsOnPage}`,
-                            filters.status === "active" && !filters.search
-                        )}
-                    >
-                        <Statistic prefix={<PhoneOutlined />} title={renderMetricTitle("Активные на странице", "Показать активную CRM-очередь")} value={activeClientsOnPage} loading={isLoading} />
-                    </Card>
-                </Col>
-                <Col xs={24} md={12} xl={6}>
-                    <Card className="metric-card metric-card--blue">
-                        <Statistic prefix={<ShoppingOutlined />} title={renderMetricTitle("С покупками", "Контекст текущей выдачи")} value={buyersOnPage} loading={isLoading} />
-                    </Card>
-                </Col>
-                <Col xs={24} md={12} xl={6}>
-                    <Card className="metric-card metric-card--money">
-                        <Statistic prefix={<CrownOutlined />} title={renderMetricTitle("Сумма текущей страницы", "Не общий оборот CRM")} value={formatMoney(totalSpentOnPage)} loading={isLoading} />
-                    </Card>
-                </Col>
-            </Row>
-
-            <Card className="filter-card admin-card--compact">
-                <Space direction="vertical" size={12} style={{width: "100%"}}>
-                    <Space wrap align="center" size={[12, 12]}>
-                        <Input.Search
-                            placeholder="Поиск по имени или телефону"
-                            allowClear
-                            enterButton="Найти"
-                            value={filters.search}
-                            onChange={(event) => {
-                                const nextSearch = event.target.value
-                                if (!nextSearch) {
-                                    updateClientSearch("")
-                                    return
-                                }
-                                setFilters((prev) => ({...prev, search: nextSearch}))
-                            }}
-                            onSearch={updateClientSearch}
-                            style={{width: 360, maxWidth: "100%"}}
-                        />
-                        <Segmented<ClientStatusFilter>
-                            value={filters.status}
-                            onChange={updateClientStatus}
-                            options={[
-                                {label: "Все", value: "all"},
-                                {label: "Активные", value: "active"},
-                                {label: "Заблокированные", value: "blocked"}
-                            ]}
-                        />
-                        {hasActiveFilters && <Button onClick={resetClientFilters}>Сбросить фильтры</Button>}
-                    </Space>
-                    <Space wrap size={[8, 8]}>
-                        <Tag color={hasActiveFilters ? "blue" : "default"}>
-                            {clientFilterSummary}
-                        </Tag>
-                        <Typography.Text type="secondary">
-                            {data?.total ?? 0} совпадений; на странице {clients.length}, активных {activeClientsOnPage}, с покупками {buyersOnPage}.
+        <Space className="ops-page" direction="vertical" size={18}>
+            <Card className="admin-hero-card ops-hero-card clients-hero">
+                <div className="ops-hero-layout">
+                    <div className="ops-hero-panel">
+                        <div className="ops-kicker">Client CRM</div>
+                        <Typography.Title level={1} className="ops-title">CRM-пульт клиентов</Typography.Title>
+                        <Typography.Text className="ops-subtitle">
+                            Быстрый поиск клиента, проверка контактов, ценности и истории заказов. Рискованные CRM-действия заблокированы, пока список не подтверждён API.
                         </Typography.Text>
-                        {isClientListMutationUnsafe && (
-                            <Tag color="orange">Редактирование и блокировка доступны после успешного обновления списка</Tag>
-                        )}
-                    </Space>
-                </Space>
+                        <Space wrap className="ops-hero-actions">
+                            <Button type="primary" onClick={resetClientFilters}>Все клиенты</Button>
+                            <Button onClick={showActiveClients}>Активные</Button>
+                            <Button onClick={() => updateClientStatus("blocked")}>Заблокированные</Button>
+                        </Space>
+                    </div>
+                    <div className="ops-hero-panel ops-hero-panel--dark">
+                        <Statistic title="Клиентов в выдаче" value={data?.total ?? 0} loading={isLoading} />
+                        <div className="ops-status-grid" style={{gridTemplateColumns: "repeat(2, minmax(0, 1fr))"}}>
+                            <div className="ops-status-tile"><strong>{activeClientsOnPage}</strong><span>Активные</span></div>
+                            <div className="ops-status-tile"><strong>{buyersOnPage}</strong><span>С покупками</span></div>
+                            <div className="ops-status-tile"><strong>{clients.length}</strong><span>На странице</span></div>
+                            <div className="ops-status-tile"><strong>{formatMoney(totalSpentOnPage)}</strong><span>Сумма страницы</span></div>
+                        </div>
+                    </div>
+                </div>
             </Card>
 
-            {isClientsFetching && !isLoading && !clientsError && (
-                <Alert
-                    type="info"
-                    showIcon
-                    message="CRM-список обновляется в фоне"
-                    description="Пока refresh не завершён, таблица показывает последнюю подтверждённую выдачу. Перед блокировкой клиента или правкой контакта дождитесь актуального списка."
-                    action={(
-                        <Button size="small" icon={<ReloadOutlined />} loading={isClientsFetching} onClick={() => refetchClients()}>
-                            Обновляется
-                        </Button>
-                    )}
-                />
-            )}
+            <div className="ops-workbench">
+                <Space direction="vertical" size={16} className="ops-side-panel">
+                    <Card className="filter-card ops-filter-card admin-card--compact" title="Найти клиента">
+                        <Space direction="vertical" size={12} className="ops-search-stack" style={{width: "100%"}}>
+                            <Input.Search
+                                placeholder="Имя или телефон"
+                                allowClear
+                                enterButton="Найти"
+                                value={filters.search}
+                                onChange={(event) => {
+                                    const nextSearch = event.target.value
+                                    if (!nextSearch) {
+                                        updateClientSearch("")
+                                        return
+                                    }
+                                    setFilters((prev) => ({...prev, search: nextSearch}))
+                                }}
+                                onSearch={updateClientSearch}
+                            />
+                            <Segmented<ClientStatusFilter>
+                                value={filters.status}
+                                onChange={updateClientStatus}
+                                options={[{label: "Все", value: "all"}, {label: "Активные", value: "active"}, {label: "Блок", value: "blocked"}]}
+                            />
+                            {hasActiveFilters && <Button block onClick={resetClientFilters}>Сбросить фильтры</Button>}
+                        </Space>
+                    </Card>
 
-            <Card className="admin-table-card admin-card--work-surface clients-table-card">
-                {clientsError && (
-                    <Alert
-                        type="warning"
-                        showIcon
-                        style={{marginBottom: 12}}
-                        message="Список клиентов не обновился"
-                        description={(
-                            <Space direction="vertical" size={8}>
-                                <Typography.Text>{getNestErrorMessage(clientsError)}</Typography.Text>
-                                <Typography.Text type="secondary">
-                                    Не блокируйте и не меняйте CRM-статусы по старой выдаче: список может не учитывать последние регистрации, заказы или изменения доступа.
-                                </Typography.Text>
-                                <Button size="small" icon={<ReloadOutlined />} loading={isClientsFetching} onClick={() => refetchClients()}>
-                                    Повторить загрузку
-                                </Button>
-                            </Space>
-                        )}
-                    />
-                )}
-                <Table<AdminClient>
-                    rowKey="id"
-                    loading={isLoading}
-                    columns={columns}
-                    dataSource={clients}
-                    pagination={{
-                        current: data?.page || filters.page,
-                        pageSize: data?.pageSize || filters.pageSize,
-                        total: data?.total || 0,
-                        onChange: (page, pageSize) => setFilters((prev) => ({...prev, page, pageSize}))
-                    }}
-                    locale={{
-                        emptyText: hasActiveFilters ? (
-                            <Empty
-                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    <Card className="focus-card admin-card--compact" title="CRM-контекст">
+                        <Space direction="vertical" size={10} style={{width: "100%"}}>
+                            <Tag color={hasActiveFilters ? "blue" : "default"}>{clientFilterSummary}</Tag>
+                            <Typography.Text type="secondary">{data?.total ?? 0} совпадений; на странице {clients.length}, активных {activeClientsOnPage}, с покупками {buyersOnPage}.</Typography.Text>
+                            {isClientListMutationUnsafe && <Tag color="orange">Правки доступны после успешного обновления списка</Tag>}
+                        </Space>
+                    </Card>
+                </Space>
+
+                <div className="ops-main-panel">
+                    {isClientsFetching && !isLoading && !clientsError && (
+                        <Alert
+                            type="info"
+                            showIcon
+                            style={{marginBottom: 12}}
+                            message="CRM-список обновляется в фоне"
+                            description="Пока refresh не завершён, таблица показывает последнюю подтверждённую выдачу. Перед блокировкой клиента или правкой контакта дождитесь актуального списка."
+                            action={<Button size="small" icon={<ReloadOutlined />} loading={isClientsFetching} onClick={() => refetchClients()}>Обновляется</Button>}
+                        />
+                    )}
+
+                    <Card className="admin-table-card admin-card--work-surface clients-table-card">
+                        <div className="work-surface-header">
+                            <div>
+                                <Typography.Title level={3}>Клиентская база</Typography.Title>
+                                <Typography.Text type="secondary">Профиль открывает историю заказов, адреса и бонусы; блокировка не доступна по неподтверждённой выдаче.</Typography.Text>
+                            </div>
+                            <div className="work-surface-header__meta">
+                                <Tag color={hasActiveFilters ? "blue" : "default"}>{clientFilterSummary}</Tag>
+                                {hasActiveFilters && <Button size="small" onClick={resetClientFilters}>Очистить</Button>}
+                            </div>
+                        </div>
+                        {clientsError && (
+                            <Alert
+                                type="warning"
+                                showIcon
+                                style={{marginBottom: 12}}
+                                message="Список клиентов не обновился"
                                 description={(
-                                    <Space direction="vertical" size={4}>
-                                        <Typography.Text strong>Клиенты не найдены</Typography.Text>
-                                        <Typography.Text type="secondary">Сбросьте поиск или статус, чтобы не пропустить нужного клиента перед блокировкой или поддержкой.</Typography.Text>
-                                        <Button size="small" onClick={resetClientFilters}>Сбросить фильтры</Button>
+                                    <Space direction="vertical" size={8}>
+                                        <Typography.Text>{getNestErrorMessage(clientsError)}</Typography.Text>
+                                        <Typography.Text type="secondary">Не блокируйте и не меняйте CRM-статусы по старой выдаче.</Typography.Text>
+                                        <Button size="small" icon={<ReloadOutlined />} loading={isClientsFetching} onClick={() => refetchClients()}>Повторить загрузку</Button>
                                     </Space>
                                 )}
                             />
-                        ) : (
-                            <Empty
-                                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                description="Клиенты появятся здесь после регистрации или первого заказа."
+                        )}
+                        <div className="desktop-work-table">
+                            <Table<AdminClient>
+                                rowKey="id"
+                                loading={isLoading}
+                                columns={columns}
+                                dataSource={clients}
+                                pagination={{
+                                    current: data?.page || filters.page,
+                                    pageSize: data?.pageSize || filters.pageSize,
+                                    total: data?.total || 0,
+                                    onChange: (page, pageSize) => setFilters((prev) => ({...prev, page, pageSize}))
+                                }}
+                                locale={{
+                                    emptyText: hasActiveFilters ? (
+                                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={(<Space direction="vertical" size={4}><Typography.Text strong>Клиенты не найдены</Typography.Text><Typography.Text type="secondary">Сбросьте поиск или статус, чтобы не пропустить нужного клиента.</Typography.Text><Button size="small" onClick={resetClientFilters}>Сбросить фильтры</Button></Space>)} />
+                                    ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Клиенты появятся здесь после регистрации или первого заказа." />
+                                }}
                             />
-                        )
-                    }}
-                />
-            </Card>
+                        </div>
+                        <div className="clients-mobile-list">
+                            {isLoading ? <Typography.Text type="secondary">Загружаем клиентов…</Typography.Text> : clients.length ? clients.map(renderMobileClientCard) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Клиенты не найдены" />}
+                        </div>
+                    </Card>
+                </div>
+            </div>
 
             <Drawer
                 className="profile-drawer"
