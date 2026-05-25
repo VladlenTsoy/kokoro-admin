@@ -1,4 +1,4 @@
-import {Layout as AntdLayout, Space, Tag, Typography} from "antd"
+import {Layout as AntdLayout, Tag, Typography} from "antd"
 import HeaderMenu from "./header/HeaderMenu.tsx"
 import {createStyles} from "antd-style"
 import HeaderSearch from "./header/HeaderSearch.tsx"
@@ -105,13 +105,13 @@ const useStyles = createStyles(({token}) => ({
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        gap: 12,
-        margin: "0 0 12px",
-        padding: "10px 14px",
+        gap: 10,
+        margin: "0 0 10px",
+        padding: "8px 12px",
         border: `1px solid ${token.colorBorder}`,
         borderRadius: token.borderRadiusLG + 8,
         background: `color-mix(in srgb, ${token.colorBgContainer} 74%, transparent)`,
-        boxShadow: "0 10px 30px rgba(15, 23, 42, 0.055)",
+        boxShadow: "0 8px 24px rgba(15, 23, 42, 0.045)",
         backdropFilter: "blur(14px)",
         "@media (max-width: 680px)": {
             alignItems: "flex-start",
@@ -120,7 +120,8 @@ const useStyles = createStyles(({token}) => ({
     },
     commandTitle: {
         margin: 0,
-        lineHeight: 1.15
+        lineHeight: 1.15,
+        fontSize: 18
     },
     commandCopy: {
         minWidth: 0
@@ -172,10 +173,7 @@ const Layout = () => {
                         <Typography.Text type="secondary">Kokoro admin cockpit</Typography.Text>
                         <Typography.Title level={4} className={styles.commandTitle}>{currentSection.title}</Typography.Title>
                     </div>
-                    <Space wrap size={[8, 8]}>
-                        <Tag color="lime">Redesign MVP</Tag>
-                        <Tag>{currentSection.hint}</Tag>
-                    </Space>
+                    <Tag>{currentSection.hint}</Tag>
                 </div>
                 <section className={styles.surface}>
                     <Outlet />

@@ -7,7 +7,7 @@ export const themes: Record<string, ThemeConfig> = {
             colorPrimary: "#B1E81C",
             borderRadius: 12,
             colorText: "#363A42",
-            colorTextSecondary: "#B0B3B9",
+            colorTextSecondary: "#707784",
             borderRadiusLG: 12,
             colorBorder: "#E8EBEF",
             colorBgBase: "#F6F8FB",
@@ -36,7 +36,17 @@ export const themes: Record<string, ThemeConfig> = {
                 handleBg: "#363A42"
             },
             Card: {
-                colorBgContainer: "#FFFFFF"
+                colorBgContainer: "#FFFFFF",
+                headerFontSize: 15
+            },
+            Table: {
+                headerBg: "#F5F7FA",
+                headerColor: "#4E5663",
+                rowHoverBg: "rgba(177, 232, 28, 0.07)",
+                borderColor: "#EEF1F5"
+            },
+            Tag: {
+                defaultBg: "#F7F9FC"
             },
             Input: {
                 activeBorderColor: "#B1E81C"

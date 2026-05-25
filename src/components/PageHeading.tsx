@@ -6,6 +6,7 @@ interface PageHeadingProps {
     title: string
     subtitle?: string
     eyebrow?: string
+    size?: "hero" | "default" | "compact"
     extra?: ReactNode
 }
 
@@ -47,6 +48,20 @@ const useStyles = createStyles(({token, css}) => ({
         fontSize: 15,
         lineHeight: 1.55
     },
+    compact: css`
+        margin-bottom: 14px;
+
+        h3.ant-typography {
+            font-size: 20px;
+        }
+    `,
+    hero: css`
+        margin-bottom: 22px;
+
+        h3.ant-typography {
+            font-size: 30px;
+        }
+    `,
     extra: css`
         flex-shrink: 0;
         justify-content: flex-end;
@@ -69,11 +84,11 @@ const useStyles = createStyles(({token, css}) => ({
     `
 }))
 
-const PageHeading = ({title, subtitle, eyebrow, extra}: PageHeadingProps) => {
-    const {styles} = useStyles()
+const PageHeading = ({title, subtitle, eyebrow, size = "default", extra}: PageHeadingProps) => {
+    const {styles, cx} = useStyles()
 
     return (
-        <div className={styles.root}>
+        <div className={cx(styles.root, size === "compact" && styles.compact, size === "hero" && styles.hero)}>
             <div className={styles.copy}>
                 {eyebrow ? <span className={styles.eyebrow}>{eyebrow}</span> : null}
                 <Typography.Title level={3} className={styles.title}>

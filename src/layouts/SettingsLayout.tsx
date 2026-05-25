@@ -93,10 +93,15 @@ const useStyles = createStyles(({token}) => ({
         }
     },
     menuCard: {
+        position: "sticky",
+        top: 118,
         borderRadius: token.borderRadiusLG + 8,
         alignSelf: "start",
         borderColor: "rgba(54, 58, 66, 0.08)",
-        boxShadow: "0 12px 34px rgba(15, 23, 42, 0.055)"
+        boxShadow: "0 12px 34px rgba(15, 23, 42, 0.055)",
+        "@media (max-width: 980px)": {
+            position: "static"
+        }
     },
     contentCard: {
         borderRadius: token.borderRadiusLG + 8,
@@ -189,6 +194,7 @@ const SettingsLayout = () => {
     return (
         <div>
             <PageHeading
+                size="compact"
                 eyebrow="Launch control"
                 title="Настройки"
                 subtitle="Конфигурация справочников, статусов и служебных сущностей в одном запусковом контуре."
