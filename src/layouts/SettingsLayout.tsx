@@ -5,6 +5,7 @@ import {Outlet, useLocation, useNavigate} from "react-router-dom"
 import {useSelectedAuthData} from "../features/auth/authSlice.ts"
 import {useMemo, useState} from "react"
 import {SearchOutlined} from "@ant-design/icons"
+import PageHeading from "../components/PageHeading.tsx"
 import {can} from "../features/auth/permissions.ts"
 import type {PermissionCode} from "../features/auth/authTypes.ts"
 
@@ -92,14 +93,25 @@ const useStyles = createStyles(({token}) => ({
         }
     },
     menuCard: {
-        borderRadius: token.borderRadiusLG + 4,
-        alignSelf: "start"
+        borderRadius: token.borderRadiusLG + 8,
+        alignSelf: "start",
+        borderColor: "rgba(54, 58, 66, 0.08)",
+        boxShadow: "0 12px 34px rgba(15, 23, 42, 0.055)"
     },
     contentCard: {
-        borderRadius: token.borderRadiusLG + 4
+        borderRadius: token.borderRadiusLG + 8,
+        borderColor: "rgba(54, 58, 66, 0.08)",
+        boxShadow: "0 12px 34px rgba(15, 23, 42, 0.055)"
     },
     menu: {
-        borderInlineEnd: 0
+        borderInlineEnd: 0,
+        background: "transparent",
+        "& .ant-menu-item": {
+            borderRadius: token.borderRadiusLG
+        },
+        "& .ant-menu-item-selected": {
+            fontWeight: 700
+        }
     },
     menuHeader: {
         marginBottom: 10
@@ -176,15 +188,17 @@ const SettingsLayout = () => {
 
     return (
         <div>
-            <Typography.Title level={3} style={{marginTop: 0, marginBottom: 6}}>Настройки</Typography.Title>
-            <Typography.Text type="secondary">
-                Конфигурация справочников, статусов и служебных сущностей.
-            </Typography.Text>
-            <div className={styles.wrapper} style={{marginTop: 16}}>
+            <PageHeading
+                eyebrow="Launch control"
+                title="Настройки"
+                subtitle="Конфигурация справочников, статусов и служебных сущностей в одном запусковом контуре."
+                extra={<Tag color="blue">Разделов: {allChildrenCount}</Tag>}
+            />
+            <div className={styles.wrapper}>
                 <Card className={styles.menuCard}>
                     <div className={styles.menuHeader}>
                         <Space className={styles.summary}>
-                            <Tag color="blue">Разделов: {allChildrenCount}</Tag>
+                            <Typography.Text strong>Быстрый переход</Typography.Text>
                         </Space>
                         <Input
                             className={styles.menuSearch}

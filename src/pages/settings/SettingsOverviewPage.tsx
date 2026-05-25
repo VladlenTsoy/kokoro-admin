@@ -129,6 +129,7 @@ const SettingsOverviewPage = () => {
     return (
         <Space direction="vertical" size={18} style={{width: "100%"}}>
             <PageHeading
+                eyebrow="Launch checklist"
                 title="Запуск магазина"
                 subtitle="Практический checklist настроек, без enterprise-конфигуратора и без дубля Datra."
                 extra={<Tag color={progress === 100 ? "green" : "blue"}>{completed}/{checklist.length} готово</Tag>}
@@ -191,7 +192,7 @@ const SettingsOverviewPage = () => {
 
             <Row gutter={[16, 16]}>
                 <Col xs={24} lg={8}>
-                    <Card title="Готовность настроек" loading={isInitialLoadingSetup && !hasSetupError}>
+                    <Card className="admin-section-card settings-readiness-card" title="Готовность настроек" loading={isInitialLoadingSetup && !hasSetupError}>
                         <Progress type="dashboard" percent={progress} status={progressStatus} />
                         <Typography.Paragraph type="secondary" style={{marginTop: 16}}>
                             Цель — убрать блокеры запуска магазина: точка, склад, доставка, статусы, уведомления и Payme callback.
@@ -204,7 +205,7 @@ const SettingsOverviewPage = () => {
                     </Card>
                 </Col>
                 <Col xs={24} lg={16}>
-                    <Card title="Что проверить перед продажами">
+                    <Card className="admin-section-card" title="Что проверить перед продажами">
                         <List
                             loading={isInitialLoadingSetup && !hasSetupError}
                             dataSource={checklist}
